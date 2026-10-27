@@ -73,6 +73,12 @@ Catatan operasional: perintah `php8.3 artisan` di folder live sebaiknya dijalank
 4. Beranda gabungan, pencarian global, User 360°, aksi user global, audit log, notifikasi Telegram/email.
 5. Deploy: systemd `imperium`, user sendiri, vhost Tailscale-only, backup DB Imperium.
 
+### Status Tahap 2 (2026-10-27)
+
+Kode selesai, belum dipasang. Imperium (repo `navi-crwn/Imperium`, Go): login HOP ID (peran owner/admin/moderator/support, 2FA wajib, sesi 8 jam), beranda gabungan (health semua aplikasi + KPI + seri 14 hari dari HOP ID), pencarian global, daftar pengguna, User 360 dengan aksi (suspend/activate/revoke/roles/note/delete) yang diteruskan ke HOP ID dan dicatat di audit lokal, registry aplikasi, CSRF + CSP ketat. Dua pintu = dua entri registry (`imperium`, `citadel`). Sisi LinkHop: PR #35 (`hop-admin-api`, 255 tes).
+
+**Pemasangan (urutan):** 1) merge + deploy PR LinkHop#35; 2) `bash ~/imperium/scripts/tahap2-helink.sh` (secret + hop:bootstrap); 3) `cd ~/imperium && make build && sudo bash scripts/tahap2-sudo.sh` (service menggantikan placeholder); 4) buka https://imperium.hel.ink → Login with HOP (owner + 2FA).
+
 ## Tahap 3: Admin API di tiap aplikasi + migrasi modul
 
 **hel.ink** (`app/Http/Controllers/Hop/*`): implementasi kontrak di atas, membungkus logika yang sudah ada (AdminUserController, AdminLinkController, AdminBioController, AdminAbuseController, IP, blacklist, SEO, queue, geoip, proxy). Perbaikan sekalian: hapus file QR/bio saat delete, suspend admin memilih "sembunyikan konten", ban CIDR, audit log aksi admin, restart queue lewat hop-agent bukan `sudo` PHP. Lalu modul Imperium: Links, Bio, Analytics, Abuse (+ editor aturan), Domain, IP, Guest links, SEO, Email, Queue, API tokens, GeoIP, Retensi. **Pensiun:** semua route `/admin/*` hel.ink dan view `admin-*.blade.php`, `admin-control-panel` (dashboard admin kembali jadi dashboard user biasa).
