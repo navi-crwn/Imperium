@@ -19,10 +19,11 @@ Dokumen 3 dari 3. Urutan pengerjaan, repo, dan apa yang dipensiunkan di tiap tah
    - `GET  /hop/search?q=` → pencarian global
    Modul khusus (storage PixelHop, slug holds NoteHop) ditambahkan sebagai "ekstensi" yang Imperium kenali per aplikasi.
 4. **Semua panel admin lama dihapus, dilakukan per modul** supaya tidak ada hari tanpa tempat menangani abuse: begitu modul X di Imperium dinyatakan selesai, route admin X di aplikasi dihapus dan `/admin/...` lama redirect ke Imperium. Satu rilis transisi, lalu kode lama dihapus.
-5. **Repo:**
-   - `navi-crwn/imperium` (privat): Imperium (Go, satu binary, SQLite untuk audit/settings/metrics) + `hop-agent` + protokol HOP (dokumen + paket Go `hopproto` + stub PHP).
-   - `navi-crwn/hel.ink` → direname **`navi-crwn/linkhop`** (GitHub redirect otomatis).
-   - `navi-crwn/pixelhop`, `navi-crwn/NoteHop`: tambah paket `internal/hop` yang mengimplementasi kontrak.
+5. **Repo (sudah dibuat/direname pemilik 2026-10-27):**
+   - `navi-crwn/Imperium` (privat): Imperium (Go, satu binary, SQLite untuk audit/settings/metrics) + `hop-agent` + protokol HOP (dokumen + paket Go `hopproto` + stub PHP). Folder lokal `~/imperium`.
+   - `navi-crwn/LinkHop` (publik, dulu `hel.ink`; redirect otomatis). Folder lokal `~/linkhop`, live di `/var/www/helink/shortlink-app`.
+   - `navi-crwn/PixelHop` (publik, dulu `pixelhop`), `navi-crwn/NoteHop` (privat): tambah paket `internal/hop` yang mengimplementasi kontrak.
+   - `navi-crwn/remotehop` (privat, masih kosong) dan `navi-crwn/BioHop` (privat, untuk nanti).
    - `helink-ops` tetap untuk catatan deploy.
 
 ## Tahap 0: persiapan (sebelum menulis fitur)
