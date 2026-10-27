@@ -1,0 +1,14 @@
+# Imperium, pintu cadangan: Cloudflare Tunnel + Cloudflare Access.
+# Tidak membuka port publik; cloudflared membuat koneksi keluar ke Cloudflare.
+# Hostname: citadel.hel.ink (ganti kalau mau). Access policy dibuat di dashboard Zero Trust:
+#   Applications -> Add -> Self-hosted -> citadel.hel.ink -> Policy: Allow, Include: Emails = email Anda.
+# Simpan file ini sebagai /etc/cloudflared/config.yml setelah `cloudflared tunnel create imperium`.
+tunnel: imperium
+credentials-file: /etc/cloudflared/imperium.json
+ingress:
+  - hostname: citadel.hel.ink
+    service: http://127.0.0.1:8100
+    originRequest:
+      httpHostHeader: citadel.hel.ink
+      noTLSVerify: false
+  - service: http_status:404
