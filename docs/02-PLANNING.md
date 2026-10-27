@@ -56,6 +56,8 @@ Dikerjakan di clone `~/linkhop`, branch `hop-id` (3 commit), 238 tes hijau, Pint
 
 **Deploy Tahap 1: SELESAI 2026-10-27 19:30** (PR LinkHop#32 merged fb2de1d, 03-deploy.sh, hop:bootstrap: owner + 2 apps, hop:usernames: 3 diimpor dari PixelHop/NoteHop + 71 dibuat, 0 konflik). Verifikasi curl: tombol HOP tampil, SSO start dari p.hel.ink dan note.hel.ink mendarat di /sso/{app} → /login, API legacy PixelHop hidup, /api/hop/* menolak tanpa tanda tangan.
 
+Catatan operasional: perintah `php8.3 artisan` di folder live sebaiknya dijalankan sebagai `www-data` (`sudo -u www-data php8.3 artisan …`) supaya file cache/log tidak jadi milik `carawin`; kalau terlanjur, `chgrp www-data` + `chmod g+rw`. PR #33 (reset password HOP ID) dideploy 2026-10-27 20:36.
+
 **Urutan yang dipakai:**
 1. Merge PR `hop-id` → main, lalu `bash ~/hel-ink-handoff/03-deploy.sh` (migrate jalan otomatis).
 2. `php8.3 artisan hop:bootstrap` → owner role + tabel apps terisi dari .env.
