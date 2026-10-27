@@ -63,6 +63,15 @@ if ask "4) Siapkan imperium.hel.ink lewat Tailscale ($TS_IP): DNS, sertifikat, v
     mkdir -p /root/.secrets && printf 'dns_cloudflare_api_token = %s\n' "$TOKEN" > "$CF" && chmod 600 "$CF"
   fi
   TOKEN=$(sed -n 's/^dns_cloudflare_api_token *= *//p' "$CF")
+  # IPv6 keluar di VPS ini tidak jalan (ada rute default, tapi koneksi tidak pernah sampai).
+  # Python memilih IPv6 lebih dulu dan plugin certbot tidak punya timeout, jadi macet selamanya.
+  # Utamakan IPv4 untuk semua program (glibc getaddrinfo); IPv6 tetap dipakai bila hanya itu yang ada.
+  if ! grep -qE '^precedence ::ffff:0:0/96 +100' /etc/gai.conf 2>/dev/null; then
+    cp -p /etc/gai.conf /etc/gai.conf.bak-tahap0 2>/dev/null || true
+    printf '\n# tahap0: utamakan IPv4, IPv6 keluar rusak di VPS ini\nprecedence ::ffff:0:0/96  100\n' >> /etc/gai.conf
+    echo "   /etc/gai.conf: IPv4 diutamakan"
+  fi
+  pkill -f 'certbot certonly' 2>/dev/null || true
   ZONE=$(curl -fsS -H "Authorization: Bearer $TOKEN" "https://api.cloudflare.com/client/v4/zones?name=hel.ink" | python3 -I -c 'import json,sys;print(json.load(sys.stdin)["result"][0]["id"])')
   EXIST=$(curl -fsS -H "Authorization: Bearer $TOKEN" "https://api.cloudflare.com/client/v4/zones/$ZONE/dns_records?name=imperium.hel.ink&type=A" | python3 -I -c 'import json,sys;r=json.load(sys.stdin)["result"];print(r[0]["id"] if r else "")')
   BODY=$(printf '{"type":"A","name":"imperium","content":"%s","ttl":300,"proxied":false,"comment":"Imperium, Tailscale only"}' "$TS_IP")
