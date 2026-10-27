@@ -1,0 +1,5 @@
+{{template "head" .}}{{template "top" .}}
+<h1>{{.Title}}</h1>
+<p class="flash err">{{.Data.Err}}</p>
+<p><a href="{{.Data.Back}}">← {{t "back"}}</a></p>
+{{template "foot" .}}

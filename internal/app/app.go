@@ -1,0 +1,295 @@
+// Package app is the Imperium web application: sign-in through HOP ID, the
+// combined home page, users, the app registry and the audit trail.
+package app
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"embed"
+	"encoding/hex"
+	"html/template"
+	"io/fs"
+	"log"
+	"net"
+	"net/http"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/navi-crwn/imperium/internal/db"
+	"github.com/navi-crwn/imperium/internal/hopproto"
+)
+
+type App struct {
+	cfg    Config
+	db     *db.DB
+	tpl    *template.Template
+	static fs.FS
+	hop    *hopproto.Client
+	jti    hopproto.Nonces
+	mu     sync.Mutex
+	health map[string]Health // last health per app slug
+	start  time.Time
+}
+
+// New wires the app. templates and static come from the embedded web/ folder.
+func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
+	a := &App{cfg: cfg, db: d, health: map[string]Health{}, start: time.Now()}
+	a.hop = &hopproto.Client{As: cfg.HopClient, HTTP: a.httpClient()}
+	funcs := template.FuncMap{
+		"t":     a.T,
+		"since": humanSince,
+		"date":  func(t time.Time) string { return t.Local().Format("2006-01-02 15:04") },
+		"n":     humanInt,
+		"has":   func(list []string, x string) bool { return contains(list, x) },
+		"json":  jsonPretty,
+		"lower": strings.ToLower,
+		"list":  func(items ...string) []string { return items },
+	}
+	tpl, err := template.New("").Funcs(funcs).ParseFS(web, "web/templates/*.html")
+	if err != nil {
+		return nil, err
+	}
+	a.tpl = tpl
+	a.static, _ = fs.Sub(web, "web/static")
+	return a, nil
+}
+
+func (a *App) httpClient() *http.Client {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	if addr := a.cfg.HopAPIAddr; addr != "" {
+		// Reach HOP ID on this machine without the CDN round trip; the TLS name stays HOP ID's.
+		d := &net.Dialer{Timeout: 5 * time.Second}
+		base := t.DialContext
+		hopHost := strings.TrimPrefix(strings.TrimPrefix(a.cfg.HopURL, "https://"), "http://")
+		t.DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+			if host, _, _ := net.SplitHostPort(address); host == hopHost {
+				return d.DialContext(ctx, network, addr)
+			}
+			return base(ctx, network, address)
+		}
+	}
+	return &http.Client{Timeout: 15 * time.Second, Transport: t}
+}
+
+// Handler builds the router with its middleware.
+func (a *App) Handler() http.Handler {
+	m := http.NewServeMux()
+	m.Handle("GET /static/", http.StripPrefix("/static/", cacheStatic(http.FileServerFS(a.static))))
+	m.HandleFunc("GET /healthz", a.healthz)
+	m.HandleFunc("GET /login", a.loginPage)
+	m.HandleFunc("GET /auth/sso", a.ssoStart)
+	m.HandleFunc("GET /auth/sso/callback", a.ssoCallback)
+	m.HandleFunc("POST /logout", a.logout)
+	m.HandleFunc("GET /{$}", a.member(a.home))
+	m.HandleFunc("GET /search", a.member(a.search))
+	m.HandleFunc("GET /users", a.member(a.users))
+	m.HandleFunc("GET /users/{id}", a.member(a.user))
+	m.HandleFunc("POST /users/{id}/actions", a.member(a.userAction))
+	m.HandleFunc("GET /apps", a.member(a.apps))
+	m.HandleFunc("POST /apps/sync", a.member(a.appsSync))
+	m.HandleFunc("GET /audit", a.member(a.audit))
+	m.HandleFunc("GET /me", a.member(a.me))
+
+	cop := http.NewCrossOriginProtection()
+	var h http.Handler = m
+	h = cop.Handler(h)
+	h = a.withSession(h)
+	h = a.securityHeaders(h)
+	h = a.withIP(h)
+	h = a.recoverer(h)
+	return h
+}
+
+func cacheStatic(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// ---- middleware ----
+
+type ctxKey int
+
+const (
+	ctxSession ctxKey = iota
+	ctxIP
+)
+
+func (a *App) withIP(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
+		if a.cfg.TrustProxy {
+			if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
+				ip = strings.TrimSpace(strings.Split(xf, ",")[0])
+			}
+		}
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxIP, ip)))
+	})
+}
+
+func clientIP(r *http.Request) string { ip, _ := r.Context().Value(ctxIP).(string); return ip }
+
+func (a *App) securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self' https: data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'; form-action 'self' "+a.cfg.HopURL+"; base-uri 'self'")
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "DENY")
+		h.Set("Referrer-Policy", "same-origin")
+		h.Set("X-Robots-Tag", "noindex, nofollow")
+		if a.cfg.Secure {
+			h.Set("Strict-Transport-Security", "max-age=31536000")
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (a *App) recoverer(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if e := recover(); e != nil {
+				log.Printf("panic %s %s: %v", r.Method, r.URL.Path, e)
+				http.Error(w, "internal error", 500)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
+const sessionCookie = "imp_session"
+
+func hashToken(t string) string { s := sha256.Sum256([]byte(t)); return hex.EncodeToString(s[:]) }
+
+func randomToken(n int) string {
+	b := make([]byte, n)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+func (a *App) withSession(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {
+			if s, err := a.db.Session(r.Context(), hashToken(c.Value)); err == nil {
+				if time.Since(s.LastSeen) > time.Minute {
+					a.db.TouchSession(r.Context(), s.TokenHash)
+				}
+				r = r.WithContext(context.WithValue(r.Context(), ctxSession, s))
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func current(r *http.Request) *db.Session {
+	s, _ := r.Context().Value(ctxSession).(*db.Session)
+	return s
+}
+
+// member requires a signed-in admin. Role checks per action live in can().
+func (a *App) member(h http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if current(r) == nil {
+			http.Redirect(w, r, "/login?next="+safeNext(r.URL.RequestURI()), http.StatusFound)
+			return
+		}
+		h(w, r)
+	}
+}
+
+func safeNext(next string) string {
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.HasPrefix(next, "/\\") {
+		return "/"
+	}
+	return next
+}
+
+// Roles on Imperium: owner and admin may do everything, moderator may act on
+// content and read users, support may only read.
+func isAdmin(s *db.Session) bool {
+	return contains(s.Roles, "owner") || contains(s.Roles, "admin")
+}
+
+func allowedIn(roles []string) bool {
+	for _, r := range roles {
+		switch r {
+		case "owner", "admin", "moderator", "support":
+			return true
+		}
+		if strings.HasPrefix(r, "admin:") {
+			return true
+		}
+	}
+	return false
+}
+
+func contains(list []string, x string) bool {
+	for _, v := range list {
+		if v == x {
+			return true
+		}
+	}
+	return false
+}
+
+// ---- rendering ----
+
+type page struct {
+	Title   string
+	Session *db.Session
+	Flash   string
+	Error   string
+	Path    string
+	Query   string
+	Version string
+	Data    any
+}
+
+func (a *App) render(w http.ResponseWriter, r *http.Request, name, title string, data any) {
+	p := page{Title: title, Session: current(r), Path: r.URL.Path, Query: r.URL.Query().Get("q"), Version: a.cfg.Version, Data: data}
+	if c, err := r.Cookie("imp_flash"); err == nil && c.Value != "" {
+		if v, err := hex.DecodeString(c.Value); err == nil {
+			p.Flash = string(v)
+		}
+		http.SetCookie(w, &http.Cookie{Name: "imp_flash", Path: "/", MaxAge: -1, HttpOnly: true, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode})
+	}
+	if c, err := r.Cookie("imp_error"); err == nil && c.Value != "" {
+		if v, err := hex.DecodeString(c.Value); err == nil {
+			p.Error = string(v)
+		}
+		http.SetCookie(w, &http.Cookie{Name: "imp_error", Path: "/", MaxAge: -1, HttpOnly: true, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode})
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := a.tpl.ExecuteTemplate(w, name, p); err != nil {
+		log.Printf("render %s: %v", name, err)
+	}
+}
+
+func (a *App) flash(w http.ResponseWriter, msg string) {
+	http.SetCookie(w, &http.Cookie{Name: "imp_flash", Value: hex.EncodeToString([]byte(msg)), Path: "/", MaxAge: 60, HttpOnly: true, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode})
+}
+
+func (a *App) flashError(w http.ResponseWriter, msg string) {
+	http.SetCookie(w, &http.Cookie{Name: "imp_error", Value: hex.EncodeToString([]byte(msg)), Path: "/", MaxAge: 60, HttpOnly: true, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode})
+}
+
+func (a *App) healthz(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write([]byte(`{"ok":true,"app":"imperium","version":"` + a.cfg.Version + `","uptime_s":` + humanInt(int64(time.Since(a.start).Seconds())) + `}`))
+}
+
+// Sweep runs housekeeping (expired sessions) every few minutes.
+func (a *App) Sweep(ctx context.Context) {
+	t := time.NewTicker(5 * time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			a.db.Sweep(ctx)
+		}
+	}
+}

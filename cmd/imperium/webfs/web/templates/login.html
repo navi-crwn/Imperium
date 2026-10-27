@@ -1,0 +1,12 @@
+{{template "head" .}}
+<main><div class="login">
+  <span class="brand">IMPERIUM</span>
+  <p class="muted">{{t "tagline"}}</p>
+  {{if .Error}}<div class="flash err">{{.Error}}</div>{{end}}
+  <div class="card" style="text-align:left">
+    <h1>{{t "login.title"}}</h1>
+    <p class="muted small">{{t "login.sub"}}</p>
+    {{if .Data.Enabled}}<a class="btn primary big" href="/auth/sso?next={{.Data.Next}}">{{t "login.button"}}</a>{{else}}<p class="flash err">{{t "login.off"}}</p>{{end}}
+  </div>
+</div></main>
+<footer>{{t "footer"}} · v{{.Version}}</footer></body></html>
