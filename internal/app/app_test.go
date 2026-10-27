@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -400,5 +401,40 @@ func TestContentModulesFollowTheManifest(t *testing.T) {
 		if !contains(kinds, want) {
 			t.Errorf("audit missing %s in %v", want, kinds)
 		}
+	}
+}
+
+func TestHealthFlipsSendTelegram(t *testing.T) {
+	hop := newFakeHop(t)
+	defer hop.srv.Close()
+	var mu sync.Mutex
+	var sent []string
+	tg := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		mu.Lock()
+		sent = append(sent, r.FormValue("text"))
+		mu.Unlock()
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	got := func() []string { mu.Lock(); defer mu.Unlock(); return append([]string(nil), sent...) }
+	defer tg.Close()
+	a, srv := newApp(t, hop)
+	defer srv.Close()
+	a.cfg.TelegramToken, a.cfg.TelegramChat, a.cfg.TelegramAPI = "tok", "42", tg.URL
+	// first probe: nothing known yet, no alert
+	a.probeAndAlert(t.Context())
+	// HOP ID goes away: alert
+	hop.srv.Close()
+	a.probeAndAlert(t.Context())
+	deadline := time.Now().Add(3 * time.Second)
+	for len(got()) == 0 && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if s := got(); len(s) != 1 || !strings.Contains(s[0], "🔴 LinkHop (HOP ID)") {
+		t.Fatalf("telegram alerts: %q", s)
+	}
+	audits, _ := a.db.Audits(t.Context(), 0, 5)
+	if len(audits) == 0 || audits[0].Action != "health.down" {
+		t.Fatalf("audit: %+v", audits)
 	}
 }
