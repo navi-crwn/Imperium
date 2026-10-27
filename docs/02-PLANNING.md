@@ -54,7 +54,9 @@ Yang dipensiunkan di tahap ini: `SUPERADMIN_EMAIL`, konstanta `APPS`, `PIXELHOP_
 
 Dikerjakan di clone `~/linkhop`, branch `hop-id` (3 commit), 238 tes hijau, Pint bersih. Selesai: 1–5, 7–10 (profil + username + avatar, roles + 2FA admin, registry, tiket v2, API profil + webhook, AppAccountController generik, login history Google/SSO, rebranding UI + README, HopIdTest). Belum: halaman "Aplikasi saya" (menu sidebar sudah dinamis, dianggap cukup), rename repo GitHub (manual oleh pemilik), aset gambar README masih bertuliskan HEL.ink.
 
-**Deploy Tahap 1 (urutan):**
+**Deploy Tahap 1: SELESAI 2026-10-27 19:30** (PR LinkHop#32 merged fb2de1d, 03-deploy.sh, hop:bootstrap: owner + 2 apps, hop:usernames: 3 diimpor dari PixelHop/NoteHop + 71 dibuat, 0 konflik). Verifikasi curl: tombol HOP tampil, SSO start dari p.hel.ink dan note.hel.ink mendarat di /sso/{app} → /login, API legacy PixelHop hidup, /api/hop/* menolak tanpa tanda tangan.
+
+**Urutan yang dipakai:**
 1. Merge PR `hop-id` → main, lalu `bash ~/hel-ink-handoff/03-deploy.sh` (migrate jalan otomatis).
 2. `php8.3 artisan hop:bootstrap` → owner role + tabel apps terisi dari .env.
 3. Ekspor username dari PixelHop dan NoteHop ke JSON `[{hop_id, username, created_at}]` (perintah ekspor dibuat di Tahap 3; sementara bisa SQL manual), lalu `php8.3 artisan hop:usernames --import=pixelhop.json --import=notehop.json --dry-run`, periksa konflik, jalankan tanpa `--dry-run`.
