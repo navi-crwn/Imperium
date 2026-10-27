@@ -1,7 +1,7 @@
 {{template "head" .}}{{template "top" .}}
 <h2>{{t "home.apps"}}</h2>
 <div class="grid g3">
-{{range .Data.Health}}<a class="card" href="{{if eq .Slug "linkhop"}}/users{{else}}/apps{{end}}" style="color:inherit">
+{{range .Data.Health}}<a class="card" href="{{if eq .Slug "linkhop"}}/apps/linkhop/content{{else}}/apps{{end}}" style="color:inherit">
   <div><span class="dot {{if eq .Status "maint"}}maint{{else if .OK}}ok{{else}}bad{{end}}"></span><b>{{.Name}}</b></div>
   <div class="small muted">{{.URL}}</div>
   <div class="small">{{if eq .Status "maint"}}{{t "status.maint"}}{{else if .OK}}{{t "status.ok"}} · {{.Latency.Milliseconds}} ms{{if .Version}} · {{.Version}}{{end}}{{else}}{{t "status.down"}}{{if .Detail}} · {{.Detail}}{{end}}{{end}}</div>

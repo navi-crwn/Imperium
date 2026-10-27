@@ -1,0 +1,9 @@
+{{define "appnav"}}
+<p class="small" style="margin:-6px 0 14px">
+  <a href="/apps">{{t "nav.apps"}}</a> › <b>{{.App.Name}}</b> ·
+  {{range .M.ContentTypes}}<a class="chip" href="/apps/{{$.App.Slug}}/content?type={{.Type}}">{{.Label}}</a>{{end}}
+  {{if .M.Has "reports"}}<a class="chip" href="/apps/{{.App.Slug}}/reports">{{t "mod.reports"}}</a>{{end}}
+  {{if or (.M.Has "settings") .M.Settings}}<a class="chip" href="/apps/{{.App.Slug}}/settings">{{t "mod.settings"}}</a>{{end}}
+  {{range .M.Extensions}}<a class="chip" href="/apps/{{$.App.Slug}}/x/{{.}}">{{.}}</a>{{end}}
+</p>
+{{end}}
