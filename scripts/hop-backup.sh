@@ -74,15 +74,15 @@ else
 fi
 
 # ---------- NoteHop: butuh sudo (user notehop memiliki /var/lib/notehop) ----------
-if sudo -n true 2>/dev/null; then
+# sudoers /etc/sudoers.d/hop-backup hanya mengizinkan perintah persis ini (tanpa password)
+if sudo -n -u notehop /usr/local/bin/notehop backup -db "$NOTEHOP_DB" /tmp/hop-notehop-$STAMP.db 2>/dev/null; then
   say "NoteHop: salinan SQLite lewat notehop backup"
-  sudo -n -u notehop /usr/local/bin/notehop backup -db "$NOTEHOP_DB" /tmp/hop-notehop-$STAMP.db \
-    && sudo -n mv /tmp/hop-notehop-$STAMP.db "$DEST/notehop/notehop.db" && sudo -n chown "$USER" "$DEST/notehop/notehop.db" \
-    || warn "NoteHop backup gagal"
-  sudo -n cat "$NOTEHOP_ENV" > "$DEST/secrets/notehop.env" 2>/dev/null || warn "NoteHop env tidak terbaca"
+  sudo -n /usr/bin/mv /tmp/hop-notehop-$STAMP.db "$DEST/notehop/notehop.db" \
+    && sudo -n /usr/bin/chown carawin "$DEST/notehop/notehop.db" || warn "NoteHop: memindahkan salinan gagal"
+  sudo -n /usr/bin/cat "$NOTEHOP_ENV" > "$DEST/secrets/notehop.env" 2>/dev/null || warn "NoteHop env tidak terbaca"
   /usr/local/bin/notehop -version > "$DEST/notehop/version.txt" 2>&1 || true
 else
-  warn "NoteHop dilewati: butuh sudo tanpa password untuk user notehop (lihat scripts/tahap0-sudo.sh, bagian sudoers)"
+  warn "NoteHop dilewati: sudoers belum terpasang (jalankan scripts/tahap0-sudo.sh langkah 1)"
 fi
 
 # ---------- Sistem ----------
@@ -141,7 +141,7 @@ if [ "$WITH_REMOTE" = 1 ] && [ -f "$REMOTE_ENV" ]; then
   "$R" backup --quiet --tag hop "$DEST"
   "$R" forget --quiet --tag hop --keep-daily 14 --keep-weekly 8 --keep-monthly 12 --prune
   say "Off-site: $("$R" snapshots --tag hop --latest 1 --compact 2>/dev/null | sed -n 3p)"
-else
+elif [ "$WITH_REMOTE" = 1 ]; then
   warn "Off-site dilewati: buat $REMOTE_ENV (RESTIC_REPOSITORY, RESTIC_PASSWORD_FILE, AWS_*) seperti milik PixelHop tapi dengan path repo berbeda"
 fi
 
