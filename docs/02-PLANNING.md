@@ -49,6 +49,17 @@ Dokumen 3 dari 3. Urutan pengerjaan, repo, dan apa yang dipensiunkan di tiap tah
 
 Yang dipensiunkan di tahap ini: `SUPERADMIN_EMAIL`, konstanta `APPS`, `PIXELHOP_*`/`NOTEHOP_*` di `.env` (pindah ke tabel `apps`).
 
+### Status Tahap 1 (2026-10-27)
+
+Dikerjakan di clone `~/linkhop`, branch `hop-id` (3 commit), 238 tes hijau, Pint bersih. Selesai: 1–5, 7–10 (profil + username + avatar, roles + 2FA admin, registry, tiket v2, API profil + webhook, AppAccountController generik, login history Google/SSO, rebranding UI + README, HopIdTest). Belum: halaman "Aplikasi saya" (menu sidebar sudah dinamis, dianggap cukup), rename repo GitHub (manual oleh pemilik), aset gambar README masih bertuliskan HEL.ink.
+
+**Deploy Tahap 1 (urutan):**
+1. Merge PR `hop-id` → main, lalu `bash ~/hel-ink-handoff/03-deploy.sh` (migrate jalan otomatis).
+2. `php8.3 artisan hop:bootstrap` → owner role + tabel apps terisi dari .env.
+3. Ekspor username dari PixelHop dan NoteHop ke JSON `[{hop_id, username, created_at}]` (perintah ekspor dibuat di Tahap 3; sementara bisa SQL manual), lalu `php8.3 artisan hop:usernames --import=pixelhop.json --import=notehop.json --dry-run`, periksa konflik, jalankan tanpa `--dry-run`.
+4. Cek: login web, "Continue with HEL.ink" dari PixelHop dan NoteHop (tiket v2 kompatibel v1), login form PixelHop (`/api/pixelhop/*` tetap jalan), halaman admin minta 2FA.
+5. Setelah stabil: hapus `PIXELHOP_*`/`NOTEHOP_*` dari `.env` (hanya dibaca hop:bootstrap).
+
 ## Tahap 2: Imperium inti (repo imperium)
 
 1. Skeleton Go: router, templates (tanpa build step, seperti NoteHop), SQLite (audit, settings, metrics, notes admin, antrean laporan), i18n id/en, CSP ketat.

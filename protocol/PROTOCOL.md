@@ -2,7 +2,7 @@
 
 Kontrak antara **Imperium** (pusat kendali) dan setiap aplikasi keluarga HOP (LinkHop, PixelHop, NoteHop, RemoteHop, …). Aplikasi yang memenuhi kontrak ini otomatis muncul di Imperium tanpa kode khusus di sisi Imperium. Akun tetap dimiliki **HOP ID** (hel.ink); Imperium tidak pernah membuka database aplikasi lain.
 
-Status: draft. Berubah sampai Tahap 3 selesai; setelah itu versi dibekukan dan perubahan hanya lewat `X-HOP-Version` baru.
+Status: draft, sisi HOP ID (hel.ink) sudah diimplementasikan di branch `hop-id` (Tahap 1). Berubah sampai Tahap 3 selesai; setelah itu versi dibekukan dan perubahan hanya lewat `X-HOP-Version` baru.
 
 ## 1. Pihak dan arah panggilan
 
@@ -26,7 +26,9 @@ X-HOP-Actor:     <hop user id admin yang memicu, atau "system">
 X-HOP-Signature: base64url( HMAC-SHA256( secret, "hop1|" + app + "|" + ts + "|" + nonce + "|" + METHOD + "|" + PATH + "|" + sha256hex(body) ) )
 ```
 
-- `secret` = secret milik **aplikasi tujuan** di registry HOP ID (32+ karakter). Setiap aplikasi punya satu secret; Imperium menyimpan salinan semua secret (terenkripsi).
+- `PATH` = target permintaan **termasuk query string** (`/api/hop/profiles?ids=1,2`), tanpa host. Body kosong → sha256 dari string kosong.
+- `secret` = secret milik **aplikasi yang terdaftar** di registry HOP ID (32+ karakter), yaitu pihak yang bukan HOP ID: aplikasi → HOP ID ditandatangani dengan secret aplikasi itu sendiri (`X-HOP-App` = slug-nya); HOP ID → aplikasi (webhook) dan Imperium → aplikasi dengan secret aplikasi tujuan (`X-HOP-App` = `helink` / `imperium`). Imperium menyimpan salinan semua secret (terenkripsi).
+- Implementasi acuan: `app/Support/HopSignature.php` di repo linkhop (sign + verify + nonce sekali pakai).
 - Umur maksimum 120 detik; nonce disimpan sampai kedaluwarsa (anti-replay).
 - Rotasi: registry menyimpan `secret` dan `secret_prev` + `prev_until`; penerima mencoba keduanya selama masa transisi.
 - Jawaban error tanda tangan: `401 {"error":"bad_signature"|"stale_request"|"replay"}`; secret belum dikonfigurasi: `404 {"error":"not_configured"}`.
