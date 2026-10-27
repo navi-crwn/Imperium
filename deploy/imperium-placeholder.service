@@ -1,0 +1,17 @@
+# Placeholder sampai binary Imperium ada: menjawab "Imperium: segera" di 127.0.0.1:8100,
+# supaya DNS, sertifikat, Tailscale, dan Tunnel bisa diuji di Tahap 0.
+[Unit]
+Description=Imperium placeholder (Tahap 0)
+After=network.target
+
+[Service]
+User=www-data
+ExecStart=/usr/bin/python3 -I -m http.server 8100 --bind 127.0.0.1 --directory /var/lib/imperium-placeholder
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
