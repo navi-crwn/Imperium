@@ -38,6 +38,22 @@ func humanInt(n int64) string {
 	return s + "." + strings.Join(out, ".")
 }
 
+// humanAny formats any integer-ish value with thousands separators.
+func humanAny(v any) string {
+	switch x := v.(type) {
+	case int:
+		return humanInt(int64(x))
+	case int64:
+		return humanInt(x)
+	case float64:
+		return humanInt(int64(x))
+	case string:
+		return x
+	default:
+		return fmt.Sprint(v)
+	}
+}
+
 func jsonPretty(v any) string {
 	b, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {

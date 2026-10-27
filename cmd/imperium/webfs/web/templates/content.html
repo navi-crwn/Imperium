@@ -1,0 +1,24 @@
+{{template "head" .}}{{template "top" .}}
+{{template "appnav" .Data}}
+<h1>{{if .Data.CT}}{{.Data.CT.Label}}{{else}}{{.Data.Type}}{{end}} <span class="muted small">{{if .Data.Total}}{{n .Data.Total}}{{end}}</span></h1>
+<form method="get" action="/apps/{{.Data.App.Slug}}/content" class="grid" style="grid-template-columns:2fr 1fr 1fr auto;align-items:end;gap:8px">
+  <input type="hidden" name="type" value="{{.Data.Type}}">
+  <div><label>q</label><input type="search" name="q" value="{{.Data.Q}}"></div>
+  <div><label>status</label><input type="text" name="status" value="{{.Data.Status}}" placeholder="live, disabled, hidden…"></div>
+  <div><label>owner (HOP id / guest)</label><input type="text" name="owner" value="{{.Data.Owner}}"></div>
+  <button class="btn" type="submit">{{t "content.filter"}}</button>
+</form>
+{{if .Data.Err}}<p class="flash err" style="margin-top:14px">{{.Data.Err}}</p>{{end}}
+<table style="margin-top:14px"><tr><th></th><th>Title</th><th>Owner</th><th>Status</th><th>Flags</th><th>#</th><th>Created</th></tr>
+{{range .Data.Rows}}<tr>
+  <td>{{if .Preview}}<img src="{{.Preview}}" alt="" style="width:40px;height:40px;object-fit:cover;border-radius:6px">{{end}}</td>
+  <td><a href="/apps/{{$.Data.App.Slug}}/content/{{.Type}}/{{.ID}}">{{if .Title}}{{.Title}}{{else}}{{.ID}}{{end}}</a><div class="muted small mono">{{.ID}}{{if .URL}} · <a href="{{.URL}}" target="_blank" rel="noopener">↗</a>{{end}}</div></td>
+  <td>{{if .OwnerSub}}<a href="/users/{{.OwnerSub}}">{{.OwnerName}}</a>{{else}}<span class="muted">guest</span>{{end}}</td>
+  <td><span class="chip {{.Status}}">{{.Status}}</span></td>
+  <td>{{range .Flags}}<span class="chip">{{.}}</span>{{end}}</td>
+  <td class="small">{{if .Clicks}}{{n .Clicks}} clicks{{else if .Views}}{{n .Views}} views{{else if .Size}}{{n .Size}} B{{end}}</td>
+  <td class="small muted">{{.Created}}</td>
+</tr>{{else}}<tr><td colspan="7" class="muted">{{t "content.none"}}</td></tr>{{end}}
+</table>
+{{if .Data.Next}}<p style="margin-top:12px"><a class="btn" href="/apps/{{.Data.App.Slug}}/content?type={{.Data.Type}}&q={{.Data.Q}}&status={{.Data.Status}}&owner={{.Data.Owner}}&cursor={{.Data.Next}}">{{t "more"}}</a></p>{{end}}
+{{template "foot" .}}

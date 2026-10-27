@@ -267,3 +267,138 @@ func TestSupportIsReadOnly(t *testing.T) {
 }
 
 func TestMain(m *testing.M) { os.Exit(m.Run()) }
+
+// The generic modules follow the app's manifest: content lists, actions, reports, settings, extensions.
+func TestContentModulesFollowTheManifest(t *testing.T) {
+	hop := newFakeHop(t)
+	defer hop.srv.Close()
+	a, srv := newApp(t, hop)
+	defer srv.Close()
+	var contentActions, reportActions, settingsPuts, extActions []map[string]any
+	mux := hop.srv.Config.Handler.(*http.ServeMux)
+	api := func(h func(w http.ResponseWriter, r *http.Request, body []byte)) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			if err := hop.nonces.Verify(r, body, "imperium", []string{secret}, time.Minute); err != nil {
+				w.WriteHeader(401)
+				_, _ = w.Write([]byte(`{"ok":false,"error":"` + err.Error() + `"}`))
+				return
+			}
+			h(w, r, body)
+		}
+	}
+	mux.HandleFunc("GET /api/hop/manifest", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"app":"linkhop","name":"LinkHop","capabilities":["admin_api","reports","settings"],"content_types":[{"type":"link","label":"Links","actions":["disable","enable","delete"]},{"type":"bio","label":"Bio pages","actions":["unpublish"]}],"extensions":["ip"],"settings_schema":[{"key":"seo.site_title","type":"string"}]}}`))
+	}))
+	mux.HandleFunc("GET /api/hop/content", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		if r.URL.Query().Get("type") != "link" || r.URL.Query().Get("status") != "live" {
+			_, _ = w.Write([]byte(`{"ok":true,"data":[],"page":{"next":null,"total":0}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"id":"9","type":"link","title":"spam","slug":"spam","owner":{"sub":"26","username":"rani"},"status":"live","clicks":5,"created_at":"2026-10-01T00:00:00Z","url":"https://hel.ink/spam","flags":["password"]}],"page":{"next":"9","total":1}}`))
+	}))
+	mux.HandleFunc("GET /api/hop/content/link/9", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"id":"9","type":"link","title":"spam","slug":"spam","target_url":"https://bad.example","owner":{"sub":"26","username":"rani"},"status":"live","findings":[]}}`))
+	}))
+	mux.HandleFunc("POST /api/hop/content/link/9/actions", api(func(w http.ResponseWriter, r *http.Request, body []byte) {
+		var m map[string]any
+		_ = json.Unmarshal(body, &m)
+		contentActions = append(contentActions, m)
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"id":"9","status":"disabled"}}`))
+	}))
+	mux.HandleFunc("GET /api/hop/reports", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"kind":"flag","id":"3","subject":{"type":"link","id":"9"},"score":80,"summary":"phishing words","status":"open","created_at":"2026-10-02T00:00:00Z"}]}`))
+	}))
+	mux.HandleFunc("POST /api/hop/reports/flag/3/actions", api(func(w http.ResponseWriter, r *http.Request, body []byte) {
+		var m map[string]any
+		_ = json.Unmarshal(body, &m)
+		reportActions = append(reportActions, m)
+		_, _ = w.Write([]byte(`{"ok":true,"data":{}}`))
+	}))
+	mux.HandleFunc("GET /api/hop/settings", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"key":"seo.site_title","type":"string","value":"LinkHop","readonly":false},{"key":"turnstile","type":"bool","value":true,"readonly":true}]}`))
+	}))
+	mux.HandleFunc("PUT /api/hop/settings", api(func(w http.ResponseWriter, r *http.Request, body []byte) {
+		var m map[string]any
+		_ = json.Unmarshal(body, &m)
+		settingsPuts = append(settingsPuts, m)
+		_, _ = w.Write([]byte(`{"ok":true,"data":[]}`))
+	}))
+	mux.HandleFunc("GET /api/hop/x/ip", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"bans":[{"ip":"203.0.113.9","reason":"spam","expires_at":null}],"watchlist":[]}}`))
+	}))
+	mux.HandleFunc("POST /api/hop/x/ip/actions", api(func(w http.ResponseWriter, r *http.Request, body []byte) {
+		var m map[string]any
+		_ = json.Unmarshal(body, &m)
+		extActions = append(extActions, m)
+		_, _ = w.Write([]byte(`{"ok":true,"data":{}}`))
+	}))
+
+	hop.ticket = map[string]any{"sub": "1", "username": "boss", "name": "Boss", "email": "b@x", "roles": []string{"owner"}, "mfa": true, "status": "active"}
+	c := client(t)
+	body(login(t, c, srv))
+	// list follows the manifest: first content type by default, filters passed through
+	res, _ := c.Get(srv.URL + "/apps/linkhop/content?status=live")
+	b := body(res)
+	for _, want := range []string{"Links", "Bio pages", ">spam<", "@rani", "password", "/apps/linkhop/content/link/9", "/apps/linkhop/x/ip"} {
+		if !strings.Contains(b, want) {
+			t.Errorf("content list missing %q", want)
+		}
+	}
+	// detail shows the actions the manifest allows, and an action is forwarded + audited
+	res, _ = c.Get(srv.URL + "/apps/linkhop/content/link/9")
+	if b := body(res); !strings.Contains(b, `value="disable"`) || strings.Contains(b, `value="unpublish"`) || !strings.Contains(b, "bad.example") {
+		t.Fatal("detail should offer only the link actions")
+	}
+	res, _ = c.PostForm(srv.URL+"/apps/linkhop/content/link/9/actions", url.Values{"action": {"disable"}, "reason": {"phishing"}})
+	body(res)
+	if len(contentActions) != 1 || contentActions[0]["action"] != "disable" || contentActions[0]["reason"] != "phishing" {
+		t.Fatalf("content action: %+v", contentActions)
+	}
+	// an action the manifest does not list is refused locally
+	res, _ = c.PostForm(srv.URL+"/apps/linkhop/content/link/9/actions", url.Values{"action": {"nuke"}})
+	body(res)
+	if len(contentActions) != 1 {
+		t.Fatal("unlisted action must not reach the app")
+	}
+	// reports queue + action with kind in the path
+	res, _ = c.Get(srv.URL + "/apps/linkhop/reports")
+	if b := body(res); !strings.Contains(b, "phishing words") || !strings.Contains(b, `value="restore"`) {
+		t.Fatal("reports page")
+	}
+	res, _ = c.PostForm(srv.URL+"/apps/linkhop/reports/3/actions", url.Values{"kind": {"flag"}, "action": {"restore"}})
+	body(res)
+	if len(reportActions) != 1 || reportActions[0]["action"] != "restore" {
+		t.Fatalf("report action: %+v", reportActions)
+	}
+	// settings: editable field saved, read-only shown, bool typed
+	res, _ = c.Get(srv.URL + "/apps/linkhop/settings")
+	if b := body(res); !strings.Contains(b, `name="s_seo.site_title"`) || !strings.Contains(b, "read-only") {
+		t.Fatal("settings page")
+	}
+	res, _ = c.PostForm(srv.URL+"/apps/linkhop/settings", url.Values{"t_seo.site_title": {"string"}, "s_seo.site_title": {"New title"}})
+	body(res)
+	if len(settingsPuts) != 1 || settingsPuts[0]["seo.site_title"] != "New title" {
+		t.Fatalf("settings put: %+v", settingsPuts)
+	}
+	// extension renders tables and forwards actions
+	res, _ = c.Get(srv.URL + "/apps/linkhop/x/ip")
+	if b := body(res); !strings.Contains(b, "203.0.113.9") || !strings.Contains(b, "<th>reason</th>") {
+		t.Fatal("extension table")
+	}
+	res, _ = c.PostForm(srv.URL+"/apps/linkhop/x/ip/actions", url.Values{"action": {"unban"}, "p_ip": {"203.0.113.9"}})
+	body(res)
+	if len(extActions) != 1 || extActions[0]["params"].(map[string]any)["ip"] != "203.0.113.9" {
+		t.Fatalf("ext action: %+v", extActions)
+	}
+	audits, _ := a.db.Audits(t.Context(), 0, 20)
+	var kinds []string
+	for _, x := range audits {
+		kinds = append(kinds, x.Action)
+	}
+	for _, want := range []string{"link.disable", "report.restore", "settings.update", "ip.unban"} {
+		if !contains(kinds, want) {
+			t.Errorf("audit missing %s in %v", want, kinds)
+		}
+	}
+}
