@@ -90,7 +90,9 @@ if ask "4) Siapkan imperium.hel.ink lewat Tailscale ($TS_IP): DNS, sertifikat, v
 fi
 
 # ---------- 5. pintu cadangan: Cloudflare Tunnel + Access ----------
-if ask "5) Pasang cloudflared dan tunnel 'imperium' untuk citadel.hel.ink?"; then
+if systemctl is-active --quiet cloudflared && [ ! -f /etc/cloudflared/config.yml ]; then
+  echo "5) cloudflared sudah berjalan sebagai tunnel buatan dashboard (remotely managed). Lewati."
+elif ask "5) Pasang cloudflared dan tunnel 'imperium' (dikelola lokal) untuk citadel.hel.ink?"; then
   if ! command -v cloudflared >/dev/null; then
     mkdir -p --mode=0755 /usr/share/keyrings
     curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg -o /usr/share/keyrings/cloudflare-main.gpg
