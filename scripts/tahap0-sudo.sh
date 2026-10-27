@@ -104,4 +104,11 @@ if ask "5) Pasang cloudflared dan tunnel 'imperium' untuk citadel.hel.ink?"; the
 EOF
 fi
 
+# ---------- 6. cron harian hop-backup (sebagai carawin) ----------
+if ask "6) Jadwalkan hop-backup.sh tiap hari 03:45 di crontab carawin?"; then
+  mkdir -p /home/carawin/backups/hop && chown carawin:carawin /home/carawin/backups/hop
+  (sudo -u carawin crontab -l 2>/dev/null | grep -v hop-backup; echo "45 3 * * * /home/carawin/imperium/scripts/hop-backup.sh >> /home/carawin/backups/hop/cron.log 2>&1") | sudo -u carawin crontab -
+  sudo -u carawin crontab -l | grep hop-backup && echo "   cron OK"
+fi
+
 say "Selesai. Uji backup lengkap: sudo -u carawin /home/carawin/imperium/scripts/hop-backup.sh"
