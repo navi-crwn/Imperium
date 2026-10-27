@@ -299,6 +299,10 @@ func (a *App) Sweep(ctx context.Context) {
 			return
 		case <-t.C:
 			a.db.Sweep(ctx)
+			// Keep the registry fresh so a newly registered app shows up without a sign-in.
+			if a.cfg.SSOEnabled() {
+				_ = a.syncApps(nil)
+			}
 		}
 	}
 }
