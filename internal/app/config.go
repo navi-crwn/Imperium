@@ -19,16 +19,21 @@ type Config struct {
 	HopAPIAddr string // optional host:port to reach HOP ID on this machine (127.0.0.1:443)
 	// A second door (Cloudflare Access at citadel.hel.ink) is a second app in
 	// HOP ID's registry, because a sign-in ticket may only return to one URL.
-	AltHost     string // host of the second door, e.g. citadel.hel.ink
-	AltClient   string // its slug in the registry, e.g. citadel
-	AltSecret   string
-	SessionTTL  time.Duration
-	RequireMFA  bool
-	TrustProxy  bool
-	Secure      bool
-	Lang        string // id or en
-	AllowedCIDR []string
-	Version     string
+	AltHost   string // host of the second door, e.g. citadel.hel.ink
+	AltClient string // its slug in the registry, e.g. citadel
+	AltSecret string
+	// Telegram alerts (optional).
+	TelegramToken string
+	TelegramChat  string
+	TelegramAPI   string
+	WatchEvery    time.Duration
+	SessionTTL    time.Duration
+	RequireMFA    bool
+	TrustProxy    bool
+	Secure        bool
+	Lang          string // id or en
+	AllowedCIDR   []string
+	Version       string
 }
 
 func env(k, def string) string {
@@ -47,26 +52,34 @@ func envBool(k string, def bool) bool {
 }
 
 func LoadConfig(version string) Config {
+	watchMin, _ := strconv.Atoi(env("IMPERIUM_WATCH_MINUTES", "2"))
+	if watchMin <= 0 {
+		watchMin = 2
+	}
 	hours, _ := strconv.Atoi(env("IMPERIUM_SESSION_HOURS", "8"))
 	if hours <= 0 {
 		hours = 8
 	}
 	c := Config{
-		Addr:       env("IMPERIUM_ADDR", "127.0.0.1:8100"),
-		DBPath:     env("IMPERIUM_DB", "imperium.db"),
-		BaseURL:    strings.TrimRight(env("IMPERIUM_BASE_URL", "http://127.0.0.1:8100"), "/"),
-		HopURL:     strings.TrimRight(env("HOP_URL", ""), "/"),
-		HopSecret:  env("HOP_SSO_SECRET", ""),
-		HopClient:  env("HOP_SSO_CLIENT", "imperium"),
-		HopAPIAddr: env("HOP_API_ADDR", ""),
-		AltHost:    env("IMPERIUM_ALT_HOST", ""),
-		AltClient:  env("IMPERIUM_ALT_CLIENT", "citadel"),
-		AltSecret:  env("IMPERIUM_ALT_SECRET", ""),
-		SessionTTL: time.Duration(hours) * time.Hour,
-		RequireMFA: envBool("IMPERIUM_REQUIRE_MFA", true),
-		TrustProxy: envBool("IMPERIUM_TRUST_PROXY", false),
-		Lang:       env("IMPERIUM_LANG", "id"),
-		Version:    version,
+		Addr:          env("IMPERIUM_ADDR", "127.0.0.1:8100"),
+		DBPath:        env("IMPERIUM_DB", "imperium.db"),
+		BaseURL:       strings.TrimRight(env("IMPERIUM_BASE_URL", "http://127.0.0.1:8100"), "/"),
+		HopURL:        strings.TrimRight(env("HOP_URL", ""), "/"),
+		HopSecret:     env("HOP_SSO_SECRET", ""),
+		HopClient:     env("HOP_SSO_CLIENT", "imperium"),
+		HopAPIAddr:    env("HOP_API_ADDR", ""),
+		AltHost:       env("IMPERIUM_ALT_HOST", ""),
+		AltClient:     env("IMPERIUM_ALT_CLIENT", "citadel"),
+		AltSecret:     env("IMPERIUM_ALT_SECRET", ""),
+		TelegramToken: env("IMPERIUM_TELEGRAM_TOKEN", ""),
+		TelegramChat:  env("IMPERIUM_TELEGRAM_CHAT", ""),
+		TelegramAPI:   env("IMPERIUM_TELEGRAM_API", "https://api.telegram.org"),
+		WatchEvery:    time.Duration(watchMin) * time.Minute,
+		SessionTTL:    time.Duration(hours) * time.Hour,
+		RequireMFA:    envBool("IMPERIUM_REQUIRE_MFA", true),
+		TrustProxy:    envBool("IMPERIUM_TRUST_PROXY", false),
+		Lang:          env("IMPERIUM_LANG", "id"),
+		Version:       version,
 	}
 	c.Secure = envBool("IMPERIUM_SECURE_COOKIES", strings.HasPrefix(c.BaseURL, "https://"))
 	if c.HopURL == "" || len(c.HopSecret) < 32 {

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -61,11 +62,13 @@ func (a *App) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	if !allowedIn(t.Roles) {
 		a.db.AddAudit(r.Context(), &db.Audit{ActorSub: t.Sub, ActorName: t.Username, IP: clientIP(r), Action: "login.denied", Detail: map[string]any{"roles": t.Roles}})
+		a.notify(fmt.Sprintf("⛔ Login ditolak: @%s (%s) tanpa peran admin, dari %s", t.Username, t.Email, clientIP(r)))
 		fail(a.T("login.denied"))
 		return
 	}
 	if a.cfg.RequireMFA && !t.MFA {
 		a.db.AddAudit(r.Context(), &db.Audit{ActorSub: t.Sub, ActorName: t.Username, IP: clientIP(r), Action: "login.no_mfa"})
+		a.notify(fmt.Sprintf("⚠️ Login admin tanpa 2FA ditolak: @%s dari %s", t.Username, clientIP(r)))
 		fail(a.T("login.mfa"))
 		return
 	}
@@ -80,6 +83,7 @@ func (a *App) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: tok, Path: "/", HttpOnly: true, Secure: a.cfg.Secure,
 		SameSite: http.SameSiteLaxMode, MaxAge: int(a.cfg.SessionTTL.Seconds())})
 	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: t.Sub, ActorName: t.Username, IP: clientIP(r), Action: "login"})
+	a.notify(fmt.Sprintf("✅ @%s masuk ke Imperium dari %s", t.Username, clientIP(r)))
 	// A fresh sign-in is a good moment to refresh the registry.
 	go a.syncApps(s)
 	http.Redirect(w, r, safeNext(next), http.StatusFound)
