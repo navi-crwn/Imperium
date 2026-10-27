@@ -89,6 +89,14 @@ Catatan operasional: perintah `php8.3 artisan` di folder live sebaiknya dijalank
 
 **Urutan di dalam tahap 3:** hel.ink dulu (panel paling besar), PixelHop, lalu NoteHop. Tiap aplikasi: tulis Admin API + tes → modul Imperium → verifikasi di produksi lewat Tailscale → hapus panel lama → rilis.
 
+### Status Tahap 3 (2026-10-27, berjalan)
+
+- **Imperium**: modul generik berbasis manifest (konten + aksi, antrean laporan, pengaturan, ekstensi) terpasang (versi 3f5ab6a), registry disinkronkan tiap 5 menit.
+- **LinkHop**: PR #36 (API konten/laporan/IP/domain/queue/settings, 262 tes) menunggu merge; branch `retire-admin-panel` (draft PR) menyusul.
+- **PixelHop**: PR #3 (`/hop/*` lengkap + tiket v2 roles + migrasi 7, 50 tes) menunggu merge; branch `retire-admin-ui` (draft PR) menyusul. Deploy: `scripts/deploy-pixelhop.sh main`, lalu `scripts/tahap3-registry.sh pixelhop`.
+- **NoteHop**: branch `hop-admin-api` (subagent) → PR; deploy: `scripts/deploy-notehop.sh main`, lalu `scripts/tahap3-registry.sh notehop`.
+- Merge PR tidak bisa dilakukan Claude (pengaman auto mode): pemilik merge, Claude deploy.
+
 ## Tahap 4: hop-agent dan modul Server
 
 1. `hop-agent` (Go) jalan sebagai root-less user dengan sudoers berisi daftar perintah tetap (`systemctl start|stop|restart|status <daftar unit>`, `journalctl -u <unit>`, `nginx -t`, `nginx -s reload`, `apt list --upgradable`, skrip backup/deploy tertentu). Komunikasi lewat unix socket + token; tidak pernah menerima shell bebas.
