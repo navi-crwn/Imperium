@@ -25,6 +25,9 @@ func (a *App) notify(msg string) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		form := url.Values{"chat_id": {a.cfg.TelegramChat}, "text": {"🏛 Imperium\n" + msg}, "disable_web_page_preview": {"1"}}
+		if a.cfg.TelegramThread != "" {
+			form.Set("message_thread_id", a.cfg.TelegramThread)
+		}
 		req, _ := http.NewRequestWithContext(ctx, "POST", strings.TrimRight(a.cfg.TelegramAPI, "/")+"/bot"+a.cfg.TelegramToken+"/sendMessage", strings.NewReader(form.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		res, err := a.hop.HTTP.Do(req)
