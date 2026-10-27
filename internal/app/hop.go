@@ -1,0 +1,156 @@
+package app
+
+import (
+	"context"
+	"encoding/json"
+	"log"
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/navi-crwn/imperium/internal/db"
+	"github.com/navi-crwn/imperium/internal/hopproto"
+)
+
+// hopID is HOP ID (LinkHop) as a call target: its protocol lives under /api/hop.
+func (a *App) hopID() hopproto.App {
+	return hopproto.App{Slug: "linkhop", URL: a.cfg.HopURL, Prefix: "/api/hop", Secret: a.cfg.HopSecret}
+}
+
+func target(ap db.App) hopproto.App {
+	return hopproto.App{Slug: ap.Slug, URL: ap.URL, Prefix: ap.Prefix, Secret: ap.Secret}
+}
+
+func actorOf(s *db.Session) string {
+	if s == nil {
+		return "system"
+	}
+	return s.Sub + ":" + s.Username
+}
+
+// callHop makes a signed call to HOP ID and decodes data into out.
+func (a *App) callHop(ctx context.Context, s *db.Session, method, path string, body, out any) (*hopproto.Envelope, error) {
+	env, err := a.hop.Call(ctx, a.hopID(), actorOf(s), method, path, body)
+	if err != nil {
+		return env, err
+	}
+	if out != nil && len(env.Data) > 0 {
+		if err := json.Unmarshal(env.Data, out); err != nil {
+			return env, err
+		}
+	}
+	return env, nil
+}
+
+// registryApp is what HOP ID's /api/hop/apps returns (secrets only for admin clients).
+type registryApp struct {
+	Slug         string   `json:"slug"`
+	Name         string   `json:"name"`
+	URL          string   `json:"url"`
+	Status       string   `json:"status"`
+	Icon         string   `json:"icon"`
+	Color        string   `json:"color"`
+	MenuLabel    string   `json:"menu_label"`
+	Capabilities []string `json:"capabilities"`
+	Hidden       bool     `json:"hidden"`
+	SortOrder    int      `json:"sort_order"`
+	Secret       string   `json:"secret"`
+}
+
+// syncApps copies the registry from HOP ID into the local cache.
+func (a *App) syncApps(s *db.Session) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	var apps []registryApp
+	if _, err := a.callHop(ctx, s, "GET", "/apps", nil, &apps); err != nil {
+		log.Printf("registry sync: %v", err)
+		return err
+	}
+	for _, r := range apps {
+		if r.Slug == a.cfg.HopClient || r.Slug == a.cfg.AltClient {
+			continue // ourselves (both doors)
+		}
+		_ = a.db.UpsertApp(ctx, &db.App{Slug: r.Slug, Name: r.Name, URL: r.URL, Prefix: "/hop", Secret: r.Secret, Status: r.Status,
+			Icon: r.Icon, Color: r.Color, MenuLabel: r.MenuLabel, Capabilities: r.Capabilities, Hidden: r.Hidden, SortOrder: r.SortOrder})
+	}
+	return nil
+}
+
+// Health is the last known state of one app.
+type Health struct {
+	Slug    string
+	Name    string
+	URL     string
+	OK      bool
+	Known   bool // false until the first probe answered
+	Status  string
+	Version string
+	Detail  string
+	Latency time.Duration
+	At      time.Time
+}
+
+// probe asks an app how it is: its /hop/health when it implements the
+// protocol, else a plain GET of /healthz, else of /.
+func (a *App) probe(ctx context.Context, s *db.Session, ap db.App) Health {
+	h := Health{Slug: ap.Slug, Name: ap.Name, URL: ap.URL, At: time.Now(), Known: true}
+	if ap.Status == "maintenance" {
+		h.Status = "maint"
+	}
+	start := time.Now()
+	ctx, cancel := context.WithTimeout(ctx, 6*time.Second)
+	defer cancel()
+	if ap.Can("admin_api") && ap.Secret != "" {
+		var data struct {
+			Version string `json:"version"`
+			DB      string `json:"db"`
+		}
+		env, err := a.hop.Call(ctx, target(ap), actorOf(s), "GET", "/health", nil)
+		if err == nil && len(env.Data) > 0 {
+			_ = json.Unmarshal(env.Data, &data)
+		}
+		h.Latency = time.Since(start)
+		h.OK, h.Version = err == nil, data.Version
+		if err != nil {
+			h.Detail = err.Error()
+		}
+		return h
+	}
+	for _, p := range []string{"/healthz", "/up", "/"} {
+		req, _ := http.NewRequestWithContext(ctx, "GET", ap.URL+p, nil)
+		res, err := a.hop.HTTP.Do(req)
+		if err != nil {
+			h.Detail = err.Error()
+			continue
+		}
+		res.Body.Close()
+		h.Latency = time.Since(start)
+		if res.StatusCode < 400 {
+			h.OK, h.Detail = true, ""
+			return h
+		}
+		h.Detail = res.Status
+	}
+	return h
+}
+
+// probeAll checks every app and HOP ID concurrently.
+func (a *App) probeAll(ctx context.Context, s *db.Session, apps []db.App) []Health {
+	all := append([]db.App{{Slug: "linkhop", Name: "LinkHop (HOP ID)", URL: a.cfg.HopURL, Prefix: "/api/hop", Secret: a.cfg.HopSecret, Capabilities: []string{"admin_api"}, SortOrder: 0}}, apps...)
+	out := make([]Health, len(all))
+	var wg sync.WaitGroup
+	for i, ap := range all {
+		wg.Add(1)
+		go func(i int, ap db.App) {
+			defer wg.Done()
+			out[i] = a.probe(ctx, s, ap)
+		}(i, ap)
+	}
+	wg.Wait()
+	a.mu.Lock()
+	for _, h := range out {
+		a.health[h.Slug] = h
+	}
+	a.mu.Unlock()
+	return out
+}

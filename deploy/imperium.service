@@ -1,0 +1,24 @@
+[Unit]
+Description=Imperium (HOP control center)
+After=network.target
+
+[Service]
+User=imperium
+Group=imperium
+EnvironmentFile=/etc/imperium/imperium.env
+ExecStart=/usr/local/bin/imperium
+WorkingDirectory=/var/lib/imperium
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/imperium
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

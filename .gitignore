@@ -4,3 +4,4 @@
 backups/
 tmp/
 node_modules/
+bin/
