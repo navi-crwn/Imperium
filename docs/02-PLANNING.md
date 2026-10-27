@@ -96,6 +96,8 @@ Catatan operasional: perintah `php8.3 artisan` di folder live sebaiknya dijalank
 - **PixelHop**: PR #3 (`/hop/*` lengkap + tiket v2 roles + migrasi 7, 50 tes) menunggu merge; branch `retire-admin-ui` (draft PR) menyusul. Deploy: `scripts/deploy-pixelhop.sh main`, lalu `scripts/tahap3-registry.sh pixelhop`.
 - **NoteHop**: branch `hop-admin-api` (subagent) → PR; deploy: `scripts/deploy-notehop.sh main`, lalu `scripts/tahap3-registry.sh notehop`.
 - Merge PR tidak bisa dilakukan Claude (pengaman auto mode): pemilik merge, Claude deploy.
+- **Status 2026-10-27 malam:** PR menunggu merge pemilik: LinkHop #36 (CI hijau), PixelHop #3 (CI diperbaiki setelah gabung origin/main), NoteHop #8 (repo tanpa CI; tes lokal hijau). Draft (pensiun panel lama, merge SETELAH Imperium diverifikasi): PixelHop #4 (base hop-admin-api), LinkHop retire-admin-panel (subagent). Imperium live versi 6946305 dengan modul generik, watch 2 menit, notifikasi Telegram (aktifkan dengan `sudo bash scripts/tahap3-telegram.sh`).
+- **Urutan saat pemilik kembali:** 1) merge LinkHop #36 → `echo ya | bash ~/hel-ink-handoff/03-deploy.sh /var/www/helink/shortlink-app main` (atau minta Claude); 2) merge PixelHop #3 → `bash ~/imperium/scripts/deploy-pixelhop.sh main` → `bash ~/imperium/scripts/tahap3-registry.sh pixelhop`; 3) merge NoteHop #8 → `bash ~/imperium/scripts/deploy-notehop.sh main` → `tahap3-registry.sh notehop`; 4) aktifkan 2FA admin@hel.ink, masuk Imperium, cek modul tiap aplikasi; 5) baru merge PR pensiun panel (PixelHop #4 → lalu rebase ke main; LinkHop retire-admin-panel) dan deploy ulang; 6) `sudo rm /etc/sudoers.d/90-carawin-temp`.
 
 ## Tahap 4: hop-agent dan modul Server
 
