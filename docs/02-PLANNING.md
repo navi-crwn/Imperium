@@ -131,3 +131,4 @@ Begitu RemoteHop ada, ia hanya perlu: satu baris di registry, implementasi `inte
 
 - **Backup & migrasi satu perintah** ke server baru (fitur I84–I88 di `01-FITUR.md`): masuk Tahap 4 bersama hop-agent, tapi skrip dasarnya dibuat sudah di Tahap 0 karena berguna sebelum Imperium jadi.
 - **Watchdog konten berbahaya** yang bisa menyebabkan takedown domain/hosting (fitur I89–I97): fondasinya di Tahap 3 (modul Abuse hel.ink diperluas ke semua aplikasi), otomasi dan pemantauan reputasi di Tahap 5.
+- **Status 2026-10-28 (login pertama pemilik):** HOP ID `ivan_smb787` diberi peran global `owner` (granted_by superadmin). Tautan "Imperium" di dashboard LinkHop dan `/admin` PixelHop dialihkan ke **https://citadel.hel.ink** (`HOP_CONTROL_URL` / `PIXELHOP_CONTROL_URL`), karena `imperium.hel.ink` hanya hidup di Tailscale dan tidak terjangkau dari perangkat tanpa Tailscale. Pintu Tailscale tetap aktif sebagai cadangan.
