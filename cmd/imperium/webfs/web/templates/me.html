@@ -1,7 +1,7 @@
 {{template "head" .}}{{template "top" .}}
 <h1>@{{.Data.Username}}</h1>
 <div class="card"><table>
-<tr><th>HOP ID</th><td class="mono">{{.Data.Sub}}</td></tr><tr><th>Name</th><td>{{.Data.Name}}</td></tr><tr><th>Email</th><td>{{.Data.Email}}</td></tr>
+<tr><th>HOP ID</th><td class="mono">{{.Data.Sub}}</td></tr><tr><th>Name</th><td>{{.Data.Name}}</td></tr><tr><th>Email</th><td>{{or .Data.Email "—"}}</td></tr>
 <tr><th>{{t "user.roles"}}</th><td>{{range .Data.Roles}}<span class="chip {{.}}">{{.}}</span>{{end}}</td></tr>
 <tr><th>2FA</th><td>{{if .Data.MFA}}{{t "yes"}}{{else}}{{t "no"}}{{end}}</td></tr>
 <tr><th>Session</th><td class="small">{{date .Data.Created}} → {{date .Data.Expires}} · {{.Data.IP}} · {{.Data.UA}}</td></tr>

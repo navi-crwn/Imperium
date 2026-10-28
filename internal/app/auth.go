@@ -64,6 +64,10 @@ func (a *App) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		fail(a.T("login.bad_ticket"))
 		return
 	}
+	if alias := a.cfg.Alias(t.Username, t.Email); alias != "" {
+		// The owner's real name and email never reach a page, the audit log or Telegram.
+		t.Username, t.Name, t.Email = alias, alias, ""
+	}
 	if t.Status != "" && t.Status != "active" {
 		fail(a.T("login.denied"))
 		return

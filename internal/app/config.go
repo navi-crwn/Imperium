@@ -34,7 +34,30 @@ type Config struct {
 	Secure         bool
 	Lang           string // id or en
 	AllowedCIDR    []string
-	Version        string
+	// Aliases hide the owner's real identity on every screen, audit row and
+	// alert: "ivan_smb787=superadmin,ivan@x=superadmin" (key = username or email).
+	Aliases map[string]string
+	Version string
+}
+
+// Alias returns the display name for a HOP ID, or "" when it has none.
+func (c Config) Alias(username, email string) string {
+	if v := c.Aliases[strings.ToLower(username)]; v != "" {
+		return v
+	}
+	return c.Aliases[strings.ToLower(email)]
+}
+
+func envAliases(k string) map[string]string {
+	m := map[string]string{}
+	for _, pair := range strings.Split(env(k, ""), ",") {
+		key, alias, ok := strings.Cut(pair, "=")
+		key, alias = strings.ToLower(strings.TrimSpace(key)), strings.TrimSpace(alias)
+		if ok && key != "" && alias != "" {
+			m[key] = alias
+		}
+	}
+	return m
 }
 
 func env(k, def string) string {
@@ -81,6 +104,7 @@ func LoadConfig(version string) Config {
 		RequireMFA:     envBool("IMPERIUM_REQUIRE_MFA", true),
 		TrustProxy:     envBool("IMPERIUM_TRUST_PROXY", false),
 		Lang:           env("IMPERIUM_LANG", "id"),
+		Aliases:        envAliases("IMPERIUM_ALIASES"),
 		Version:        version,
 	}
 	c.Secure = envBool("IMPERIUM_SECURE_COOKIES", strings.HasPrefix(c.BaseURL, "https://"))
