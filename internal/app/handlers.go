@@ -67,7 +67,7 @@ func series(raw [][2]any) []point {
 	}
 	for i := range out {
 		if max > 0 {
-			out[i].Pct = int(out[i].N * 100 / max)
+			out[i].Pct = int((out[i].N*100/max + 2) / 5 * 5) // bar heights are CSS classes h0…h100 in steps of five
 		}
 		if len(out[i].Label) >= 10 {
 			out[i].Label = out[i].Label[5:10]

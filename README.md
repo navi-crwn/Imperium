@@ -1,6 +1,6 @@
 # Imperium
 
-Pusat kendali keluarga HOP (LinkHop, PixelHop, NoteHop, RemoteHop). Privat.
+HOP Dashboard untuk keluarga HOP (LinkHop, PixelHop, NoteHop, RemoteHop). Privat.
 
 - `docs/` analisis, daftar fitur, planning, inventaris admin tiap aplikasi
 - `protocol/` HOP App Protocol (kontrak Admin API semua aplikasi)
