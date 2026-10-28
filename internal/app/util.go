@@ -70,3 +70,26 @@ func parseTime(s string) time.Time {
 	}
 	return time.Time{}
 }
+
+// humanBytes formats a byte count: 0 B, 12,3 KB, 4,5 GB.
+func humanBytes(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for m := n / unit; m >= unit; m /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
+}
+
+// dayOf keeps the date of an ISO timestamp ("2026-10-28T07:40:00Z" → "2026-10-28").
+func dayOf(v any) string {
+	s := str(v)
+	if len(s) >= 10 && s[4] == '-' && s[7] == '-' {
+		return s[:10]
+	}
+	return s
+}

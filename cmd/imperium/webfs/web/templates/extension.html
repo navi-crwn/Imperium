@@ -1,21 +1,24 @@
 {{template "head" .}}{{template "top" .}}
 {{template "appnav" .Data}}
-<h1>{{.Data.Ext}} · {{.Data.App.Name}}</h1>
-<form method="get" action="/apps/{{.Data.App.Slug}}/x/{{.Data.Ext}}" class="search" style="max-width:420px;margin-bottom:12px"><input type="search" name="q" value="{{.Data.Q}}" placeholder="q"></form>
+<h1>{{ext .Data.Ext}} <span class="muted small mono">{{.Data.Ext}}</span></h1>
+<form method="get" action="/apps/{{.Data.App.Slug}}/x/{{.Data.Ext}}" class="search ext-search"><input type="search" name="q" value="{{.Data.Q}}" placeholder="q"></form>
 {{if .Data.Err}}<p class="flash err">{{.Data.Err}}</p>{{end}}
-{{range .Data.Tables}}<h2>{{.Name}}</h2><table><tr>{{range .Cols}}<th>{{.}}</th>{{end}}</tr>{{range .Rows}}<tr>{{range .}}<td class="small" style="word-break:break-all">{{.}}</td>{{end}}</tr>{{end}}</table>{{end}}
+{{if .Data.KV}}<div class="card kv"><table class="tight">{{range .Data.KV}}<tr><th>{{.Key}}</th><td class="mono">{{if .Value}}{{.Value}}{{else}}<span class="muted">—</span>{{end}}</td></tr>{{end}}</table></div>{{end}}
+{{range .Data.Tables}}<h2>{{.Name}}</h2><div class="scroll-x"><table><tr>{{range .Cols}}<th>{{.}}</th>{{end}}</tr>{{range .Rows}}<tr>{{range .}}<td class="small wrap">{{.}}</td>{{end}}</tr>{{end}}</table></div>{{end}}
 {{if .Data.IsAdmin}}
-<div class="card actions" style="margin-top:14px"><h2 style="margin-top:0">{{t "ext.action"}}</h2>
-  <form method="post" action="/apps/{{.Data.App.Slug}}/x/{{.Data.Ext}}/actions" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;align-items:end">
-    <div><label>action</label><input type="text" name="action" placeholder="ban, add, release…" required></div>
+<div class="card actions mt14"><h2 class="card-title">{{t "ext.action"}}</h2>
+  <form method="post" action="/apps/{{.Data.App.Slug}}/x/{{.Data.Ext}}/actions" class="grid g-form">
+    <div><label>action</label>{{if .Data.Actions}}<select name="action">{{range .Data.Actions}}<option value="{{.}}">{{.}}</option>{{end}}</select>{{else}}<input type="text" name="action" placeholder="ban, add, release…" required>{{end}}</div>
     <div><label>ip</label><input type="text" name="p_ip"></div>
     <div><label>domain</label><input type="text" name="p_domain"></div>
     <div><label>slug / id</label><input type="text" name="p_slug"></div>
     <div><label>category</label><input type="text" name="p_category"></div>
     <div><label>expires_at</label><input type="text" name="p_expires_at"></div>
+    <div><label>{{t "ext.sub"}}</label><input type="text" name="path" placeholder="holds/slug"></div>
     <div><label>{{t "action.reason"}}</label><input type="text" name="reason"></div>
-    <div><button class="btn primary" type="submit">{{t "ext.action"}}</button></div>
+    <div><label>&nbsp;</label><button class="btn primary" type="submit">{{t "ext.action"}}</button></div>
   </form>
+  <p class="small muted">{{t "ext.hint"}}</p>
 </div>{{end}}
-<details style="margin-top:14px"><summary>JSON</summary><pre class="mono">{{.Data.Raw}}</pre></details>
+<details class="mt14"><summary>JSON</summary><pre class="mono">{{.Data.Raw}}</pre></details>
 {{template "foot" .}}

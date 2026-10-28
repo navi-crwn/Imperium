@@ -7,13 +7,11 @@
 {{range .Data.Rows}}<tr>
   <td class="small">{{index . "created_at"}}{{index . "created"}}</td>
   <td><span class="chip">{{index . "kind"}}</span>{{with index . "score"}} <span class="chip locked">{{.}}</span>{{end}}</td>
-  <td class="small">{{with index . "subject"}}{{json .}}{{end}}{{with index . "content"}}{{with index . "url"}}<a href="{{.}}" target="_blank" rel="noopener">{{.}}</a>{{end}}{{end}}</td>
+  <td class="small">{{with index . "subject"}}{{json .}}{{end}}{{with index . "content"}}{{with index . "url"}}<a href="{{.}}" target="_blank" rel="noopener">{{.}}</a>{{end}}{{end}}{{with index . "image"}}{{with index . "url"}}<a href="{{.}}" target="_blank" rel="noopener">{{.}}</a>{{end}}{{end}}</td>
   <td class="small">{{index . "reason"}} {{index . "summary"}} {{index . "note"}}</td>
   <td><span class="chip {{index . "status"}}">{{index . "status"}}</span></td>
   <td>{{if $.Data.CanAct}}<form method="post" action="/apps/{{$.Data.App.Slug}}/reports/{{index . "id"}}/actions" class="row"><input type="hidden" name="kind" value="{{index . "kind"}}">
-    {{if eq (index . "kind") "flag"}}<button class="btn" name="action" value="confirm">confirm</button><button class="btn" name="action" value="restore">restore</button>
-    {{else if eq (index . "kind") "report"}}<button class="btn" name="action" value="investigate">investigate</button><button class="btn" name="action" value="close">close</button>
-    {{else}}<button class="btn" name="action" value="dismiss">dismiss</button><button class="btn danger" name="action" value="resolve">resolve</button>{{end}}</form>{{end}}</td>
+    {{range $.Data.M.ReportActions (index . "kind")}}<button class="btn sm {{if or (eq . "resolve") (eq . "takedown") (eq . "delete") (eq . "confirm")}}danger{{end}}" name="action" value="{{.}}">{{.}}</button>{{end}}</form>{{end}}</td>
 </tr>{{else}}<tr><td colspan="6" class="muted">{{t "content.none"}}</td></tr>{{end}}
 </table>
 {{template "foot" .}}

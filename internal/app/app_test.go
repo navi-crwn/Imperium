@@ -22,13 +22,16 @@ import (
 )
 
 const secret = "imperium-secret-that-is-long-enough-1234"
+const pxSecret = "px-secret-that-is-long-enough-123456789"
 
 // fakeHop plays HOP ID: issues tickets, answers the admin API, records calls.
 type fakeHop struct {
-	srv     *httptest.Server
-	ticket  map[string]any
-	actions []map[string]any
-	nonces  hopproto.Nonces
+	srv            *httptest.Server
+	px             *httptest.Server // PixelHop, an app with its own admin API
+	ticket         map[string]any
+	actions        []map[string]any
+	contentQueries []string
+	nonces         hopproto.Nonces
 }
 
 func newFakeHop(t *testing.T) *fakeHop {
@@ -59,7 +62,43 @@ func newFakeHop(t *testing.T) *fakeHop {
 		}
 	}
 	mux.HandleFunc("GET /api/hop/apps", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
-		_, _ = w.Write([]byte(`{"ok":true,"data":[{"slug":"pixelhop","name":"PixelHop","url":"` + f.srv.URL + `/px","status":"active","capabilities":["account_api"],"secret":"px-secret-that-is-long-enough-123456789"},{"slug":"imperium","name":"Imperium","url":"x","status":"active","hidden":true}]}`))
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"slug":"pixelhop","name":"PixelHop","url":"` + f.px.URL + `","status":"active","capabilities":["account_api","admin_api"],"secret":"` + pxSecret + `"},{"slug":"imperium","name":"Imperium","url":"x","status":"active","hidden":true}]}`))
+	}))
+	f.srv = httptest.NewServer(mux)
+	// PixelHop's admin API (prefix /hop), signed with its own secret, on its own server.
+	pxmux := http.NewServeMux()
+	px := func(h func(w http.ResponseWriter, r *http.Request, body []byte)) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			if err := f.nonces.Verify(r, body, "imperium", []string{pxSecret}, time.Minute); err != nil {
+				w.WriteHeader(401)
+				_, _ = w.Write([]byte(`{"ok":false,"error":"` + err.Error() + `"}`))
+				return
+			}
+			h(w, r, body)
+		}
+	}
+	pxmux.HandleFunc("GET /hop/health", px(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"app":"pixelhop","version":"3.7.0","db":"ok"}}`))
+	}))
+	pxmux.HandleFunc("GET /hop/manifest", px(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"app":"pixelhop","name":"PixelHop","capabilities":["admin_api","events","account_api","metrics"],"content_types":[{"type":"image","label":"Images","actions":["hide","unhide","delete","ban_ip","transfer"]},{"type":"album","label":"Albums","actions":["delete","transfer"]}],"settings_schema":[{"key":"guest_uploads","type":"bool"}],"actions":{"user":["suspend"],"report":["dismiss","resolve","delete"],"content":["hide"]}}}`))
+	}))
+	pxmux.HandleFunc("GET /hop/stats", px(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"kpi":{"users":5,"images":1234,"bytes":1073741824,"open_reports":1,"uploads_today":3},"series":{"uploads":[["2026-10-20",2],["2026-10-21",8]],"bytes":[["2026-10-20",1024],["2026-10-21",2048]]},"step":"day"}}`))
+	}))
+	pxmux.HandleFunc("GET /hop/content", px(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		f.contentQueries = append(f.contentQueries, r.URL.RawQuery)
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"id":"img1","type":"image","title":"cat.jpg","owner":{"sub":"26","username":"rani"},"status":"live","size":20480,"views":7,"created_at":"2026-10-21T10:00:00Z","url":"` + f.px.URL + `/i/img1","preview":"` + f.px.URL + `/t/img1"}],"page":{"next":"","total":1}}`))
+	}))
+	pxmux.HandleFunc("GET /hop/reports", px(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"id":"r1","kind":"image","image":{"id":"img1","url":"` + f.px.URL + `/i/img1"},"reason":"nudity","status":"open","created":"2026-10-21T11:00:00Z"}],"page":{"next":"","total":1}}`))
+	}))
+	pxmux.HandleFunc("POST /hop/reports/r1/actions", px(func(w http.ResponseWriter, r *http.Request, body []byte) {
+		var m map[string]any
+		_ = json.Unmarshal(body, &m)
+		f.actions = append(f.actions, m)
+		_, _ = w.Write([]byte(`{"ok":true,"data":{}}`))
 	}))
 	mux.HandleFunc("GET /api/hop/stats", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
 		_, _ = w.Write([]byte(`{"ok":true,"data":{"kpi":{"users":74,"open_reports":2},"series":{"signups":[["2026-10-20",1],["2026-10-21",3]],"clicks":[["2026-10-20",10]]}}}`))
@@ -91,8 +130,8 @@ func newFakeHop(t *testing.T) *fakeHop {
 	mux.HandleFunc("GET /api/hop/audit", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
 		_, _ = w.Write([]byte(`{"ok":true,"data":[]}`))
 	}))
-	mux.HandleFunc("GET /px/healthz", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) })
-	f.srv = httptest.NewServer(mux)
+	pxmux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) })
+	f.px = httptest.NewServer(pxmux)
 	return f
 }
 
@@ -473,5 +512,131 @@ func TestHealthFlipsSendTelegram(t *testing.T) {
 	audits, _ := a.db.Audits(t.Context(), 0, 5)
 	if len(audits) == 0 || audits[0].Action != "health.down" {
 		t.Fatalf("audit: %+v", audits)
+	}
+}
+
+// The explorer sidebar lists every app with its health and modules; clicking
+// one opens a dashboard built from the app's stats, content, reports and
+// operational extension.
+func TestSidebarAndAppDashboards(t *testing.T) {
+	hop := newFakeHop(t)
+	defer hop.srv.Close()
+	a, srv := newApp(t, hop)
+	defer srv.Close()
+	var extActions []string
+	mux := hop.srv.Config.Handler.(*http.ServeMux)
+	api := func(h func(w http.ResponseWriter, r *http.Request, body []byte)) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			if err := hop.nonces.Verify(r, body, "imperium", []string{secret}, time.Minute); err != nil {
+				w.WriteHeader(401)
+				_, _ = w.Write([]byte(`{"ok":false,"error":"` + err.Error() + `"}`))
+				return
+			}
+			h(w, r, body)
+		}
+	}
+	mux.HandleFunc("GET /api/hop/manifest", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"app":"linkhop","name":"LinkHop","capabilities":["admin_api","reports","settings"],"content_types":[{"type":"link","label":"Links","actions":["disable"]},{"type":"bio","label":"Bio pages","actions":["unpublish"]}],"extensions":["ip","queue","names"]}}`))
+	}))
+	mux.HandleFunc("GET /api/hop/content", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"id":"9","type":"link","title":"spam","owner":{"sub":"26","username":"rani"},"status":"live","clicks":5,"created_at":"2026-10-01T00:00:00Z"}],"page":{"next":"","total":1}}`))
+	}))
+	mux.HandleFunc("GET /api/hop/reports", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"kind":"flag","id":"3","subject":{"type":"link","id":"9"},"score":80,"summary":"phishing words","status":"open","created_at":"2026-10-02T00:00:00Z"}]}`))
+	}))
+	mux.HandleFunc("GET /api/hop/x/queue", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"worker":"stale","heartbeat_at":"2026-10-20T00:00:00Z","pending":4,"failed":0,"abuse_scan_at":null}}`))
+	}))
+	mux.HandleFunc("GET /api/hop/x/names", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"holds":[{"slug":"bad-slug","reason":"abuse"}]}}`))
+	}))
+	mux.HandleFunc("POST /api/hop/x/names/holds/bad-slug/actions", api(func(w http.ResponseWriter, r *http.Request, body []byte) {
+		extActions = append(extActions, r.URL.Path)
+		_, _ = w.Write([]byte(`{"ok":true,"data":{}}`))
+	}))
+
+	hop.ticket = map[string]any{"sub": "1", "username": "boss", "name": "Boss", "email": "b@x", "roles": []string{"owner"}, "mfa": true, "status": "active"}
+	c := client(t)
+	body(login(t, c, srv))
+	// home: the sidebar names both apps and their dashboards; the registry cards link to them
+	res, _ := c.Get(srv.URL + "/")
+	b := body(res)
+	for _, want := range []string{`class="tree"`, `href="/apps/linkhop"`, `href="/apps/pixelhop"`, "PixelHop", "HOP ID", "data-side-toggle", `class="card card-link" href="/apps/pixelhop"`, `class="h100"`} {
+		if !strings.Contains(b, want) {
+			t.Errorf("home missing %q", want)
+		}
+	}
+	if strings.Contains(b, "style=") {
+		t.Error("home has an inline style, which the CSP blocks")
+	}
+	// PixelHop dashboard: KPIs (bytes humanised), attention, series, latest images, open reports with the manifest's report actions
+	res, _ = c.Get(srv.URL + "/apps/pixelhop")
+	b = body(res)
+	for _, want := range []string{"1.0 GB", ">1.234<", "Open reports", "Uploads today", "Bytes uploaded", `class="h100"`, "cat.jpg", "/apps/pixelhop/content/image/img1", "@rani", "nudity", `value="dismiss"`, `value="resolve"`,
+		`class="leaf leaf-dash on" href="/apps/pixelhop"`, `class="leaf leaf-content " href="/apps/pixelhop/content?type=image"`, `href="/apps/pixelhop/content?type=album"`, `href="/apps/pixelhop/reports"`, `href="/apps/pixelhop/settings"`, "3.7.0"} {
+		if !strings.Contains(b, want) {
+			t.Errorf("pixelhop dashboard missing %q", want)
+		}
+	}
+	if !strings.Contains(strings.Join(hop.contentQueries, " "), "type=image&limit=8") {
+		t.Errorf("dashboard should ask for the latest images: %v", hop.contentQueries)
+	}
+	// a report action from the dashboard reaches PixelHop and is audited
+	res, _ = c.PostForm(srv.URL+"/apps/pixelhop/reports/r1/actions", url.Values{"kind": {"image"}, "action": {"dismiss"}})
+	body(res)
+	if len(hop.actions) != 1 || hop.actions[0]["action"] != "dismiss" {
+		t.Fatalf("report action: %+v", hop.actions)
+	}
+	// LinkHop dashboard: queue worker on the dashboard, extension labels in the sidebar, users under the app
+	res, _ = c.Get(srv.URL + "/apps/linkhop")
+	b = body(res)
+	for _, want := range []string{">74<", "phishing words", `value="confirm"`, "heartbeat_at", "stale", `href="/apps/linkhop/x/queue"`, `href="/apps/linkhop/x/names"`, `href="/users"`, "Bio pages", ">spam<"} {
+		if !strings.Contains(b, want) {
+			t.Errorf("linkhop dashboard missing %q", want)
+		}
+	}
+	// the sidebar remembers the modules on other pages too (cached manifests)
+	res, _ = c.Get(srv.URL + "/audit")
+	if b := body(res); !strings.Contains(b, `href="/apps/pixelhop/content?type=album"`) || !strings.Contains(b, `href="/apps/linkhop/x/queue"`) {
+		t.Error("sidebar should list the modules of every app from the cached manifests")
+	}
+	// an extension action may address a nested resource (NoteHop-style slug holds), but not escape the extension
+	res, _ = c.PostForm(srv.URL+"/apps/linkhop/x/names/actions", url.Values{"action": {"release"}, "path": {"holds/bad-slug"}})
+	body(res)
+	res, _ = c.PostForm(srv.URL+"/apps/linkhop/x/names/actions", url.Values{"action": {"release"}, "path": {"../ip"}})
+	body(res)
+	if len(extActions) != 1 || extActions[0] != "/api/hop/x/names/holds/bad-slug/actions" {
+		t.Fatalf("ext sub-path actions: %v", extActions)
+	}
+	audits, _ := a.db.Audits(t.Context(), 0, 10)
+	var seen []string
+	for _, x := range audits {
+		seen = append(seen, x.Action+"@"+x.App)
+	}
+	for _, want := range []string{"report.dismiss@pixelhop", "names.release@linkhop"} {
+		if !contains(seen, want) {
+			t.Errorf("audit missing %s in %v", want, seen)
+		}
+	}
+	// support may look but gets no moderation buttons on a dashboard
+	hop.ticket = map[string]any{"sub": "5", "username": "cs", "name": "CS", "email": "c@x", "roles": []string{"support"}, "mfa": true, "status": "active"}
+	c2 := client(t)
+	body(login(t, c2, srv))
+	res, _ = c2.Get(srv.URL + "/apps/pixelhop")
+	if b := body(res); strings.Contains(b, `name="action"`) || !strings.Contains(b, "nudity") {
+		t.Error("support should see the reports but no action buttons")
+	}
+}
+
+func TestHumanBytesAndBarSteps(t *testing.T) {
+	for n, want := range map[int64]string{0: "0 B", 1023: "1023 B", 1024: "1.0 KB", 1536: "1.5 KB", 1073741824: "1.0 GB"} {
+		if got := humanBytes(n); got != want {
+			t.Errorf("humanBytes(%d) = %q, want %q", n, got, want)
+		}
+	}
+	pts := series([][2]any{{"2026-10-20", float64(1)}, {"2026-10-21", float64(3)}, {"2026-10-22", float64(2)}})
+	if pts[0].Pct != 35 || pts[1].Pct != 100 || pts[2].Pct != 65 || pts[0].Label != "10-20" {
+		t.Errorf("bar steps: %+v", pts)
 	}
 }

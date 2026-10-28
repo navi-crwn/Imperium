@@ -18,15 +18,16 @@ import (
 
 // Manifest is what an app says about itself.
 type Manifest struct {
-	App          string        `json:"app"`
-	Name         string        `json:"name"`
-	Icon         string        `json:"icon"`
-	BaseURL      string        `json:"base_url"`
-	Capabilities []string      `json:"capabilities"`
-	ContentTypes []ContentType `json:"content_types"`
-	Extensions   []string      `json:"extensions"`
-	Settings     []SettingDef  `json:"settings_schema"`
-	FetchedAt    time.Time     `json:"-"`
+	App          string              `json:"app"`
+	Name         string              `json:"name"`
+	Icon         string              `json:"icon"`
+	BaseURL      string              `json:"base_url"`
+	Capabilities []string            `json:"capabilities"`
+	ContentTypes []ContentType       `json:"content_types"`
+	Extensions   []string            `json:"extensions"`
+	Settings     []SettingDef        `json:"settings_schema"`
+	Actions      map[string][]string `json:"actions"` // user/report/content action names, as PixelHop and NoteHop list them
+	FetchedAt    time.Time           `json:"-"`
 }
 
 type ContentType struct {
@@ -47,6 +48,36 @@ type SettingDef struct {
 
 func (m *Manifest) Has(c string) bool { return contains(m.Capabilities, c) }
 
+// HasReports: the app declares the reports capability or report actions.
+func (m *Manifest) HasReports() bool { return m.Has("reports") || len(m.Actions["report"]) > 0 }
+
+// HasSettings: the app declares the settings capability or a settings schema.
+func (m *Manifest) HasSettings() bool { return m.Has("settings") || len(m.Settings) > 0 }
+
+// ReportActions are the buttons a report row gets, by kind: LinkHop's abuse
+// flags (confirm/restore) and visitor reports (investigate/close), else what the
+// manifest lists, else dismiss/resolve.
+func (m *Manifest) ReportActions(kind string) []string {
+	switch kind {
+	case "flag":
+		return []string{"confirm", "restore"}
+	case "report":
+		return []string{"investigate", "close"}
+	}
+	if acts := m.Actions["report"]; len(acts) > 0 {
+		return acts
+	}
+	return []string{"dismiss", "resolve"}
+}
+
+// extActions are the actions an extension understands, when Imperium knows
+// them; the form offers a free action field otherwise.
+var extActions = map[string][]string{
+	"ip":      {"ban", "unban", "unwatch"},
+	"domains": {"add", "remove"},
+	"names":   {"release"},
+}
+
 func (m *Manifest) ContentType(t string) *ContentType {
 	for i := range m.ContentTypes {
 		if m.ContentTypes[i].Type == t {
@@ -56,10 +87,11 @@ func (m *Manifest) ContentType(t string) *ContentType {
 	return nil
 }
 
-var manifests = struct {
+// manifestCache holds the manifests fetched so far, per App instance.
+type manifestCache struct {
 	sync.Mutex
 	m map[string]*Manifest
-}{m: map[string]*Manifest{}}
+}
 
 // source is an app Imperium can read through the protocol: HOP ID itself
 // ("linkhop", prefix /api/hop) or a registry app with the admin_api capability.
@@ -89,12 +121,12 @@ func (a *App) sources(ctx context.Context) []db.App {
 
 // manifest fetches (and caches for ten minutes) an app's manifest.
 func (a *App) manifest(ctx context.Context, s *db.Session, ap *db.App, force bool) (*Manifest, error) {
-	manifests.Lock()
-	if m, ok := manifests.m[ap.Slug]; ok && !force && time.Since(m.FetchedAt) < 10*time.Minute {
-		manifests.Unlock()
+	a.manifests.Lock()
+	if m, ok := a.manifests.m[ap.Slug]; ok && !force && time.Since(m.FetchedAt) < 10*time.Minute {
+		a.manifests.Unlock()
 		return m, nil
 	}
-	manifests.Unlock()
+	a.manifests.Unlock()
 	var m Manifest
 	env, err := a.hop.Call(ctx, target(*ap), actorOf(s), "GET", "/manifest", nil)
 	if err != nil {
@@ -104,9 +136,9 @@ func (a *App) manifest(ctx context.Context, s *db.Session, ap *db.App, force boo
 		return nil, err
 	}
 	m.FetchedAt = time.Now()
-	manifests.Lock()
-	manifests.m[ap.Slug] = &m
-	manifests.Unlock()
+	a.manifests.Lock()
+	a.manifests.m[ap.Slug] = &m
+	a.manifests.Unlock()
 	return &m, nil
 }
 
@@ -320,8 +352,9 @@ func (a *App) reportAction(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
+	// LinkHop keeps two queues, abuse flags and visitor reports, and routes them by kind; other apps have one.
 	path := "/reports/" + url.PathEscape(id) + "/actions"
-	if kind != "" {
+	if kind == "flag" || kind == "report" {
 		path = "/reports/" + url.PathEscape(kind) + "/" + url.PathEscape(id) + "/actions"
 	}
 	reason := strings.TrimSpace(r.FormValue("reason"))
@@ -415,7 +448,8 @@ func (a *App) extension(w http.ResponseWriter, r *http.Request) {
 	if err := a.call(r.Context(), current(r), ap, "GET", "/x/"+url.PathEscape(ext)+"?q="+url.QueryEscape(q), nil, &data); err != nil {
 		errMsg = err.Error()
 	}
-	a.render(w, r, "extension.html", ap.Name+" · "+ext, map[string]any{"App": ap, "M": m, "Ext": ext, "Data": data, "Tables": tables(data), "Raw": jsonPretty(data), "Err": errMsg, "Q": q, "IsAdmin": isAdmin(current(r))})
+	a.render(w, r, "extension.html", ap.Name+" · "+a.extLabel(ext), map[string]any{"App": ap, "M": m, "Ext": ext, "Data": data, "Tables": tables(data), "Raw": jsonPretty(data), "Err": errMsg, "Q": q,
+		"IsAdmin": isAdmin(current(r)), "Actions": extActions[ext], "KV": kvRows(data)})
 }
 
 // POST /apps/{app}/x/{ext}/actions: free-form action with p_* params.
@@ -441,8 +475,19 @@ func (a *App) extensionAction(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	reason := strings.TrimSpace(r.FormValue("reason"))
-	err := a.call(r.Context(), s, ap, "POST", "/x/"+url.PathEscape(ext)+"/actions", map[string]any{"action": action, "reason": reason, "params": params}, nil)
-	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: ap.Slug, Action: ext + "." + action, Target: str(params["ip"]) + str(params["domain"]) + str(params["slug"]) + str(params["id"]),
+	// An optional sub-path picks a nested resource: NoteHop releases a slug hold at /x/names/holds/{slug}/actions.
+	sub := strings.Trim(r.FormValue("path"), "/")
+	if !safeSubPath(sub) {
+		a.flashError(w, a.T("action.failed"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	path := "/x/" + url.PathEscape(ext) + "/actions"
+	if sub != "" {
+		path = "/x/" + url.PathEscape(ext) + "/" + sub + "/actions"
+	}
+	err := a.call(r.Context(), s, ap, "POST", path, map[string]any{"action": action, "reason": reason, "params": params}, nil)
+	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: ap.Slug, Action: ext + "." + action, Target: sub + str(params["ip"]) + str(params["domain"]) + str(params["slug"]) + str(params["id"]),
 		Detail: map[string]any{"reason": reason, "params": params, "error": errString(err)}, OK: err == nil})
 	if err != nil {
 		a.flashError(w, a.T("action.failed")+": "+err.Error())
@@ -450,6 +495,24 @@ func (a *App) extensionAction(w http.ResponseWriter, r *http.Request) {
 		a.flash(w, a.T("action.done"))
 	}
 	http.Redirect(w, r, back, http.StatusFound)
+}
+
+// safeSubPath allows "holds/some-slug" style segments only.
+func safeSubPath(p string) bool {
+	if p == "" {
+		return true
+	}
+	for _, seg := range strings.Split(p, "/") {
+		if seg == "" || seg == "." || seg == ".." {
+			return false
+		}
+		for _, c := range seg {
+			if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_' || c == '.') {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // table is a generic rendering of a list of objects.
