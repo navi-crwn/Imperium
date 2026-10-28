@@ -18,7 +18,15 @@ func (a *App) loginPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
-	a.render(w, r, "login.html", a.T("login.title"), map[string]any{"Enabled": a.cfg.SSOEnabled(), "Next": safeNext(r.URL.Query().Get("next"))})
+	// Which door the visitor came through: the Tailscale host or the Cloudflare Access one.
+	kind := "Tailscale"
+	if a.cfg.AltHost != "" && strings.EqualFold(r.Host, a.cfg.AltHost) {
+		kind = "Cloudflare Access"
+	}
+	a.render(w, r, "login.html", a.T("login.title"), map[string]any{
+		"Enabled": a.cfg.SSOEnabled(), "Next": safeNext(r.URL.Query().Get("next")),
+		"Door": r.Host, "DoorKind": kind,
+	})
 }
 
 // ssoStart sends the visitor to HOP ID to sign in.
