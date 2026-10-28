@@ -1,7 +1,7 @@
 {{template "head" .}}{{template "top" .}}
 <h2>{{t "home.apps"}}</h2>
 <div class="grid g3">
-{{range .Data.Health}}<a class="card" href="{{if eq .Slug "linkhop"}}/apps/linkhop/content{{else}}/apps{{end}}" style="color:inherit">
+{{range .Data.Health}}<a class="card card-link" href="/apps/{{.Slug}}">
   <div><span class="dot {{if eq .Status "maint"}}maint{{else if .OK}}ok{{else}}bad{{end}}"></span><b>{{.Name}}</b></div>
   <div class="small muted">{{.URL}}</div>
   <div class="small">{{if eq .Status "maint"}}{{t "status.maint"}}{{else if .OK}}{{t "status.ok"}} · {{.Latency.Milliseconds}} ms{{if .Version}} · {{.Version}}{{end}}{{else}}{{t "status.down"}}{{if .Detail}} · {{.Detail}}{{end}}{{end}}</div>
@@ -15,9 +15,9 @@
 <div class="grid g5">
 {{range $k := .Data.KPIOrder}}<div class="card"><div class="k">{{t (printf "kpi.%s" $k)}}</div><div class="v">{{with index $.Data.Stats.KPI $k}}{{n .}}{{else}}0{{end}}</div></div>{{end}}
 </div>
-<div class="grid g2" style="margin-top:14px">
-  <div class="card"><div class="k">{{t "home.signups"}}</div><div class="bars" style="margin:12px 0 22px">{{range .Data.Signups}}<div style="height:{{.Pct}}%" title="{{.Label}}: {{.N}}"><span>{{.Label}}</span></div>{{end}}</div></div>
-  <div class="card"><div class="k">{{t "home.clicks"}}</div><div class="bars" style="margin:12px 0 22px">{{range .Data.Clicks}}<div style="height:{{.Pct}}%" title="{{.Label}}: {{.N}}"><span>{{.Label}}</span></div>{{end}}</div></div>
+<div class="grid g2 mt14">
+  <div class="card"><div class="k">{{t "home.signups"}}</div><div class="bars">{{range .Data.Signups}}<div class="h{{.Pct}}" title="{{.Label}}: {{.N}}"><span>{{.Label}}</span></div>{{end}}</div></div>
+  <div class="card"><div class="k">{{t "home.clicks"}}</div><div class="bars">{{range .Data.Clicks}}<div class="h{{.Pct}}" title="{{.Label}}: {{.N}}"><span>{{.Label}}</span></div>{{end}}</div></div>
 </div>
 {{end}}
 {{template "foot" .}}

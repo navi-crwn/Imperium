@@ -113,6 +113,8 @@ func (a *App) probe(ctx context.Context, s *db.Session, ap db.App) Health {
 		h.OK, h.Version = err == nil, data.Version
 		if err != nil {
 			h.Detail = err.Error()
+		} else if a.cachedManifest(ap.Slug) == nil {
+			_, _ = a.manifest(ctx, s, &ap, false) // warm the sidebar's module list
 		}
 		return h
 	}

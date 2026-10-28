@@ -31,11 +31,13 @@ type App struct {
 	mu     sync.Mutex
 	health map[string]Health // last health per app slug
 	start  time.Time
+
+	manifests manifestCache
 }
 
 // New wires the app. templates and static come from the embedded web/ folder.
 func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
-	a := &App{cfg: cfg, db: d, health: map[string]Health{}, start: time.Now()}
+	a := &App{cfg: cfg, db: d, health: map[string]Health{}, start: time.Now(), manifests: manifestCache{m: map[string]*Manifest{}}}
 	a.hop = &hopproto.Client{As: cfg.HopClient, HTTP: a.httpClient()}
 	funcs := template.FuncMap{
 		"t":     a.T,
@@ -46,6 +48,9 @@ func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
 		"json":  jsonPretty,
 		"lower": strings.ToLower,
 		"list":  func(items ...string) []string { return items },
+		"bytes": humanBytes,
+		"day":   dayOf,
+		"ext":   a.extLabel,
 	}
 	tpl, err := template.New("").Funcs(funcs).ParseFS(web, "web/templates/*.html")
 	if err != nil {
@@ -89,6 +94,7 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /users/{id}/actions", a.member(a.userAction))
 	m.HandleFunc("GET /apps", a.member(a.apps))
 	m.HandleFunc("POST /apps/sync", a.member(a.appsSync))
+	m.HandleFunc("GET /apps/{app}", a.member(a.dashboard))
 	m.HandleFunc("GET /apps/{app}/content", a.member(a.content))
 	m.HandleFunc("GET /apps/{app}/content/{type}/{id}", a.member(a.item))
 	m.HandleFunc("POST /apps/{app}/content/{type}/{id}/actions", a.member(a.itemAction))
@@ -253,11 +259,15 @@ type page struct {
 	Path    string
 	Query   string
 	Version string
+	Nav     navData
 	Data    any
 }
 
 func (a *App) render(w http.ResponseWriter, r *http.Request, name, title string, data any) {
 	p := page{Title: title, Session: current(r), Path: r.URL.Path, Query: r.URL.Query().Get("q"), Version: a.cfg.Version, Data: data}
+	if p.Session != nil {
+		p.Nav = a.nav(r)
+	}
 	if c, err := r.Cookie("imp_flash"); err == nil && c.Value != "" {
 		if v, err := hex.DecodeString(c.Value); err == nil {
 			p.Flash = string(v)
