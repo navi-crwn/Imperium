@@ -10,8 +10,8 @@ case "$APP" in
   *) echo "aplikasi tidak dikenal: $APP"; exit 1;;
 esac
 cd /var/www/helink/shortlink-app
-sudo -n -u www-data php8.3 artisan tinker --execute="
+sudo -n -u www-data env XDG_CONFIG_HOME=/tmp/psysh-www HOME=/tmp/psysh-www php8.3 artisan tinker --execute="
 \$a = App\Models\HopApp::where('slug', '$APP')->firstOrFail();
 \$a->capabilities = json_decode('$CAPS', true); \$a->save();
-echo \$a->slug.' capabilities='.json_encode(\$a->capabilities).\"\n\";" 2>/dev/null | tail -1
+echo \$a->slug.' capabilities='.json_encode(\$a->capabilities).\"\n\";" | tail -1
 echo "Imperium menyinkronkan registry tiap 5 menit (atau Apps → Sinkronkan)."
