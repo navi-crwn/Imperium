@@ -37,3 +37,50 @@ pre { background:var(--panel2); padding:12px; border-radius:10px; overflow:auto;
 details summary { cursor:pointer; color:var(--muted); }
 footer { text-align:center; color:var(--muted); font-size:12px; margin-top:40px; }
 @media (max-width:720px) { .top { flex-wrap:wrap; } .search { order:3; width:100%; } main { padding:14px 12px; } }
+
+/* Login page: a soft colour wash over the background, a glass card, the HOP tiles behind. */
+.login-wrap { min-height: calc(100vh - 60px); display:flex; align-items:center; justify-content:center; position:relative; z-index:1; padding:40px 16px; }
+body:has(.login-wrap) { background:
+  radial-gradient(55% 45% at 15% 10%, rgb(139 156 255 / .22), transparent 65%),
+  radial-gradient(45% 40% at 88% 90%, rgb(236 72 153 / .16), transparent 65%),
+  radial-gradient(40% 35% at 80% 15%, rgb(61 220 151 / .12), transparent 65%), var(--bg); }
+.login { max-width:440px; width:100%; margin:0 auto; text-align:center; }
+.login-crown { width:56px; height:56px; margin:0 auto 10px; display:grid; place-items:center; border-radius:18px; color:#fff;
+  background: linear-gradient(135deg, #fb923c, #ec4899 55%, #7c3aed); box-shadow: 0 5px 0 0 rgb(0 0 0 / .22), 0 18px 40px -14px rgb(236 72 153 / .6); }
+.login-crown svg { width:30px; height:30px; filter: drop-shadow(0 2px 2px rgb(0 0 0 / .25)); }
+.brand-xl { font-size:30px; display:block; margin-bottom:2px; letter-spacing:.32em; padding-left:.32em; }
+.login-tagline { margin:0 0 18px; }
+.login-card { text-align:left; padding:22px 24px 20px; border-radius:20px; background: color-mix(in srgb, var(--panel) 78%, transparent);
+  backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3); box-shadow: 0 30px 60px -30px rgb(0 0 0 / .45); }
+.login-door { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--muted); margin-bottom:14px; }
+.login-door .mono { font-size:12px; } .login-door .chip { margin-left:auto; }
+.login-card h1 { font-size:24px; margin:0 0 6px; } .login-card .small { margin:0 0 18px; }
+.login-btn { border-radius:14px; padding:14px 18px; text-align:center; transition: transform .15s ease, box-shadow .15s ease; }
+.login-btn:hover { text-decoration:none; transform: translateY(-1px); box-shadow: 0 12px 30px -12px rgb(0 0 0 / .5); }
+.login-facts { display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin-top:16px; }
+.login-facts span { font-size:11px; color:var(--muted); padding:3px 9px; border:1px solid var(--line); border-radius:999px; }
+footer:has(+ script) { position:relative; z-index:1; }
+
+/* Floating HOP tiles (same recipe as LinkHop's auth pages). */
+.hop-float { position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; perspective:900px; opacity:0; transition:opacity 1.2s ease; }
+.hop-float.is-ready { opacity:1; }
+.hop-sprite { position:absolute; top:0; left:0; width:clamp(52px, 8vw, 80px); aspect-ratio:1; will-change:transform; transform-style:preserve-3d; }
+.hop-tile { position:relative; width:100%; height:100%; transform-style:preserve-3d; animation:hop-tumble 11s ease-in-out infinite; }
+.hop-sprite:nth-child(2) .hop-tile { animation-delay:-1.9s; } .hop-sprite:nth-child(3) .hop-tile { animation-delay:-3.8s; } .hop-sprite:nth-child(4) .hop-tile { animation-delay:-5.7s; } .hop-sprite:nth-child(5) .hop-tile { animation-delay:-7.6s; } .hop-sprite:nth-child(6) .hop-tile { animation-delay:-9.5s; }
+.hop-face { position:absolute; inset:0; display:grid; place-items:center; border-radius:22%;
+  background:linear-gradient(135deg, var(--hop-a), var(--hop-b) 55%, var(--hop-c));
+  box-shadow:0 5px 0 0 rgb(0 0 0 / .22), 0 18px 40px -14px rgb(var(--hop-shadow) / .55), inset 0 1px 0 rgb(255 255 255 / .5);
+  transition:background .6s ease, box-shadow .6s ease; }
+.hop-face::before { content:""; position:absolute; inset:0; border-radius:inherit; background:radial-gradient(120% 90% at 20% 0%, rgb(255 255 255 / .55), transparent 55%); }
+.hop-face > img, .hop-face > svg { width:58%; height:58%; position:relative; filter:drop-shadow(0 2px 2px rgb(0 0 0 / .25)); }
+.hop-sprite.is-bounce .hop-tile { animation:hop-tumble 11s ease-in-out infinite, hop-squash .45s ease-out; }
+@keyframes hop-tumble { 0% { transform:rotateX(10deg) rotateY(-14deg); } 50% { transform:rotateX(-12deg) rotateY(16deg); } 100% { transform:rotateX(10deg) rotateY(-14deg); } }
+@keyframes hop-squash { 0% { scale:1; } 35% { scale:1.12 .9; } 70% { scale:.95 1.06; } 100% { scale:1; } }
+.hop-theme-0 { --hop-a:#fb923c; --hop-b:#ec4899; --hop-c:#7c3aed; --hop-shadow:236 72 153; }
+.hop-theme-1 { --hop-a:#22d3ee; --hop-b:#3b82f6; --hop-c:#8b5cf6; --hop-shadow:59 130 246; }
+.hop-theme-2 { --hop-a:#a3e635; --hop-b:#22d3ee; --hop-c:#8b5cf6; --hop-shadow:34 211 238; }
+.hop-theme-3 { --hop-a:#fbbf24; --hop-b:#f43f5e; --hop-c:#6d28d9; --hop-shadow:244 63 94; }
+.hop-theme-4 { --hop-a:#34d399; --hop-b:#06b6d4; --hop-c:#2563eb; --hop-shadow:6 182 212; }
+.hop-theme-5 { --hop-a:#f472b6; --hop-b:#fb7185; --hop-c:#f59e0b; --hop-shadow:251 113 133; }
+@media (max-width:640px) { .hop-float.is-ready { opacity:.85; } .hop-sprite:nth-child(n+5) { display:none; } }
+@media (prefers-reduced-motion: reduce) { .hop-tile { animation:none; transform:rotateX(8deg) rotateY(-10deg); } }
