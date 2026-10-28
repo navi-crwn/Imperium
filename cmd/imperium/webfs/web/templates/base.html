@@ -1,20 +1,18 @@
-{{define "head"}}<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · {{t "app"}}</title><link rel="stylesheet" href="/static/app.css"><meta name="color-scheme" content="dark light"></head><body>{{end}}
+{{define "head"}}<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · {{t "app"}}</title><link rel="stylesheet" href="/static/app.css"><link rel="icon" type="image/svg+xml" href="/static/imperium.svg"><meta name="color-scheme" content="dark light"></head><body>{{end}}
 {{define "top"}}
 <header class="top">
-  <a href="/" class="brand">IMPERIUM<small>{{t "tagline"}}</small></a>
-  <nav class="nav">
-    <a href="/" class="{{if eq .Path "/"}}on{{end}}">{{t "nav.home"}}</a>
-    <a href="/users" class="{{if eq .Path "/users"}}on{{end}}">{{t "nav.users"}}</a>
-    <a href="/apps" class="{{if eq .Path "/apps"}}on{{end}}">{{t "nav.apps"}}</a>
-    <a href="/audit" class="{{if eq .Path "/audit"}}on{{end}}">{{t "nav.audit"}}</a>
-  </nav>
+  <button class="menu-btn" type="button" data-side-toggle aria-controls="side" aria-expanded="false" aria-label="{{t "nav.menu"}}"><span></span><span></span><span></span></button>
+  <a href="/" class="brand"><img class="logo" src="/static/imperium.svg" alt="">IMPERIUM<small>{{t "tagline"}}</small></a>
   <form class="search" action="/search" method="get"><input type="search" name="q" value="{{.Query}}" placeholder="{{t "search.ph"}}" autocomplete="off"></form>
   <div class="who">{{if .Session.Avatar}}<img src="{{.Session.Avatar}}" alt="">{{end}}<a href="/me">@{{.Session.Username}}</a>
     {{range .Session.Roles}}<span class="chip {{.}}">{{.}}</span>{{end}}
     <form method="post" action="/logout"><button class="btn" type="submit">{{t "nav.logout"}}</button></form></div>
 </header>
+<div class="shell">
+{{template "side" .}}
+<div class="scrim" data-side-close></div>
 <main>
 {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
 {{if .Error}}<div class="flash err">{{.Error}}</div>{{end}}
 {{end}}
-{{define "foot"}}</main><footer>{{t "footer"}} · v{{.Version}}</footer></body></html>{{end}}
+{{define "foot"}}<footer>{{t "footer"}} · v{{.Version}}</footer></main></div><script src="/static/app.js" defer></script></body></html>{{end}}

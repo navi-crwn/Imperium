@@ -1,4 +1,4 @@
-// Imperium: the control center of the HOP family. One binary, SQLite, no build step.
+// Imperium: the HOP Dashboard, the admin of the HOP family. One binary, SQLite, no build step.
 package main
 
 import (

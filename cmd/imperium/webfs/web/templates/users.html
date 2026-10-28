@@ -1,18 +1,18 @@
 {{template "head" .}}{{template "top" .}}
 <h1>{{t "users.title"}}</h1>
-<form method="get" action="/users" class="grid" style="grid-template-columns:2fr 1fr 1fr auto;align-items:end;gap:8px">
-  <div><label>q</label><input type="search" name="q" value="{{.Data.Q}}" placeholder="{{t "search.ph"}}"></div>
+<form method="get" action="/users" class="filters">
+  <div class="grow"><label>q</label><input type="search" name="q" value="{{.Data.Q}}" placeholder="{{t "search.ph"}}"></div>
   <div><label>status</label><select name="status"><option value="">—</option>{{range $s := list "active" "suspended"}}<option {{if eq $s $.Data.Status}}selected{{end}}>{{$s}}</option>{{end}}</select></div>
   <div><label>{{t "user.roles"}}</label><select name="role"><option value="">—</option>{{range $r := list "owner" "admin" "moderator" "support"}}<option {{if eq $r $.Data.Role}}selected{{end}}>{{$r}}</option>{{end}}</select></div>
   <button class="btn" type="submit">OK</button>
 </form>
-{{if .Data.Err}}<p class="flash err" style="margin-top:14px">{{t "err.hop"}}: {{.Data.Err}}</p>{{end}}
-<table style="margin-top:14px"><tr><th>@</th><th>Name</th><th>Email</th><th>Status</th><th>{{t "user.roles"}}</th><th>Links</th><th>Bio</th><th>Joined</th><th>Last login</th></tr>
+{{if .Data.Err}}<p class="flash err mt14">{{t "err.hop"}}: {{.Data.Err}}</p>{{end}}
+<div class="scroll-x"><table class="mt14"><tr><th>@</th><th>Name</th><th>Email</th><th>Status</th><th>{{t "user.roles"}}</th><th>Links</th><th>Bio</th><th>Joined</th><th>Last login</th></tr>
 {{range .Data.Rows}}<tr>
   <td><a href="/users/{{.Sub}}">@{{.Username}}</a><div class="muted mono">#{{.Sub}}</div></td><td>{{.Name}}</td><td>{{.Email}}{{if not .Verified}} <span class="chip">unverified</span>{{end}}</td>
   <td><span class="chip {{.Status}}">{{.Status}}</span></td><td>{{range .Roles}}<span class="chip {{.}}">{{.}}</span>{{end}}</td>
   <td>{{.Links}}</td><td>{{.BioPages}}</td><td class="small muted">{{.CreatedAt}}</td><td class="small muted">{{.LastLoginAt}}</td>
 </tr>{{else}}<tr><td colspan="9" class="muted">{{t "users.none"}}</td></tr>{{end}}
-</table>
-{{if .Data.Next}}<p style="margin-top:12px"><a class="btn" href="/users?q={{.Data.Q}}&status={{.Data.Status}}&role={{.Data.Role}}&cursor={{.Data.Next}}">{{t "more"}}</a></p>{{end}}
+</table></div>
+{{if .Data.Next}}<p class="mt12"><a class="btn" href="/users?q={{.Data.Q}}&status={{.Data.Status}}&role={{.Data.Role}}&cursor={{.Data.Next}}">{{t "more"}}</a></p>{{end}}
 {{template "foot" .}}
