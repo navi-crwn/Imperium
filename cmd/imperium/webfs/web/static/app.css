@@ -16,6 +16,7 @@ h1 { font-size:22px; margin:0 0 14px; } h2 { font-size:15px; text-transform:uppe
 .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px; }
 .card .k { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; } .card .v { font-size:26px; font-weight:700; margin-top:2px; }
 .dot { display:inline-block; width:10px; height:10px; border-radius:50%; background:var(--muted); margin-right:8px; vertical-align:middle; }
+.v.warn { color:var(--warn); }
 .dot.ok { background:var(--ok); } .dot.bad { background:var(--bad); } .dot.maint { background:var(--warn); }
 .muted { color:var(--muted); } .small { font-size:13px; } .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; }
 table { width:100%; border-collapse:collapse; font-size:14px; } th, td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; } th { color:var(--muted); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.06em; }

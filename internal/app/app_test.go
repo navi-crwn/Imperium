@@ -182,6 +182,43 @@ func TestLoginRolesAndMFA(t *testing.T) {
 	}
 }
 
+func TestAliasHidesOwnerIdentity(t *testing.T) {
+	hop := newFakeHop(t)
+	defer hop.srv.Close()
+	a, srv := newApp(t, hop)
+	defer srv.Close()
+	a.cfg.Aliases = envAliasesFrom("rani=superadmin, R@X=superadmin")
+	hop.ticket = map[string]any{"sub": "26", "username": "rani", "name": "Rani Dewi", "email": "r@x", "roles": []string{"owner"}, "mfa": true, "status": "active"}
+	c := client(t)
+	res := login(t, c, srv)
+	if res.Request.URL.Path != "/users" {
+		t.Fatalf("owner should be in, got %s", res.Request.URL)
+	}
+	for _, path := range []string{"/users", "/me", "/users/26", "/audit"} {
+		res, _ := c.Get(srv.URL + path)
+		b := body(res)
+		if strings.Contains(b, "r@x") || strings.Contains(b, "Rani") {
+			t.Fatalf("%s leaks the real identity:\n%s", path, b)
+		}
+		if !strings.Contains(b, "superadmin") {
+			t.Fatalf("%s should show the alias", path)
+		}
+	}
+	rows, _ := a.db.Audits(t.Context(), 0, 5)
+	if len(rows) == 0 || rows[0].ActorName != "superadmin" {
+		t.Fatalf("audit should carry the alias: %+v", rows)
+	}
+}
+
+func envAliasesFrom(v string) map[string]string {
+	t := map[string]string{}
+	for _, pair := range strings.Split(v, ",") {
+		k, a, _ := strings.Cut(pair, "=")
+		t[strings.ToLower(strings.TrimSpace(k))] = strings.TrimSpace(a)
+	}
+	return t
+}
+
 func TestHomeUserActionsAudit(t *testing.T) {
 	hop := newFakeHop(t)
 	defer hop.srv.Close()

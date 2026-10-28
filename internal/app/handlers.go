@@ -130,6 +130,11 @@ func (a *App) users(w http.ResponseWriter, r *http.Request) {
 	} else if env.Page != nil {
 		next = env.Page.Next
 	}
+	for i := range rows {
+		if alias := a.cfg.Alias(rows[i].Username, rows[i].Email); alias != "" {
+			rows[i].Name, rows[i].Email = alias, ""
+		}
+	}
 	a.render(w, r, "users.html", a.T("users.title"), map[string]any{"Rows": rows, "Err": errMsg, "Next": next, "Q": q.Get("q"), "Status": q.Get("status"), "Role": q.Get("role")})
 }
 
@@ -155,6 +160,10 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	raw = env.Data
+	if alias := a.cfg.Alias(str(u.Profile["username"]), str(u.Profile["email"])); alias != "" {
+		u.Profile["name"], u.Profile["email"] = alias, ""
+		raw = nil
+	}
 	a.render(w, r, "user.html", "@"+str(u.Profile["username"]), map[string]any{"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)),
 		"RoleOptions": []string{"owner", "admin", "moderator", "support"}})
 }
