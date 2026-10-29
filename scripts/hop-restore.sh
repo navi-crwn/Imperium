@@ -69,12 +69,18 @@ say "Verifikasi selesai, masalah: $FAILS"
 # ---------- 4. apply (root) ----------
 [ "$MODE" = apply ] || exit 2
 [ "$(id -u)" = 0 ] || { say "apply butuh root: sudo -E $0 apply $SRC"; exit 1; }
-HELINK=/var/www/helink/shortlink-app; PIXELHOP=/home/carawin/apps/pixelhop
+if [ -d "/var/www/helink/linkhop" ]; then
+  HELINK=/var/www/helink/linkhop
+elif [ -d "/var/www/helink/hub" ]; then
+  HELINK=/var/www/helink/hub
+else
+  HELINK=/var/www/helink/shortlink-app
+fi; PIXELHOP=/home/carawin/apps/pixelhop
 read -r -p "Ini akan MENIMPA database dan file di server ini. Ketik 'pulihkan' untuk lanjut: " ans
 [ "$ans" = pulihkan ] || exit 1
 
 say "Hentikan layanan"
-systemctl stop pixelhop notehop queue-worker 2>/dev/null || true
+systemctl stop pixelhop notehop linkhop-queue hub-queue biohop-queue queue-worker 2>/dev/null || true
 
 if [ -f "$SRC/linkhop/db.sql.gz" ] && [ -f "$TMP/secrets/linkhop.env" ]; then
   say "LinkHop: env, DB, storage"
