@@ -17,12 +17,18 @@ func (a *App) hopID() hopproto.App {
 	return hopproto.App{Slug: "linkhop", URL: a.cfg.HopURL, Prefix: "/api/hop", Secret: a.cfg.HopSecret}
 }
 
-func target(ap db.App) hopproto.App {
-	prefix := ap.Prefix
-	if ap.Slug == "biohop" && (prefix == "" || prefix == "/hop") {
-		prefix = "/api/hop"
+// target is an app as a call target. BioHop lives in HOP ID's shared
+// registry and verifies the caller "imperium" against the imperium row, so
+// like HOP ID itself it is signed with Imperium's own secret, under /api/hop.
+func (a *App) target(ap db.App) hopproto.App {
+	prefix, secret := ap.Prefix, ap.Secret
+	if ap.Slug == "biohop" {
+		secret = a.cfg.HopSecret
+		if prefix == "" || prefix == "/hop" {
+			prefix = "/api/hop"
+		}
 	}
-	return hopproto.App{Slug: ap.Slug, URL: ap.URL, Prefix: prefix, Secret: ap.Secret}
+	return hopproto.App{Slug: ap.Slug, URL: ap.URL, Prefix: prefix, Secret: secret}
 }
 
 func actorOf(s *db.Session) string {
@@ -113,7 +119,7 @@ func (a *App) probe(ctx context.Context, s *db.Session, ap db.App) Health {
 			Version string `json:"version"`
 			DB      string `json:"db"`
 		}
-		env, err := a.hop.Call(ctx, target(ap), actorOf(s), "GET", "/health", nil)
+		env, err := a.hop.Call(ctx, a.target(ap), actorOf(s), "GET", "/health", nil)
 		if err == nil && len(env.Data) > 0 {
 			_ = json.Unmarshal(env.Data, &data)
 		}
