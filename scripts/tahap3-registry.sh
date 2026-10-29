@@ -3,10 +3,11 @@
 # di registry HOP ID supaya Imperium memakainya dan HOP ID mengirim event.
 #   bash ~/imperium/scripts/tahap3-registry.sh pixelhop   (atau notehop)
 set -euo pipefail
-APP=${1:?pixelhop|notehop}
+APP=${1:?pixelhop|notehop|biohop}
 case "$APP" in
   pixelhop) CAPS='["account_api","admin_api","events","metrics"]';;
   notehop)  CAPS='["admin_api","events","metrics","zero_knowledge"]';;
+  biohop)   CAPS='["account_api","admin_api","events","reports","settings","metrics"]';;
   *) echo "aplikasi tidak dikenal: $APP"; exit 1;;
 esac
 cd /var/www/helink/shortlink-app
