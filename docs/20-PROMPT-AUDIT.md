@@ -24,7 +24,7 @@ Seluruh audit ini **read-only**. Pemilik akan memeriksa hasilnya dulu, lalu meng
    - Bila izin diberikan, pakai akun uji `audit+<n>@hel.ink`, jangan akun pemilik (`ivan_smb787` atau `superadmin`), dan hapus akun uji di akhir. Jangan mengakali Turnstile atau Google. Tulis langkah manual bila keduanya menghalangi.
 5. **Rahasia.** Jangan pernah menampilkan isi secret, token, password, atau cookie. Cukup sebut nama variabelnya dan apakah terisi. Jangan meminta password ke pemilik di chat.
 6. **sudo** hanya untuk membaca, lewat `~/imperium/scripts/s <perintah>` (tercatat di `~/imperium/backups/sudo-log.txt`). Contohnya `cat`, `grep`, `journalctl`, `sshd -T`, `nginx -T`. Artisan baca-saja dijalankan sebagai www-data dengan `php8.3`. Untuk tinker baca-saja: `env XDG_CONFIG_HOME=/tmp/psysh-www HOME=/tmp/psysh-www`.
-7. **Bahasa dan jejak AI.** Tulis laporan dalam Bahasa Indonesia. Pemilik ingin **semua repo bebas jejak AI**, jadi rekomendasi perbaikanmu tidak boleh menyarankan menambah trailer AI, footer "Generated with", atau file instruksi agent ke repo.
+7. **Bahasa dan jejak AI.** Tulis laporan dalam Bahasa Indonesia. Pemilik ingin **semua repo bebas jejak AI**, jadi rekomendasi perbaikanmu tidak boleh menyarankan menambah trailer AI, footer "Generated with", atau file instruksi agent ke repo. Jejak yang sudah ada **tidak dihapus begitu saja, melainkan dipindahkan ke hop-ops**: isinya diarsipkan dulu, baru dikeluarkan dari repo app.
 8. **Jangan menyentuh** situs lain di VPS yang sama (carawinapp, nawalaku, router-bot), kecuali untuk mencatat repo GitHub-nya di bagian Jejak AI.
 
 ## 1. Peta sistem (verifikasi dulu)
@@ -83,7 +83,7 @@ Repo lain yang relevan: navi-crwn/helink-ops (catatan ops, private). RemoteHop b
 3. **BioHop wajib punya homepage** yang semirip mungkin dengan saudaranya, dengan aset 3D. Lihat bagian 3c.
 4. **Bahasa:** Indonesia ditambah 7 bahasa populer, wajib di semua app. Lihat bagian 3c.
 5. **Standar Structured Agentic Engineering wajib untuk semua app.** Lihat bagian 6.
-6. **Semua repo bebas jejak AI.** Catatan internal (jejak AI, tujuan, rencana, dan pekerjaan yang belum selesai) dipindahkan ke satu repo ops terpisah, `hop-ops`. Lihat bagian 5 dan 7.
+6. **Semua repo bebas jejak AI, tanpa ada yang hilang.** Jejak AI dan catatan internal (tujuan, rencana, dan pekerjaan yang belum selesai) **dipindahkan**, bukan dihapus, ke satu repo ops terpisah, `hop-ops`. Isinya diarsipkan di hop-ops dulu, baru dikeluarkan dari repo app. Lihat bagian 5 dan 7.
 
 ### Petunjuk awal yang harus kamu konfirmasi atau bantah
 
@@ -258,9 +258,16 @@ Untuk setiap repo dalam cakupan (HEL.ink, LinkHop, BioHop, PixelHop, NoteHop, Im
 - **Secret di riwayat.** Pastikan tidak ada secret di riwayat git. Jalankan `gitleaks` atau `trufflehog` pada klon bila tersedia, tanpa mencetak nilainya.
 - **Paket bersama.** Versi `hop-*` yang terpasang di tiap app sama dan tidak tertinggal.
 
-## 5. Jejak AI di semua repo GitHub (hanya mencatat)
+## 5. Jejak AI di semua repo GitHub (dicatat, lalu dipindahkan ke hop-ops)
 
-Pemilik ingin **semua repo bebas jejak AI** dari agent mana pun: Claude atau Claude Code, Gemini atau Gemini Code Assist, GitHub Copilot, Cursor, Codex atau OpenAI, Devin, Aider, Windsurf, Continue, dan sejenisnya. Tugasmu **hanya mencatat dan menulis cara singkat menghapusnya**. Pemilik yang akan mengeksekusi. Jangan menghapus, mengedit, atau force-push apa pun.
+Pemilik ingin **semua repo bebas jejak AI** dari agent mana pun: Claude atau Claude Code, Gemini atau Gemini Code Assist, GitHub Copilot, Cursor, Codex atau OpenAI, Devin, Aider, Windsurf, Continue, dan sejenisnya. Jejak itu **tidak dihapus, melainkan dipindahkan**. Isinya disimpan utuh di repo `hop-ops` (lihat bagian 7), lalu baru dikeluarkan dari repo app, sehingga repo app bersih tetapi tidak ada catatan yang hilang.
+
+Tugasmu ada tiga:
+1. Mencatat semua jejak.
+2. Menyiapkan arsipnya di `~/audit-hop/<tanggal>/hop-ops/ai/<repo>/` dengan cara membaca dan mengekspor saja.
+3. Menulis cara singkat memindahkannya.
+
+Pemilik yang akan mengeksekusi. Jangan menghapus, mengedit, atau force-push apa pun di repo mana pun.
 
 **Cakupan:** semua repo milik navi-crwn, bukan hanya keluarga HOP. Ambil daftarnya dengan perintah ini, lalu buat `git clone --mirror` masing-masing ke `~/audit-hop/<tanggal>/mirror/`:
 
@@ -295,29 +302,42 @@ gh repo list navi-crwn --limit 200 --json name,visibility,isArchived
 **Keluaran `JEJAK-AI.md`:**
 - Tabel per repo dengan kolom: jenis jejak, jumlah, contoh (SHA pendek, nomor PR, atau path), dan tindakan yang disarankan.
 - Ringkasan total.
-- Bagian "Cara menghapus" yang singkat dan bisa langsung dieksekusi pemilik. Sertakan setidaknya poin berikut:
-  1. **File di HEAD.** Hapus lewat commit biasa. Bila pemilik ingin tetap memakainya secara lokal, masukkan ke `.git/info/exclude` atau gitignore global, bukan ke `.gitignore` repo.
-  2. **Riwayat commit.** Jalankan `git filter-repo` pada klon `--mirror` yang baru:
-     - `--message-callback` untuk membuang baris trailer dan footer AI.
-     - `--mailmap` untuk author dan committer AI.
-     - `--path <file> --invert-paths` untuk file instruksi agent.
-
-     Setelah itu, `git push --force --all` dan `git push --force --tags`. Jangan memakai `--mirror`, karena GitHub menolak `refs/pull/*`. Tulis contoh perintah lengkap yang sudah kamu uji pada **salinan** mirror di folder audit, tanpa push.
+- **Arsip siap salin** di `~/audit-hop/<tanggal>/hop-ops/ai/<repo>/`, berisi:
+  - `files/`: salinan setiap file instruksi agent dengan path aslinya (CLAUDE.md, AGENTS.md, `.claude/`, dan sejenisnya). Sertakan juga versi lama yang sudah terhapus dari riwayat, misalnya lewat `git log -p --all -- <path>` yang disimpan sebagai `.patch`.
+  - `COMMITS.md`: daftar commit yang memuat jejak AI, dengan kolom SHA, tanggal, author, subjek, dan trailer atau footer aslinya.
+  - `pr/<nomor>.md`: judul, body asli, dan komentar atau review bot untuk setiap PR atau issue yang memuat jejak AI.
+  - `BRANCHES.md`: nama branch agent, baik yang masih ada maupun yang tercatat di PR lama.
+  - `workflows/`: salinan workflow dan konfigurasi integrasi AI.
+- Bagian **"Cara memindahkan"** yang singkat dan bisa langsung dieksekusi pemilik. Setiap langkah wajib berurutan: **arsipkan ke hop-ops dulu, commit di hop-ops, baru keluarkan dari repo app.** Sertakan setidaknya poin berikut:
+  1. **File di HEAD.**
+     - Salin ke `hop-ops/ai/<repo>/files/`, lalu commit di hop-ops.
+     - Keluarkan dari repo app lewat commit biasa.
+     - Bila pemilik masih ingin agent memakainya secara lokal, arahkan agent ke salinan di hop-ops (symlink lokal yang dimasukkan ke `.git/info/exclude`, atau gitignore global), jangan ke `.gitignore` repo.
+  2. **Riwayat commit.**
+     - Pastikan `COMMITS.md` dan `files/` sudah ada di hop-ops.
+     - Jalankan `git filter-repo` pada klon `--mirror` yang baru: `--message-callback` untuk membuang baris trailer dan footer AI, `--mailmap` untuk author dan committer AI, dan `--path <file> --invert-paths` untuk file instruksi agent.
+     - Simpan `.git/filter-repo/commit-map` (pemetaan SHA lama ke SHA baru) ke `hop-ops/ai/<repo>/commit-map.txt`, supaya setiap commit lama tetap bisa dilacak.
+     - Setelah itu, `git push --force --all` dan `git push --force --tags`. Jangan memakai `--mirror`, karena GitHub menolak `refs/pull/*`.
+     - Tulis contoh perintah lengkap yang sudah kamu uji pada **salinan** mirror di folder audit, tanpa push.
   3. **Dampak penulisan ulang riwayat.** Semua SHA berubah. Akibatnya:
      - Checkout live (`/var/www/helink/*`, `~/pixelhop`, `~/notehop/repo`, `~/imperium`) perlu di-reset ke main baru.
      - PR terbuka rusak.
-     - Skrip deploy dan string versi yang memakai SHA ikut berubah.
-     - GitHub tetap menyimpan commit lama lewat `refs/pull/*` di halaman PR. Untuk benar-benar hilang, perlu permintaan ke GitHub Support.
+     - Skrip deploy dan string versi yang memakai SHA ikut berubah. Pakai `commit-map.txt` untuk menerjemahkannya.
+     - GitHub tetap menyimpan commit lama lewat `refs/pull/*` di halaman PR. Untuk benar-benar hilang dari GitHub, perlu permintaan ke GitHub Support. Salinannya tetap aman di hop-ops.
      - Grafik Contributors perlu waktu untuk dihitung ulang.
 
      Usulkan urutan yang aman: backup, satu repo uji dulu, lalu sisanya.
   4. **PR dan komentar.**
-     - Body PR: `gh pr edit <n> --body-file <file>`.
-     - Komentar bot: `gh api -X DELETE repos/<o>/<r>/issues/comments/<id>` dan `.../pulls/comments/<id>`.
-     - Branch sisa: `git push origin --delete <branch>`.
-     - Nama branch PR yang sudah di-merge tidak bisa diubah. Catat ini sebagai batasan.
-  5. **Integrasi.** Copot GitHub App AI, hapus atau nonaktifkan workflow AI, dan matikan Copilot code review di pengaturan repo.
-  6. **Pencegahan.** Matikan atribusi otomatis di agent yang dipakai (pengaturan attribution atau `includeCoAuthoredBy` di settings Claude Code, opsi sejenis di agent lain). Tambahkan hook `commit-msg` lokal yang menolak trailer AI. Gitignore global untuk file instruksi agent.
+     - Pastikan `pr/<nomor>.md` sudah ada di hop-ops.
+     - Ganti body PR dengan versi netral: `gh pr edit <n> --body-file <file>`.
+     - Hapus komentar bot: `gh api -X DELETE repos/<o>/<r>/issues/comments/<id>` dan `.../pulls/comments/<id>`.
+     - Hapus branch sisa: `git push origin --delete <branch>`.
+     - Nama branch PR yang sudah di-merge tidak bisa diubah. Catat ini sebagai batasan di `BRANCHES.md`.
+  5. **Integrasi.** Salin workflow dan catat pengaturannya ke hop-ops. Setelah itu, copot GitHub App AI, keluarkan workflow AI dari repo app, dan matikan Copilot code review di pengaturan repo.
+  6. **Pencegahan.**
+     - Matikan atribusi otomatis di agent yang dipakai (pengaturan attribution atau `includeCoAuthoredBy` di settings Claude Code, dan opsi sejenis di agent lain).
+     - Simpan instruksi agent dan prompt baru langsung di hop-ops, bukan di repo app.
+     - Pasang hook `commit-msg` lokal yang menolak trailer AI, dan gitignore global untuk file instruksi agent.
 - **Prioritas.** Repo publik lebih dulu, karena jejaknya terlihat orang lain.
 
 ## 6. Standar Structured Agentic Engineering (wajib untuk semua app)
@@ -386,7 +406,7 @@ Repo `navi-crwn/helink-ops` (private) sudah ada dan berisi `README.md`, `backups
    - `apps/<app>/GOALS.md`, `TODO.md`, `DECISIONS.md`
    - `family/ROADMAP.md` (Tahap 4, Tahap 5, RemoteHop)
    - `audit/<tanggal>/` (semua keluaran audit ini)
-   - `ai/` (JEJAK-AI, prompt, dan instruksi agent yang masih ingin dipakai)
+   - `ai/` berisi `JEJAK-AI.md`, prompt, dan per repo `ai/<repo>/` (files, COMMITS.md, pr/, BRANCHES.md, workflows/, commit-map.txt). Semua jejak AI yang dipindahkan disimpan di sini; lihat bagian 5.
    - `runbooks/`
    - `scripts/`
 
@@ -508,7 +528,7 @@ Semua berkas disimpan di `~/audit-hop/<YYYY-MM-DD>/`. Jangan di-commit ke mana p
    - Tabel link pendek.
    - Hasil 50 butir per app.
    - Daftar apa saja yang tidak bisa diverifikasi tanpa izin menulis.
-2. **`JEJAK-AI.md`**: temuan jejak AI per repo dan cara singkat menghapusnya (bagian 5).
+2. **`JEJAK-AI.md`**: temuan jejak AI per repo dan cara singkat memindahkannya ke hop-ops (bagian 5). Arsipnya ada di `hop-ops/ai/<repo>/`.
 3. **`DASHBOARD-BIOHOP.md`**, dan `DASHBOARD-<app>.md` lain bila ada (bagian 3b).
 4. **`HOMEPAGE-BIOHOP.md`** dan **`BAHASA.md`** (bagian 3c), beserta tangkapan layar homepage saudara di `img/`.
 5. **`STANDAR-REKAYASA.md`** (bagian 6).
