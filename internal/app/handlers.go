@@ -14,6 +14,7 @@ import (
 
 type stats struct {
 	KPI    map[string]int64    `json:"kpi"`
+	Totals map[string]int64    `json:"totals"`
 	Series map[string][][2]any `json:"series"` // [["2026-10-20", 3], …]
 }
 

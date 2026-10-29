@@ -17,8 +17,18 @@ func (a *App) hopID() hopproto.App {
 	return hopproto.App{Slug: "linkhop", URL: a.cfg.HopURL, Prefix: "/api/hop", Secret: a.cfg.HopSecret}
 }
 
-func target(ap db.App) hopproto.App {
-	return hopproto.App{Slug: ap.Slug, URL: ap.URL, Prefix: ap.Prefix, Secret: ap.Secret}
+// target is an app as a call target. BioHop lives in HOP ID's shared
+// registry and verifies the caller "imperium" against the imperium row, so
+// like HOP ID itself it is signed with Imperium's own secret, under /api/hop.
+func (a *App) target(ap db.App) hopproto.App {
+	prefix, secret := ap.Prefix, ap.Secret
+	if ap.Slug == "biohop" {
+		secret = a.cfg.HopSecret
+		if prefix == "" || prefix == "/hop" {
+			prefix = "/api/hop"
+		}
+	}
+	return hopproto.App{Slug: ap.Slug, URL: ap.URL, Prefix: prefix, Secret: secret}
 }
 
 func actorOf(s *db.Session) string {
@@ -70,7 +80,11 @@ func (a *App) syncApps(s *db.Session) error {
 		if r.Slug == a.cfg.HopClient || r.Slug == a.cfg.AltClient {
 			continue // ourselves (both doors)
 		}
-		_ = a.db.UpsertApp(ctx, &db.App{Slug: r.Slug, Name: r.Name, URL: r.URL, Prefix: "/hop", Secret: r.Secret, Status: r.Status,
+		prefix := "/hop"
+		if r.Slug == "biohop" {
+			prefix = "/api/hop"
+		}
+		_ = a.db.UpsertApp(ctx, &db.App{Slug: r.Slug, Name: r.Name, URL: r.URL, Prefix: prefix, Secret: r.Secret, Status: r.Status,
 			Icon: r.Icon, Color: r.Color, MenuLabel: r.MenuLabel, Capabilities: r.Capabilities, Hidden: r.Hidden, SortOrder: r.SortOrder})
 	}
 	return nil
@@ -105,7 +119,7 @@ func (a *App) probe(ctx context.Context, s *db.Session, ap db.App) Health {
 			Version string `json:"version"`
 			DB      string `json:"db"`
 		}
-		env, err := a.hop.Call(ctx, target(ap), actorOf(s), "GET", "/health", nil)
+		env, err := a.hop.Call(ctx, a.target(ap), actorOf(s), "GET", "/health", nil)
 		if err == nil && len(env.Data) > 0 {
 			_ = json.Unmarshal(env.Data, &data)
 		}

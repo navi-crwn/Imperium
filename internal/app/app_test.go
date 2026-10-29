@@ -640,3 +640,93 @@ func TestHumanBytesAndBarSteps(t *testing.T) {
 		t.Errorf("bar steps: %+v", pts)
 	}
 }
+
+func TestBioHopAppDashboard(t *testing.T) {
+	hop := newFakeHop(t)
+	defer hop.srv.Close()
+	a, srv := newApp(t, hop)
+	defer srv.Close()
+
+	// BioHop shares HOP ID's registry and verifies the caller "imperium" with
+	// the imperium row's secret, not with the biohop row's own secret.
+	const bhSecret = "biohop-secret-that-is-long-enough-123456"
+	var bhActions []map[string]any
+	bhmux := http.NewServeMux()
+	bh := func(h func(w http.ResponseWriter, r *http.Request, body []byte)) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			if err := hop.nonces.Verify(r, body, "imperium", []string{secret}, time.Minute); err != nil {
+				w.WriteHeader(401)
+				_, _ = w.Write([]byte(`{"ok":false,"error":"` + err.Error() + `"}`))
+				return
+			}
+			h(w, r, body)
+		}
+	}
+	bhmux.HandleFunc("GET /api/hop/health", bh(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"app":"biohop","version":"1.0","db":"ok"}}`))
+	}))
+	bhmux.HandleFunc("GET /api/hop/manifest", bh(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"app":"biohop","name":"BioHop","icon":"id-card","capabilities":["admin_api","events","metrics","reports","settings","search"],"content_types":[{"type":"page","label":"Bio Pages","actions":["unpublish","publish","delete","transfer","clear_custom_css","mark_nsfw","unmark_nsfw"]},{"type":"block","label":"Bio Blocks","actions":["disable","enable","delete"]}],"settings_schema":[{"key":"bio.allow_custom_css","type":"bool"}]}}`))
+	}))
+	bhmux.HandleFunc("GET /api/hop/stats", bh(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"totals":{"pages":41,"pages_published":38,"pages_draft":3,"pages_adult":1,"blocks":190,"views_total":4200,"clicks_total":980,"reports_open":2},"series":{"pages_created":[["2026-10-20",2],["2026-10-21",5]],"views":[["2026-10-20",100],["2026-10-21",250]]}}}`))
+	}))
+	bhmux.HandleFunc("GET /api/hop/content", bh(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		if r.URL.Query().Get("type") == "block" {
+			_, _ = w.Write([]byte(`{"ok":true,"data":[{"id":"12","type":"block","title":"Portfolio","owner":{"sub":"26","username":"rani"},"status":"active","clicks":44,"created_at":"2026-10-21T10:00:00Z","url":"https://example.com"}],"page":{"next":"","total":1}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"id":"7","type":"page","title":"Rani Bio","slug":"rani","owner":{"sub":"26","username":"rani"},"status":"published","views":1200,"created_at":"2026-10-20T10:00:00Z","url":"https://hel.ink/b/rani","flags":["custom_css"]}],"page":{"next":"","total":1}}`))
+	}))
+	bhmux.HandleFunc("GET /api/hop/content/page/7", bh(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"id":"7","type":"page","title":"Rani Bio","slug":"rani","owner":{"sub":"26","username":"rani"},"status":"published","views":1200,"url":"https://hel.ink/b/rani","flags":["custom_css"]}}`))
+	}))
+	bhmux.HandleFunc("POST /api/hop/content/page/7/actions", bh(func(w http.ResponseWriter, r *http.Request, body []byte) {
+		var m map[string]any
+		_ = json.Unmarshal(body, &m)
+		bhActions = append(bhActions, m)
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"id":"7","status":"draft"}}`))
+	}))
+	bhmux.HandleFunc("GET /api/hop/reports", bh(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"kind":"flag","id":"4","subject":{"type":"bio_page","id":"7"},"score":35,"summary":"adult keywords","status":"open","created_at":"2026-10-21T11:00:00Z"}],"page":{"next":"","total":1}}`))
+	}))
+	bhsrv := httptest.NewServer(bhmux)
+	defer bhsrv.Close()
+
+	_ = a.db.UpsertApp(t.Context(), &db.App{
+		Slug:         "biohop",
+		Name:         "BioHop",
+		URL:          bhsrv.URL,
+		Prefix:       "/hop",
+		Secret:       bhSecret,
+		Status:       "active",
+		Capabilities: []string{"account_api", "admin_api", "events", "reports", "settings", "metrics"},
+		SortOrder:    15,
+	})
+
+	hop.ticket = map[string]any{"sub": "1", "username": "boss", "name": "Boss", "email": "b@x", "roles": []string{"owner"}, "mfa": true, "status": "active"}
+	c := client(t)
+	body(login(t, c, srv))
+
+	res, _ := c.Get(srv.URL + "/apps/biohop")
+	b := body(res)
+	for _, want := range []string{"BioHop", ">41<", "Published pages", "Draft pages", "Adult pages", "Blocks", "Total views", "Total clicks", "Pages created", "Rani Bio", "/apps/biohop/content/page/7", `href="/apps/biohop/content?type=page"`, `href="/apps/biohop/content?type=block"`, "adult keywords"} {
+		if !strings.Contains(b, want) {
+			t.Errorf("biohop dashboard missing %q", want)
+		}
+	}
+	if strings.Contains(b, "style=") {
+		t.Error("biohop dashboard has an inline style, which the CSP blocks")
+	}
+
+	res, _ = c.Get(srv.URL + "/apps/biohop/content/page/7")
+	if b := body(res); !strings.Contains(b, `value="clear_custom_css"`) || !strings.Contains(b, `value="mark_nsfw"`) {
+		t.Fatal("biohop page detail should offer bio page moderation actions")
+	}
+	res, _ = c.PostForm(srv.URL+"/apps/biohop/content/page/7/actions", url.Values{"action": {"clear_custom_css"}, "reason": {"broken layout"}})
+	body(res)
+	if len(bhActions) != 1 || bhActions[0]["action"] != "clear_custom_css" {
+		t.Fatalf("biohop action not forwarded: %+v", bhActions)
+	}
+}
