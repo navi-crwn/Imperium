@@ -35,12 +35,16 @@ Kamu berjalan di app Antigravity di Mac pemilik, bukan di VPS. Semua path di pro
 |---|---|---|
 | `ssh hop '<perintah>'` | Menjalankan perintah di VPS sebagai user `carawin`. Alias `hop` ada di `~/.ssh/config` Mac (100.80.122.59 lewat Tailscale). | Sesuai aturan 0 |
 | `~/srv/hop/` | Mount sshfs dari `/home/carawin` di VPS. Gunakan untuk membaca kode di checkout (`~/srv/hop/imperium`, `linkhop`, `pixelhop`, `notehop/repo`, `apps/pixelhop`). | **Read-only** |
+| `~/srv/www/` | Mount sshfs dari `/var/www/helink` di VPS: kode **live** hub, LinkHop, BioHop, dan `shortlink-app` lama, termasuk `.env` masing-masing. Checkout git-nya ada di `~/srv/hop/HEL.ink`, `linkhop`, dan `BioHop`. | **Read-only** |
 | `~/srv/audit-hop/` | Mount sshfs dari `/home/carawin/audit-hop` di VPS. Ini **workspace Antigravity** dan satu-satunya tempat menulis. `~/audit-hop/<tanggal>/` di prompt ini = `~/srv/audit-hop/<tanggal>/` di Mac. | Baca dan tulis |
 
 Aturan tambahan:
 
 1. **Perintah dijalankan di VPS lewat `ssh hop`.** Ini berlaku untuk git, gh, `php8.3`, `go`, node, Playwright, dan `scripts/s`. VPS sudah punya gh yang login, node 20, chromium Playwright, Go di `/home/carawin/sdk/go/bin`, dan php8.3. Jangan memasang tool atau paket di Mac maupun di VPS tanpa izin pemilik. Untuk perintah panjang, tulis skrip di `~/srv/audit-hop/<tanggal>/skrip/`, lalu jalankan `ssh hop 'bash ~/audit-hop/<tanggal>/skrip/<nama>.sh'`.
-2. **Path di luar `/home/carawin` tidak ada di mount.** Contohnya `/var/www/helink/*`, `/etc/*`, dan `/var/lib/*`. Baca lewat `ssh hop 'cat …'` atau `ssh hop 'grep …'`.
+2. **Path lain di luar kedua mount** dibaca lewat `ssh hop 'cat …'` atau `ssh hop 'grep …'`.
+   - Bisa dibaca tanpa sudo: `/etc/nginx` (vhost dan snippets), `/var/log/nginx`, `/var/lib/notehop`, dan `/usr/local/bin`.
+   - Butuh sudo: `/etc/imperium/imperium.env`, `/etc/notehop/notehop.env`, dan `/var/lib/imperium`. Bila sudo sudah dicabut, tandai sebagai pemeriksaan manual oleh pemilik.
+   - File `.env` di mount (hub, LinkHop, BioHop, `~/srv/hop/apps/pixelhop/pixelhop.env`) berisi secret. Hanya catat nama variabelnya, jangan pernah menyalin nilainya ke laporan, skrip, atau chat.
 3. **sudo.** `ssh hop '~/imperium/scripts/s <perintah baca>'` hanya berhasil bila aturan sudo sementara pemilik masih ada. Cek dengan `ssh hop 'sudo -n true'`. Bila gagal, tandai pemeriksaan yang butuh root sebagai "manual oleh pemilik" dan lanjutkan.
 4. **Jangan membuat file agent di repo.** Jangan membuat `GEMINI.md`, `.gemini/`, `.agent/`, atau file aturan dan konfigurasi agent di `~/srv/hop` atau di repo mana pun. Konfigurasi Antigravity cukup ada di workspace audit; nanti ikut dipindahkan ke `hop-ops/ai/`.
 5. **Browser bawaan Antigravity** hanya untuk GET anonim dan tangkapan layar. Jangan login dengan akun pemilik dan jangan mengisi formulir.
