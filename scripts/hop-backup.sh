@@ -97,7 +97,7 @@ fi
 # ---------- Sistem ----------
 say "Sistem: nginx, systemd, cron, paket"
 cp -r /etc/nginx/sites-enabled "$DEST/system/nginx-sites-enabled" 2>/dev/null || warn "nginx sites tidak terbaca"
-for u in notehop pixelhop pixelhop-ai pixelhop-rembg queue-worker imperium hop-agent notehop-backup.timer notehop-backup.service; do
+for u in notehop pixelhop pixelhop-ai pixelhop-rembg linkhop-queue hub-queue biohop-queue imperium hop-agent notehop-backup.timer notehop-backup.service; do
   systemctl cat "$u" > "$DEST/system/$u.unit" 2>/dev/null || rm -f "$DEST/system/$u.unit"
 done
 crontab -l > "$DEST/system/crontab-$USER.txt" 2>/dev/null || true

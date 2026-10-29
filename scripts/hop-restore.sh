@@ -123,7 +123,7 @@ nginx -t && systemctl reload nginx
 [ -f "$SRC/system/crontab-carawin.txt" ] && crontab -u carawin "$SRC/system/crontab-carawin.txt"
 
 systemctl daemon-reload
-systemctl start pixelhop notehop queue-worker 2>/dev/null || true
+systemctl start pixelhop notehop linkhop-queue hub-queue biohop-queue queue-worker 2>/dev/null || true
 say "Healthcheck"
 for u in "https://hel.ink/health/queue" "http://127.0.0.1:8080/api/v1/stats" "http://127.0.0.1:8090/healthz"; do
   printf '  %s -> ' "$u"; curl -s -o /dev/null -w '%{http_code}\n' -m 10 "$u" || echo "gagal"
