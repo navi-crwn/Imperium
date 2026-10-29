@@ -21,7 +21,16 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-HELINK=/var/www/helink/shortlink-app
+# Cek sudo credential cache bila tersedia
+sudo -v 2>/dev/null || true
+
+if [ -d "/var/www/helink/linkhop" ]; then
+  HELINK=/var/www/helink/linkhop
+elif [ -d "/var/www/helink/hub" ]; then
+  HELINK=/var/www/helink/hub
+else
+  HELINK=/var/www/helink/shortlink-app
+fi
 PIXELHOP=/home/carawin/apps/pixelhop
 NOTEHOP_DB=/var/lib/notehop/notehop.db
 NOTEHOP_ENV=/etc/notehop/notehop.env

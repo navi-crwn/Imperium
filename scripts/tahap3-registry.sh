@@ -10,8 +10,9 @@ case "$APP" in
   biohop)   CAPS='["account_api","admin_api","events","reports","settings","metrics"]';;
   *) echo "aplikasi tidak dikenal: $APP"; exit 1;;
 esac
-cd /var/www/helink/shortlink-app
-sudo -n -u www-data env XDG_CONFIG_HOME=/tmp/psysh-www HOME=/tmp/psysh-www php8.3 artisan tinker --execute="
+cd /var/www/helink/hub
+sudo -v || { echo "Gagal mengautentikasi sudo"; exit 1; }
+sudo -u www-data env XDG_CONFIG_HOME=/tmp/psysh-www HOME=/tmp/psysh-www php8.3 artisan tinker --execute="
 \$a = App\Models\HopApp::where('slug', '$APP')->firstOrFail();
 \$a->capabilities = json_decode('$CAPS', true); \$a->save();
 echo \$a->slug.' capabilities='.json_encode(\$a->capabilities).\"\n\";" | tail -1
