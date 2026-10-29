@@ -4,7 +4,7 @@ Salin seluruh isi di bawah garis ke agent auditor. Peta sistem ditulis 2026-10-2
 
 ---
 
-Kamu adalah **Senior Engineer sekaligus Security Auditor** untuk keluarga aplikasi HOP milik navi-crwn. Tugasmu audit total: keamanan, alur akun lintas aplikasi, kelengkapan dashboard admin, rancangan dashboard untuk app yang belum punya, rancangan homepage BioHop, standar bahasa semua app, kesehatan repo, jejak AI di semua repo GitHub, dan link pendek. Jawaban "kode sudah aman" tanpa bukti tidak diterima. Setiap temuan wajib menyertakan **file dan nomor baris**, perintah atau request yang kamu jalankan, dan hasil yang terlihat.
+Kamu adalah **Senior Engineer sekaligus Security Auditor** untuk keluarga aplikasi HOP milik navi-crwn. Tugasmu audit total: keamanan, alur akun lintas aplikasi, kelengkapan dashboard admin, rancangan dashboard untuk app yang belum punya, rancangan homepage BioHop, standar bahasa semua app, kesehatan repo, jejak AI di semua repo GitHub, kepatuhan pada standar Structured Agentic Engineering, pemindahan catatan internal ke repo hop-ops, dan link pendek. Jawaban "kode sudah aman" tanpa bukti tidak diterima. Setiap temuan wajib menyertakan **file dan nomor baris**, perintah atau request yang kamu jalankan, dan hasil yang terlihat.
 
 ## 0. Aturan kerja: hanya membaca
 
@@ -75,6 +75,15 @@ Repo lain yang relevan: navi-crwn/helink-ops (catatan ops, private). RemoteHop b
   - Aset 3D keluarga HOP berupa tile mengambang: komponen `hop-float` dan `resources/js/hop-float.js` di LinkHop, dan `static/hop-float.js` di Imperium.
   - NoteHop sudah memakai 9 bahasa (`web/i18n/`: id, en, zh, es, ar, pt, fr, ru, ja). Imperium hanya id dan en. Hub, LinkHop, dan BioHop memakai `APP_LOCALE=en` tanpa folder `lang/`. PixelHop belum diketahui.
 - **Cron dan backup.** Backup PixelHop harian, healthcheck PixelHop tiap 5 menit, `hop-backup.sh` (restic) harian, berkas `/etc/cron.d/hop*`, dan watchdog hub (`config('hop.watch')`).
+
+### Keputusan pemilik (2026-10-29)
+
+1. **Admin BioHop pindah ke Imperium.** Halaman `/admin/bio` di BioHop dipensiunkan setelah dashboard `/apps/biohop` siap.
+2. **Dashboard pengguna BioHop digabung ke hub.** Hub sudah punya dashboard akun di `hub.hel.ink/dashboard` (`LauncherController`). Saat ini pengelolaan halaman bio pengguna masih ada di `bio.hel.ink` (route `bio.index`). Rancangannya ada di bagian 3b.
+3. **BioHop wajib punya homepage** yang semirip mungkin dengan saudaranya, dengan aset 3D. Lihat bagian 3c.
+4. **Bahasa:** Indonesia ditambah 7 bahasa populer, wajib di semua app. Lihat bagian 3c.
+5. **Standar Structured Agentic Engineering wajib untuk semua app.** Lihat bagian 6.
+6. **Semua repo bebas jejak AI.** Catatan internal (jejak AI, tujuan, rencana, dan pekerjaan yang belum selesai) dipindahkan ke satu repo ops terpisah, `hop-ops`. Lihat bagian 5 dan 7.
 
 ### Petunjuk awal yang harus kamu konfirmasi atau bantah
 
@@ -190,7 +199,15 @@ Jangan membangunnya. Tulis **rancangan siap eksekusi** di `DASHBOARD-<app>.md` a
    Sertakan sketsa tata letak dalam teks atau ASCII, mengikuti gaya dashboard LinkHop, PixelHop, dan NoteHop yang sudah ada (lihat `~/imperium/docs/img-dash-*.png`).
 6. **Rencana kerja per repo.** Urutkan berkas yang perlu dibuat atau diubah di BioHop, Imperium (bila ada yang tidak generik), dan hub (registry, nginx). Sertakan tes yang dibutuhkan dan urutan deploy. Pecah menjadi PR kecil yang bisa dieksekusi pemilik atau agent lain.
 
-Lakukan hal yang sama untuk app lain yang ternyata belum punya dashboard. Masukkan juga rencana memensiunkan halaman admin internal BioHop setelah dashboard Imperium-nya siap.
+7. **Dashboard pengguna BioHop ke hub.**
+   - Inventaris semua halaman pengguna di BioHop: daftar halaman bio, editor, tema, analytics, pengaturan, dan ekspor.
+   - Tentukan mana yang pindah ke `hub.hel.ink/dashboard` dan mana yang tetap di `bio.hel.ink` sebagai alat yang dibuka dari hub. Beri rekomendasi beserta alasannya. Contoh: ringkasan dan daftar halaman pindah ke hub, sedangkan editor visual tetap di BioHop.
+   - Bandingkan dengan cara LinkHop dan app lain tampil di launcher hub, supaya polanya seragam.
+   - Database sudah sama (`helink_db`). Catat model, policy, dan route yang perlu dibagi lewat paket bersama, dan risiko dua app menulis ke tabel yang sama.
+   - Tulis rencana pengalihan URL lama (`bio.hel.ink/dashboard`, `bio.index`), dampaknya pada SSO dan logout, serta urutan PR.
+8. **Pensiunkan admin internal BioHop.** Hapus `resources/views/admin` dan route `admin.*` setelah dashboard Imperium siap, dengan pola yang sama seperti LinkHop PR #37 dan PixelHop PR #4.
+
+Lakukan hal yang sama untuk app lain yang ternyata belum punya dashboard.
 
 ### 3c. Homepage BioHop dan standar bahasa untuk semua app
 
@@ -209,7 +226,7 @@ Bagian ini juga berupa rancangan, belum dibangun.
    - **Aset 3D wajib.** Usulkan bentuknya, misalnya tile BioHop sebagai pusat dengan tile saudara mengambang, atau mockup ponsel berisi halaman bio di antara tile 3D. Gunakan ulang `hop-float` dan pertimbangkan memindahkannya ke paket hop-ui agar semua app memakai satu sumber.
    - Bagian fitur: tema, analytics, gerbang password dan umur, domain `hel.ink/b/…`.
    - Contoh halaman bio, CTA, dan footer.
-   - Perubahan route: `/` menampilkan landing untuk tamu dan dashboard untuk yang sudah login.
+   - Perubahan route: `/` di `bio.hel.ink` menampilkan homepage untuk semua orang. Pengguna yang sudah login mendapat tombol ke dashboard di hub, karena dashboard pengguna pindah ke hub. Bila ada pilihan lain yang lebih baik, usulkan dan bandingkan.
    - Sketsa tata letak dalam teks.
 3. **Batasan teknis.** CSP tanpa inline style dan script, `prefers-reduced-motion`, jeda saat tab tersembunyi, performa (LCP, CLS), aksesibilitas (aset 3D `aria-hidden`), serta meta SEO dan OpenGraph per bahasa.
 4. **Rencana kerja.** Daftar berkas yang dibuat atau diubah di BioHop dan hop-ui, tes, dan urutan PR.
@@ -303,7 +320,84 @@ gh repo list navi-crwn --limit 200 --json name,visibility,isArchived
   6. **Pencegahan.** Matikan atribusi otomatis di agent yang dipakai (pengaturan attribution atau `includeCoAuthoredBy` di settings Claude Code, opsi sejenis di agent lain). Tambahkan hook `commit-msg` lokal yang menolak trailer AI. Gitignore global untuk file instruksi agent.
 - **Prioritas.** Repo publik lebih dulu, karena jejaknya terlihat orang lain.
 
-## 6. Link pendek tiap app
+## 6. Standar Structured Agentic Engineering (wajib untuk semua app)
+
+Pemilik mewajibkan standar ini untuk semua app. Prinsipnya: manusia menetapkan arsitektur, batas keamanan, dan kontrak data secara deterministik, sedangkan AI hanya mengisi implementasi dalam potongan kecil yang terisolasi dan terverifikasi.
+
+Risiko yang ingin dicegah, beserta penangkalnya:
+
+| Risiko | Gejala | Penangkal |
+|---|---|---|
+| Celah OWASP Top 10 | SQLi, XSS, autentikasi lemah | Validasi input ketat (struct atau FormRequest yang strict), ORM berparameter, sesi Auditor terpisah |
+| Kredensial terbuka | API key atau token di kode | Pemindai rahasia di pre-commit dan CI, rahasia hanya dari env |
+| Dependency berbahaya atau halusinasi | Paket tak teraudit, slopsquatting | Dependency dibekukan, paket baru hanya dengan audit manual |
+| Arsitektur rapuh | Logika putus di tengah | Contract-first (`ARCHITECTURE.md`, kontrak API, skema), vertical slice |
+| Looping regression | Satu perbaikan merusak fitur lain | Konteks sempit per fitur, tes otomatis, kembali ke commit stabil |
+| Debugging buntu | Kode spaghetti tanpa dokumentasi | Strict typing, linter ketat, kontrak terdokumentasi per modul |
+| Keahlian tumpul | Developer tidak paham kodenya | 1 tugas = 1 commit, review manual setiap diff |
+| Proyek mangkrak saat kuota habis | Konteks hilang bersama tool | Spesifikasi dan daftar tugas tertulis, bisa dilanjutkan dengan tool lain atau manual |
+
+**Untuk setiap repo, nilai kepatuhan (ada, sebagian, atau tidak) beserta bukti:**
+
+1. **Contract-first.** Periksa:
+   - Ada dokumen arsitektur dan kontrak yang netral (`ARCHITECTURE.md`, spesifikasi API, skema database).
+   - Kontrak HOP App Protocol terdokumentasi di satu tempat dan dipakai sama oleh semua app.
+   - Strict typing: `declare(strict_types=1)`, level PHPStan/Larastan, tipe Go tanpa `any` atau `interface{}` yang tidak perlu.
+2. **Vertical slice.** Fitur terisolasi dengan batas input dan output yang jelas. Catat modul yang saling bergantung, file di atas 300 baris, dan "god class".
+3. **Micro-checkpoint.** Analisis riwayat git:
+   - Ukuran commit (baris per commit) dan commit yang mencampur banyak urusan.
+   - Pola looping regression: rangkaian commit "fix" berulang pada file yang sama, revert, atau perubahan bolak-balik.
+4. **Gerbang deterministik.** Periksa:
+   - Pre-commit hook (gitleaks atau trufflehog, format, lint).
+   - CI dengan SAST: `gosec`, `staticcheck`, `govulncheck` untuk Go; Larastan, `composer audit`, dan semgrep untuk Laravel.
+   - Branch protection dengan required checks, sehingga merge ditolak bila gerbang merah.
+5. **Pemisahan Planner, Worker, dan Auditor.** Periksa apakah PR mendapat review terpisah (diff saja) sebelum merge. Hitung PR yang di-merge tanpa review dan PR besar yang di-merge beberapa menit setelah dibuka.
+6. **Kunci dependency.** Periksa:
+   - Lockfile ter-commit.
+   - Penambahan paket baru dalam 90 hari terakhir: siapa yang menambah, di PR mana, dan apakah ditinjau.
+   - Setiap paket benar-benar ada di registry resmi, dengan maintainer dan unduhan yang wajar. Tandai nama yang mirip paket populer.
+7. **Human-in-the-loop.** Ukur ukuran PR. Usulkan batas ukuran PR dan aturan bahwa pemilik hanya merge diff yang ia pahami.
+8. **Portabilitas konteks.** Periksa apakah spesifikasi, keputusan, dan daftar tugas tertulis cukup lengkap sehingga pekerjaan bisa dilanjutkan dengan tool lain atau manual. **Tempatnya di hop-ops, bukan di repo app** (lihat bagian 7). Repo app hanya menyimpan dokumen teknis yang netral.
+9. **Tes per slice.** Unit dan integration test per fitur, serta tes regresi untuk bug yang pernah diperbaiki.
+
+**Keluaran `STANDAR-REKAYASA.md`:**
+- Tabel app × 9 butir di atas, dengan bukti untuk setiap sel.
+- Rencana adopsi per repo, berupa usulan konkret yang belum dipasang: isi `.pre-commit-config.yaml` atau hook, job CI, aturan branch protection, kerangka `ARCHITECTURE.md` per app, dan template PR.
+- Urutan adopsi yang paling murah dan paling berdampak dulu.
+
+## 7. Catatan internal ke repo hop-ops
+
+Pemilik ingin semua jejak AI, tujuan (goals), rencana, keputusan, dan pekerjaan yang belum selesai ditulis ke file Markdown, lalu dipindahkan dari repo app ke **satu repo ops private bernama `hop-ops`**.
+
+Repo `navi-crwn/helink-ops` (private) sudah ada dan berisi `README.md`, `backups/`, `design-reference/`, dan `notehop/`. Usulkan apakah repo itu di-rename menjadi `hop-ops` (GitHub mempertahankan redirect dari nama lama) atau dibuat repo baru. Jelaskan dampaknya.
+
+**Langkah:**
+
+1. **Inventaris** di semua repo dan di server (baca saja):
+   - Dokumen planning dan prompt: `~/imperium/docs/00-*`, `01-*`, `02-PLANNING.md`, `10-12-INVENTARIS-*`, `20-PROMPT-AUDIT.md`, dan tangkapan layar `docs/img-*`.
+   - Catatan serah-terima seperti `~/hel-ink-handoff/` dan dokumen sejenis di checkout lain.
+   - File instruksi agent dan jejak AI dari bagian 5.
+   - Komentar `TODO`, `FIXME`, `HACK`, dan `XXX` di kode.
+   - Rencana dan daftar "belum" di body PR atau issue.
+   - Skrip ops di `~/imperium/scripts/`.
+2. **Klasifikasi.** Untuk setiap item, catat path asal, jenisnya (jejak AI, tujuan, rencana, keputusan, TODO, runbook, atau skrip), tujuan di hop-ops, dan perlakuannya di repo asal (dihapus, diganti ringkasan netral, atau dibiarkan karena merupakan dokumen teknis netral).
+3. **Susun isinya, belum dipindahkan.** Tulis file Markdown hasil gabungan di `~/audit-hop/<tanggal>/hop-ops/` dengan struktur yang siap disalin. Usulan struktur:
+   - `README.md`
+   - `apps/<app>/GOALS.md`, `TODO.md`, `DECISIONS.md`
+   - `family/ROADMAP.md` (Tahap 4, Tahap 5, RemoteHop)
+   - `audit/<tanggal>/` (semua keluaran audit ini)
+   - `ai/` (JEJAK-AI, prompt, dan instruksi agent yang masih ingin dipakai)
+   - `runbooks/`
+   - `scripts/`
+
+   Perbaiki strukturnya bila ada yang lebih baik.
+4. **Tulis `PINDAH-KE-HOP-OPS.md`** berisi langkah singkat untuk pemilik:
+   - Rename atau buat repo.
+   - Salin folder, lalu commit.
+   - Hapus item dari repo asal lewat PR biasa. Bila perlu dibersihkan dari riwayat juga, rujuk langkah `git filter-repo` di bagian 5.
+   - Sesuaikan skrip yang memakai path lama, misalnya `~/imperium/scripts/*`.
+
+## 8. Link pendek tiap app
 
 Uji dari luar (lewat Cloudflare) dengan GET anonim, lalu catat status, header `Location`, dan cache.
 
@@ -324,7 +418,7 @@ Uji dari luar (lewat Cloudflare) dengan GET anonim, lalu catat status, header `L
   - Open redirect.
   - Pengalihan sementara (`/api/` dan slug root) punya tanggal pencabutan yang tercatat.
 
-## 7. Standar audit teknis (50 butir)
+## 9. Standar audit teknis (50 butir)
 
 Terapkan ke **setiap app** sesuai stack (Laravel/PHP atau Go). Butir yang tidak berlaku ditandai "tidak berlaku" beserta alasannya, jangan dilewati diam-diam. Semua dijalankan pada klon di folder audit atau dengan membaca konfigurasi live.
 
@@ -388,7 +482,7 @@ Terapkan ke **setiap app** sesuai stack (Laravel/PHP atau Go). Butir yang tidak 
 49. Keterbacaan kode: tandai fungsi atau file yang terlalu panjang.
 50. Runbook: deploy, rollback, migrasi, backup dan restore, serta langkah pertama saat insiden, dalam satu dokumen untuk seluruh keluarga.
 
-## 8. Cara menguji
+## 10. Cara menguji
 
 - **Browser.** Gunakan Playwright dari `~/linkhop/node_modules/@playwright/test` (chromium sudah ada) lewat skrip node di folder audit. Skrip harus memakai path absolut ke modul itu dan tidak menulis apa pun ke `~/linkhop`. Playwright MCP tidak punya Chrome.
 - **Panggilan bertanda tangan.** Hanya GET, misalnya `/hop/health`, manifest, dan daftar. Buat helper kecil di folder audit yang membaca secret lewat `scripts/s` tanpa mencetaknya.
@@ -400,9 +494,9 @@ Terapkan ke **setiap app** sesuai stack (Laravel/PHP atau Go). Butir yang tidak 
   Jalankan semuanya di port bebas, dengan database sementara di folder audit.
 - **Larangan.** Jangan menjalankan load test atau scanner agresif ke domain produksi. Cloudflare bisa memblokir IP VPS, dan ini juga dianggap serangan.
 
-## 9. Keluaran
+## 11. Keluaran
 
-Semua berkas disimpan di `~/audit-hop/<YYYY-MM-DD>/`. Jangan di-commit ke mana pun.
+Semua berkas disimpan di `~/audit-hop/<YYYY-MM-DD>/`. Jangan di-commit ke mana pun. Seluruh folder ini nantinya dipindahkan pemilik ke `hop-ops/audit/<tanggal>/`.
 
 1. **`LAPORAN.md`**, berisi:
    - Ringkasan eksekutif dalam 10 baris.
@@ -417,12 +511,14 @@ Semua berkas disimpan di `~/audit-hop/<YYYY-MM-DD>/`. Jangan di-commit ke mana p
 2. **`JEJAK-AI.md`**: temuan jejak AI per repo dan cara singkat menghapusnya (bagian 5).
 3. **`DASHBOARD-BIOHOP.md`**, dan `DASHBOARD-<app>.md` lain bila ada (bagian 3b).
 4. **`HOMEPAGE-BIOHOP.md`** dan **`BAHASA.md`** (bagian 3c), beserta tangkapan layar homepage saudara di `img/`.
-5. **`RENCANA-PERBAIKAN.md`**:
+5. **`STANDAR-REKAYASA.md`** (bagian 6).
+6. **`hop-ops/`** (isi siap salin) dan **`PINDAH-KE-HOP-OPS.md`** (bagian 7).
+7. **`RENCANA-PERBAIKAN.md`**:
    - Urutan perbaikan dari temuan Kritis.
    - Pembagian menjadi PR kecil per repo: judul, berkas, dan tes, dengan tautan ke ID temuan.
    - Urutan deploy yang disarankan.
    - Uji produksi yang menunggu izin pemilik, beserta skrip dan langkah manualnya.
-6. **`skrip/`**: skrip Playwright dan helper yang dipakai atau disiapkan.
+8. **`skrip/`**: skrip Playwright dan helper yang dipakai atau disiapkan.
 
 Tutup pekerjaan dengan ringkasan singkat di chat:
 - Lokasi folder hasil.
