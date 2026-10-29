@@ -165,8 +165,28 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 		u.Profile["name"], u.Profile["email"] = alias, ""
 		raw = nil
 	}
-	a.render(w, r, "user.html", "@"+str(u.Profile["username"]), map[string]any{"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)),
-		"RoleOptions": []string{"owner", "admin", "moderator", "support"}})
+
+	var pixelUser map[string]any
+	if px, err := a.db.App(r.Context(), "pixelhop"); err == nil && px != nil && px.Secret != "" {
+		var resp map[string]any
+		if err := a.call(r.Context(), current(r), px, "GET", "/users/"+url.PathEscape(id), nil, &resp); err == nil && len(resp) > 0 {
+			pixelUser = resp
+		}
+	}
+
+	var noteUser map[string]any
+	if nt, err := a.db.App(r.Context(), "notehop"); err == nil && nt != nil && nt.Secret != "" {
+		var resp map[string]any
+		if err := a.call(r.Context(), current(r), nt, "GET", "/users/"+url.PathEscape(id), nil, &resp); err == nil && len(resp) > 0 {
+			noteUser = resp
+		}
+	}
+
+	a.render(w, r, "user.html", "@"+str(u.Profile["username"]), map[string]any{
+		"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)),
+		"PixelUser": pixelUser, "NoteUser": noteUser,
+		"RoleOptions": []string{"owner", "admin", "moderator", "support"},
+	})
 }
 
 func str(v any) string { s, _ := v.(string); return s }
