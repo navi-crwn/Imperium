@@ -128,7 +128,7 @@ func (a *App) manifest(ctx context.Context, s *db.Session, ap *db.App, force boo
 	}
 	a.manifests.Unlock()
 	var m Manifest
-	env, err := a.hop.Call(ctx, target(*ap), actorOf(s), "GET", "/manifest", nil)
+	env, err := a.hop.Call(ctx, a.target(*ap), actorOf(s), "GET", "/manifest", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (a *App) manifest(ctx context.Context, s *db.Session, ap *db.App, force boo
 
 // call does a signed call to an app and decodes data into out.
 func (a *App) call(ctx context.Context, s *db.Session, ap *db.App, method, path string, body, out any) error {
-	env, err := a.hop.Call(ctx, target(*ap), actorOf(s), method, path, body)
+	env, err := a.hop.Call(ctx, a.target(*ap), actorOf(s), method, path, body)
 	if err != nil {
 		return err
 	}
@@ -249,7 +249,7 @@ func (a *App) content(w http.ResponseWriter, r *http.Request) {
 	var rows []row
 	var errMsg, next string
 	var total int
-	env, err := a.hop.Call(r.Context(), target(*ap), actorOf(current(r)), "GET", "/content?"+params.Encode(), nil)
+	env, err := a.hop.Call(r.Context(), a.target(*ap), actorOf(current(r)), "GET", "/content?"+params.Encode(), nil)
 	if err != nil {
 		errMsg = err.Error()
 	} else {
@@ -269,7 +269,7 @@ func (a *App) item(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	typ, id := r.PathValue("type"), r.PathValue("id")
-	env, err := a.hop.Call(r.Context(), target(*ap), actorOf(current(r)), "GET", "/content/"+url.PathEscape(typ)+"/"+url.PathEscape(id), nil)
+	env, err := a.hop.Call(r.Context(), a.target(*ap), actorOf(current(r)), "GET", "/content/"+url.PathEscape(typ)+"/"+url.PathEscape(id), nil)
 	if err != nil {
 		a.render(w, r, "error.html", ap.Name, map[string]any{"Err": err.Error(), "Back": "/apps/" + ap.Slug + "/content?type=" + typ})
 		return

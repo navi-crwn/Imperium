@@ -647,13 +647,15 @@ func TestBioHopAppDashboard(t *testing.T) {
 	a, srv := newApp(t, hop)
 	defer srv.Close()
 
+	// BioHop shares HOP ID's registry and verifies the caller "imperium" with
+	// the imperium row's secret, not with the biohop row's own secret.
 	const bhSecret = "biohop-secret-that-is-long-enough-123456"
 	var bhActions []map[string]any
 	bhmux := http.NewServeMux()
 	bh := func(h func(w http.ResponseWriter, r *http.Request, body []byte)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			body, _ := io.ReadAll(r.Body)
-			if err := hop.nonces.Verify(r, body, "imperium", []string{bhSecret}, time.Minute); err != nil {
+			if err := hop.nonces.Verify(r, body, "imperium", []string{secret}, time.Minute); err != nil {
 				w.WriteHeader(401)
 				_, _ = w.Write([]byte(`{"ok":false,"error":"` + err.Error() + `"}`))
 				return
