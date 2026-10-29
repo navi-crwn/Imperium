@@ -27,6 +27,28 @@ Seluruh audit ini **read-only**. Pemilik akan memeriksa hasilnya dulu, lalu meng
 7. **Bahasa dan jejak AI.** Tulis laporan dalam Bahasa Indonesia. Pemilik ingin **semua repo bebas jejak AI**, jadi rekomendasi perbaikanmu tidak boleh menyarankan menambah trailer AI, footer "Generated with", atau file instruksi agent ke repo. Jejak yang sudah ada **tidak dihapus begitu saja, melainkan dipindahkan ke hop-ops**: isinya diarsipkan dulu, baru dikeluarkan dari repo app.
 8. **Jangan menyentuh** situs lain di VPS yang sama (carawinapp, nawalaku, router-bot), kecuali untuk mencatat repo GitHub-nya di bagian Jejak AI.
 
+### 0a. Lingkungan kerja: Antigravity (Gemini Argon) di Mac pemilik
+
+Kamu berjalan di app Antigravity di Mac pemilik, bukan di VPS. Semua path di prompt ini (`~/imperium`, `/var/www/helink`, `~/audit-hop`, dan seterusnya) adalah path **di VPS**. Cara menjangkaunya:
+
+| Di Mac | Artinya | Hak |
+|---|---|---|
+| `ssh hop '<perintah>'` | Menjalankan perintah di VPS sebagai user `carawin`. Alias `hop` ada di `~/.ssh/config` Mac (100.80.122.59 lewat Tailscale). | Sesuai aturan 0 |
+| `~/srv/hop/` | Mount sshfs dari `/home/carawin` di VPS. Gunakan untuk membaca kode di checkout (`~/srv/hop/imperium`, `linkhop`, `pixelhop`, `notehop/repo`, `apps/pixelhop`). | **Read-only** |
+| `~/srv/audit-hop/` | Mount sshfs dari `/home/carawin/audit-hop` di VPS. Ini **workspace Antigravity** dan satu-satunya tempat menulis. `~/audit-hop/<tanggal>/` di prompt ini = `~/srv/audit-hop/<tanggal>/` di Mac. | Baca dan tulis |
+
+Aturan tambahan:
+
+1. **Perintah dijalankan di VPS lewat `ssh hop`.** Ini berlaku untuk git, gh, `php8.3`, `go`, node, Playwright, dan `scripts/s`. VPS sudah punya gh yang login, node 20, chromium Playwright, Go di `/home/carawin/sdk/go/bin`, dan php8.3. Jangan memasang tool atau paket di Mac maupun di VPS tanpa izin pemilik. Untuk perintah panjang, tulis skrip di `~/srv/audit-hop/<tanggal>/skrip/`, lalu jalankan `ssh hop 'bash ~/audit-hop/<tanggal>/skrip/<nama>.sh'`.
+2. **Path di luar `/home/carawin` tidak ada di mount.** Contohnya `/var/www/helink/*`, `/etc/*`, dan `/var/lib/*`. Baca lewat `ssh hop 'cat …'` atau `ssh hop 'grep …'`.
+3. **sudo.** `ssh hop '~/imperium/scripts/s <perintah baca>'` hanya berhasil bila aturan sudo sementara pemilik masih ada. Cek dengan `ssh hop 'sudo -n true'`. Bila gagal, tandai pemeriksaan yang butuh root sebagai "manual oleh pemilik" dan lanjutkan.
+4. **Jangan membuat file agent di repo.** Jangan membuat `GEMINI.md`, `.gemini/`, `.agent/`, atau file aturan dan konfigurasi agent di `~/srv/hop` atau di repo mana pun. Konfigurasi Antigravity cukup ada di workspace audit; nanti ikut dipindahkan ke `hop-ops/ai/`.
+5. **Browser bawaan Antigravity** hanya untuk GET anonim dan tangkapan layar. Jangan login dengan akun pemilik dan jangan mengisi formulir.
+6. **Kuota dan konteks.**
+   - Kerjakan bertahap. Setelah setiap bagian selesai, perbarui `~/audit-hop/<tanggal>/PROGRES.md` dengan isi: bagian yang selesai, yang sedang dikerjakan, langkah berikutnya, dan temuan sementara. Dengan begitu sesi baru, model lain, atau pemilik bisa melanjutkan tanpa mengulang.
+   - Urutan yang disarankan: 1 (verifikasi peta), 4 dan 5 (repo dan jejak AI), 7 (inventaris hop-ops), 2, 3, 6, 8, 9, lalu 11 (keluaran).
+   - Jika sesi terputus, baca `PROGRES.md` dulu sebelum melakukan apa pun.
+
 ## 1. Peta sistem (verifikasi dulu)
 
 Semua aplikasi berjalan di satu VPS. Semua domain publik lewat Cloudflare (proxied), dengan origin nginx.
@@ -95,6 +117,8 @@ Repo lain yang relevan: navi-crwn/helink-ops (catatan ops, private). RemoteHop b
 6. `NOTEHOP_LINKS` masih menunjuk `LinkHop=https://hel.ink` dan `PixelHop=https://p.hel.ink`. Control URL Imperium dan PixelHop menunjuk citadel.hel.ink.
 7. Direktori lama `/var/www/helink/shortlink-app` (a371f72) masih ada. Pastikan tidak ada yang melayaninya lagi dan tidak ada `.env` berisi secret yang terbuka, lalu catat apakah boleh diarsipkan.
 8. Pintasan TLS lokal (`HOP_API_ADDR`, `HELINK_API_ADDR`) dimatikan karena sertifikat origin dulu tidak punya SAN. nginx kini memakai `hel.ink-origin.crt`. Periksa SAN-nya dan apakah pintasan itu aman diaktifkan lagi.
+9. **SSH VPS menerima login password dan login root dari internet** (`sshd -T`: `passwordauthentication yes`, `permitrootlogin yes`). Pada 2026-10-29 terlihat banyak koneksi SSH dari 47.101.161.58. Periksa apakah ada fail2ban atau rate limit, dan catat ini sebagai temuan dengan rekomendasinya. Jangan mengubah apa pun.
+10. **Aturan sudo sementara** `/etc/sudoers.d/90-carawin-temp` (NOPASSWD penuh) masih aktif per 2026-10-29. Catat sebagai temuan; pemilik yang mencabutnya.
 
 ## 2. Skenario alur akun (inti audit)
 
