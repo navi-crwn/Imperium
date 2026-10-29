@@ -18,7 +18,11 @@ func (a *App) hopID() hopproto.App {
 }
 
 func target(ap db.App) hopproto.App {
-	return hopproto.App{Slug: ap.Slug, URL: ap.URL, Prefix: ap.Prefix, Secret: ap.Secret}
+	prefix := ap.Prefix
+	if ap.Slug == "biohop" && (prefix == "" || prefix == "/hop") {
+		prefix = "/api/hop"
+	}
+	return hopproto.App{Slug: ap.Slug, URL: ap.URL, Prefix: prefix, Secret: ap.Secret}
 }
 
 func actorOf(s *db.Session) string {
@@ -70,7 +74,11 @@ func (a *App) syncApps(s *db.Session) error {
 		if r.Slug == a.cfg.HopClient || r.Slug == a.cfg.AltClient {
 			continue // ourselves (both doors)
 		}
-		_ = a.db.UpsertApp(ctx, &db.App{Slug: r.Slug, Name: r.Name, URL: r.URL, Prefix: "/hop", Secret: r.Secret, Status: r.Status,
+		prefix := "/hop"
+		if r.Slug == "biohop" {
+			prefix = "/api/hop"
+		}
+		_ = a.db.UpsertApp(ctx, &db.App{Slug: r.Slug, Name: r.Name, URL: r.URL, Prefix: prefix, Secret: r.Secret, Status: r.Status,
 			Icon: r.Icon, Color: r.Color, MenuLabel: r.MenuLabel, Capabilities: r.Capabilities, Hidden: r.Hidden, SortOrder: r.SortOrder})
 	}
 	return nil

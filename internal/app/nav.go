@@ -158,6 +158,7 @@ type seriesView struct {
 // else the app reports follows alphabetically.
 var kpiOrder = map[string][]string{
 	"linkhop":  {"users", "users_new_7d", "users_suspended", "links", "links_live", "bio_pages", "clicks_today", "clicks_30d", "open_reports", "open_flags"},
+	"biohop":   {"pages", "pages_published", "pages_draft", "pages_adult", "blocks", "views_total", "clicks_total", "reports_open"},
 	"pixelhop": {"users", "content", "images", "videos", "pdfs", "albums", "bytes", "views", "uploads_today", "open_reports", "bans", "guest_uploads"},
 	"notehop":  {"users", "users_sso", "notes", "notes_encrypted", "notes_public", "notes_owned", "notes_burn", "files", "files_bytes", "files_budget_bytes", "live_rooms", "slug_holds", "reports_open", "takedowns"},
 }
@@ -325,7 +326,11 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	wg.Wait()
-	all, attention := a.kpis(ap.Slug, st.KPI)
+	kpiMap := st.KPI
+	if len(kpiMap) == 0 {
+		kpiMap = st.Totals
+	}
+	all, attention := a.kpis(ap.Slug, kpiMap)
 	a.render(w, r, "dashboard.html", ap.Name, map[string]any{
 		"App": ap, "M": m, "Health": health, "Items": a.appItems(ap.Slug, m, r.URL.Path, ""),
 		"KPIs": all, "Attention": attention, "Series": a.seriesViews(st.Series), "StatsErr": statsErr,
