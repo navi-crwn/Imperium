@@ -124,7 +124,7 @@ Repo lain yang relevan: navi-crwn/helink-ops (catatan ops, private). RemoteHop b
 7. Direktori lama `/var/www/helink/shortlink-app` (a371f72) masih ada. Pastikan tidak ada yang melayaninya lagi dan tidak ada `.env` berisi secret yang terbuka, lalu catat apakah boleh diarsipkan.
 8. Pintasan TLS lokal (`HOP_API_ADDR`, `HELINK_API_ADDR`) dimatikan karena sertifikat origin dulu tidak punya SAN. nginx kini memakai `hel.ink-origin.crt`. Periksa SAN-nya dan apakah pintasan itu aman diaktifkan lagi.
 9. **SSH VPS menerima login password dan login root dari internet** (`sshd -T`: `passwordauthentication yes`, `permitrootlogin yes`). Pada 2026-10-29 terlihat banyak koneksi SSH dari 47.101.161.58. Periksa apakah ada fail2ban atau rate limit, dan catat ini sebagai temuan dengan rekomendasinya. Jangan mengubah apa pun.
-10. **Aturan sudo sementara** `/etc/sudoers.d/90-carawin-temp` (NOPASSWD penuh) masih aktif per 2026-10-29. Catat sebagai temuan; pemilik yang mencabutnya.
+10. **Aturan sudo sementara** `/etc/sudoers.d/90-carawin-temp` sudah dicabut pemilik pada 2026-10-29. `sudo -n` tidak lagi berjalan, jadi pemeriksaan yang butuh root ditandai sebagai pemeriksaan manual.
 
 ## 2. Skenario alur akun (inti audit)
 
