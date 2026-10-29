@@ -730,3 +730,63 @@ func TestBioHopAppDashboard(t *testing.T) {
 		t.Fatalf("biohop action not forwarded: %+v", bhActions)
 	}
 }
+
+func TestSsoLogoutChaining(t *testing.T) {
+	hop := newFakeHop(t)
+	defer hop.srv.Close()
+	a, srv := newApp(t, hop)
+	defer srv.Close()
+	a.cfg.HopURL = "https://hub.hel.ink"
+
+	c := client(t)
+	c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	body(login(t, c, srv))
+
+	validNext := "https://link.hel.ink/auth/sso/logout?next=https%3A%2F%2Fhel.ink"
+	res, err := c.Get(srv.URL + "/logout?next=" + url.QueryEscape(validNext))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body(res)
+	if res.StatusCode != http.StatusFound && res.StatusCode != http.StatusSeeOther {
+		t.Fatalf("expected redirect status, got %d", res.StatusCode)
+	}
+	if loc := res.Header.Get("Location"); loc != validNext {
+		t.Fatalf("expected Location %q, got %q", validNext, loc)
+	}
+
+	// Session should be terminated
+	res, err = c.Get(srv.URL + "/users")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body(res)
+	if loc := res.Header.Get("Location"); !strings.HasPrefix(loc, "/login") {
+		t.Fatalf("expected redirect to /login after logout, got %q", loc)
+	}
+
+	// Untrusted next param: GET /logout?next=https://evil.example.com
+	body(login(t, c, srv))
+	res, err = c.Get(srv.URL + "/logout?next=https%3A%2F%2Fevil.example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body(res)
+	if loc := res.Header.Get("Location"); loc != "/login" {
+		t.Fatalf("expected /login for untrusted next, got %q", loc)
+	}
+
+	// POST /logout with next
+	body(login(t, c, srv))
+	res, err = c.PostForm(srv.URL+"/logout?next="+url.QueryEscape(validNext), url.Values{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body(res)
+	if loc := res.Header.Get("Location"); loc != validNext {
+		t.Fatalf("expected POST with next to redirect to %q, got %q", validNext, loc)
+	}
+}

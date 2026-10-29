@@ -86,6 +86,7 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("GET /login", a.loginPage)
 	m.HandleFunc("GET /auth/sso", a.ssoStart)
 	m.HandleFunc("GET /auth/sso/callback", a.ssoCallback)
+	m.HandleFunc("GET /logout", a.logout)
 	m.HandleFunc("POST /logout", a.logout)
 	m.HandleFunc("GET /{$}", a.member(a.home))
 	m.HandleFunc("GET /search", a.member(a.search))

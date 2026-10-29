@@ -107,7 +107,33 @@ func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 		a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), Action: "logout"})
 	}
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: "/", MaxAge: -1, HttpOnly: true, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode})
-	http.Redirect(w, r, "/login", http.StatusFound)
+	next := "/login"
+	if n := r.URL.Query().Get("next"); familyURL(n, a.cfg.HopURL) {
+		next = n
+	}
+	http.Redirect(w, r, next, http.StatusFound)
+}
+
+// familyURL reports whether u is an address on the domain of the HOP ID
+// at hop (hub.hel.ink -> hel.ink and its subdomains).
+func familyURL(u, hop string) bool {
+	if u == "" || hop == "" {
+		return false
+	}
+	t, err := url.Parse(u)
+	h, err2 := url.Parse(hop)
+	if err != nil || err2 != nil || t.Host == "" || t.User != nil {
+		return false
+	}
+	if h.Scheme == "https" && t.Scheme != "https" {
+		return false
+	}
+	base := h.Hostname()
+	if parts := strings.Split(base, "."); len(parts) > 2 {
+		base = strings.Join(parts[len(parts)-2:], ".")
+	}
+	host := t.Hostname()
+	return host == base || strings.HasSuffix(host, "."+base)
 }
 
 func (a *App) me(w http.ResponseWriter, r *http.Request) {
