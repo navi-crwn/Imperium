@@ -29,6 +29,8 @@ Seluruh audit ini **read-only**. Pemilik akan memeriksa hasilnya dulu, lalu meng
 
 ### 0a. Lingkungan kerja: Antigravity (Gemini Argon) di Mac pemilik
 
+> **Jika kamu berjalan langsung di VPS** (misalnya Gemini CLI di terminal VPS dengan folder kerja `~/audit-hop`), abaikan tabel mount dan awalan `ssh hop` di bagian ini; jalankan perintah langsung. Butir 3 sampai 6 di bawah tetap berlaku. Di mode ini kamu punya hak tulis penuh sebagai user `carawin`, termasuk ke kode live di `/var/www/helink`. Karena itu **setiap perintah yang menulis wajib menunggu persetujuan pemilik**: jangan pernah meminta atau memakai mode auto-approve (`--yolo`). Jalankan dari `~/audit-hop`, bukan dari dalam repo, agar file konfigurasi agent tidak tercipta di repo.
+
 Kamu berjalan di app Antigravity di Mac pemilik, bukan di VPS. Semua path di prompt ini (`~/imperium`, `/var/www/helink`, `~/audit-hop`, dan seterusnya) adalah path **di VPS**. Cara menjangkaunya:
 
 | Di Mac | Artinya | Hak |
