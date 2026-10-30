@@ -66,6 +66,8 @@
         <tr><th>Storage</th><td>{{bytes $px.storage_bytes}}{{if $px.quota_bytes}} / {{bytes $px.quota_bytes}}{{end}}</td></tr>
         {{if $px.sessions}}<tr><th>Active sessions</th><td>{{n $px.sessions}}</td></tr>{{end}}
       </table>
+    {{else if .Data.PixelErr}}
+      <p class="flash err small">{{t "user.app_unreachable"}}: {{.Data.PixelErr}}</p>
     {{else}}
       <p class="muted small">{{t "user.app_not_linked"}}</p>
     {{end}}
@@ -79,6 +81,8 @@
         <tr><th>Vault</th><td>{{if $nt.vault_set}}<span class="chip active">set</span>{{else}}<span class="chip">unset</span>{{end}}</td></tr>
         {{if $nt.sessions}}<tr><th>Active sessions</th><td>{{n $nt.sessions}}</td></tr>{{end}}
       </table>
+    {{else if .Data.NoteErr}}
+      <p class="flash err small">{{t "user.app_unreachable"}}: {{.Data.NoteErr}}</p>
     {{else}}
       <p class="muted small">{{t "user.app_not_linked"}}</p>
     {{end}}

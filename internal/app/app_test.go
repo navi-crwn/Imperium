@@ -117,6 +117,9 @@ func newFakeHop(t *testing.T) *fakeHop {
 	mux.HandleFunc("GET /api/hop/users/26", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
 		_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"26","username":"rani","name":"Rani","email":"r@x","status":"active","verified":true},"counts":{"links":3},"sessions":{"count":1},"logins":[],"activity":[],"roles":[],"notes":[],"recent_links":[]}}`))
 	}))
+	mux.HandleFunc("GET /api/hop/users/27", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"27","username":"budi","name":"Budi","email":"b@x","status":"active","verified":true},"counts":{},"sessions":{"count":0},"logins":[],"activity":[],"roles":[],"notes":[],"recent_links":[]}}`))
+	}))
 	mux.HandleFunc("POST /api/hop/users/26/actions", api(func(w http.ResponseWriter, r *http.Request, body []byte) {
 		var m map[string]any
 		_ = json.Unmarshal(body, &m)
@@ -791,5 +794,25 @@ func TestUser360AppSummaries(t *testing.T) {
 	}
 	if !strings.Contains(b, "NoteHop") || !strings.Contains(b, "42") || !strings.Contains(b, "5 public") {
 		t.Fatalf("user page missing notehop summary: %s", b)
+	}
+	// An app that does not know the person says "not linked"; an app that fails says so instead.
+	hop.pxmux.HandleFunc("GET /hop/users/27", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+		_, _ = w.Write([]byte(`{"ok":false,"error":"not_found"}`))
+	})
+	ntmux.HandleFunc("GET /hop/users/27", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+		_, _ = w.Write([]byte(`{"ok":false,"error":"db_locked"}`))
+	})
+	res, err = c.Get(srv.URL + "/users/27")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b = body(res)
+	if !strings.Contains(b, "Not linked") {
+		t.Fatalf("pixelhop without the account should read as not linked: %s", b)
+	}
+	if !strings.Contains(b, "Could not reach this app") || !strings.Contains(b, "db_locked") {
+		t.Fatalf("a failing notehop must not look like an unlinked account: %s", b)
 	}
 }
