@@ -5,6 +5,7 @@
 set -euo pipefail
 REF=${1:-main}; SRC=/home/carawin/notehop/repo; GO=/home/carawin/sdk/go/bin/go
 LOG=/home/carawin/imperium/backups/sudo-log.txt; S() { printf '%s  %s\n' "$(date -Is)" "$*" >> "$LOG"; sudo -n "$@"; }
+sudo -v || { echo "Gagal mengautentikasi sudo"; exit 1; }
 cd "$SRC" && git fetch -q origin && git checkout -q "$REF" && { git pull -q --ff-only origin "$REF" 2>/dev/null || true; }
 echo "build $(git log --oneline -1)"
 mkdir -p bin
