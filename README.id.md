@@ -1,0 +1,27 @@
+# Imperium
+
+HOP Dashboard & Operations Console untuk keluarga aplikasi HOP (LinkHop, BioHop, PixelHop, NoteHop, RemoteHop). Privat.
+
+- `cmd/imperium/` binary server Go tunggal (UI web, server-to-server HMAC client)
+- `docs/` analisis arsitektur, daftar fitur, planning, dan inventaris admin tiap aplikasi
+- `protocol/` HOP App Protocol (kontrak Admin API & webhook semua aplikasi)
+- `scripts/` `hop-backup.sh`, `hop-restore.sh`, skrip deploy dan registry
+- `deploy/` vhost nginx (Tailscale-only), cloudflared, unit systemd
+
+### Ekosistem Keluarga HOP
+
+| App | Alamat Live | Repository | Kegunaan |
+| --- | --- | --- | --- |
+| **Hub** | `hel.ink` · `hub.hel.ink` | [navi-crwn/HEL.ink](https://github.com/navi-crwn/HEL.ink) | Akun HOP ID, SSO issuer, launcher, admin pusat |
+| **LinkHop** | `link.hel.ink` · `hel.ink/l/{slug}` | [navi-crwn/LinkHop](https://github.com/navi-crwn/LinkHop) | Pemendek link, QR code, analitik klik, API |
+| **BioHop** | `bio.hel.ink` · `hel.ink/b/{slug}` | [navi-crwn/BioHop](https://github.com/navi-crwn/BioHop) | Halaman link-in-bio dengan blok, tema, statistik |
+| **PixelHop** | `p.hel.ink` (segera `pixel.hel.ink`) | [navi-crwn/PixelHop](https://github.com/navi-crwn/PixelHop) | Hosting media & gambar, pembersihan GPS, studio foto |
+| **NoteHop** | `note.hel.ink` | [navi-crwn/NoteHop](https://github.com/navi-crwn/NoteHop) | Catatan kolaboratif real-time terenkripsi zero-knowledge |
+| **Imperium** (repo ini) | Internal / Tailscale | Privat | Konsol operasional & admin terpadu lintas aplikasi |
+
+### Bahasa
+
+Bahasa antarmuka diatur lewat `IMPERIUM_LANG` (lihat `deploy/imperium.env.example`).
+Bawaannya `en`; `IMPERIUM_LANG=id` memakai katalog Indonesia. Nilai lain jatuh
+ke bahasa Inggris, dan `<html lang>` pada halaman selalu mengikuti katalog yang
+dipakai.
