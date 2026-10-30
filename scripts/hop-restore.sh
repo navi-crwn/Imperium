@@ -69,12 +69,18 @@ say "Verifikasi selesai, masalah: $FAILS"
 # ---------- 4. apply (root) ----------
 [ "$MODE" = apply ] || exit 2
 [ "$(id -u)" = 0 ] || { say "apply butuh root: sudo -E $0 apply $SRC"; exit 1; }
-HELINK=/var/www/helink/shortlink-app; PIXELHOP=/home/carawin/apps/pixelhop
+if [ -d "/var/www/helink/linkhop" ]; then
+  HELINK=/var/www/helink/linkhop
+elif [ -d "/var/www/helink/hub" ]; then
+  HELINK=/var/www/helink/hub
+else
+  HELINK=/var/www/helink/shortlink-app
+fi; PIXELHOP=/home/carawin/apps/pixelhop
 read -r -p "Ini akan MENIMPA database dan file di server ini. Ketik 'pulihkan' untuk lanjut: " ans
 [ "$ans" = pulihkan ] || exit 1
 
 say "Hentikan layanan"
-systemctl stop pixelhop notehop queue-worker 2>/dev/null || true
+systemctl stop pixelhop notehop linkhop-queue hub-queue biohop-queue queue-worker 2>/dev/null || true
 
 if [ -f "$SRC/linkhop/db.sql.gz" ] && [ -f "$TMP/secrets/linkhop.env" ]; then
   say "LinkHop: env, DB, storage"
@@ -117,7 +123,7 @@ nginx -t && systemctl reload nginx
 [ -f "$SRC/system/crontab-carawin.txt" ] && crontab -u carawin "$SRC/system/crontab-carawin.txt"
 
 systemctl daemon-reload
-systemctl start pixelhop notehop queue-worker 2>/dev/null || true
+systemctl start pixelhop notehop linkhop-queue hub-queue biohop-queue queue-worker 2>/dev/null || true
 say "Healthcheck"
 for u in "https://hel.ink/health/queue" "http://127.0.0.1:8080/api/v1/stats" "http://127.0.0.1:8090/healthz"; do
   printf '  %s -> ' "$u"; curl -s -o /dev/null -w '%{http_code}\n' -m 10 "$u" || echo "gagal"

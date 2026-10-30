@@ -21,7 +21,16 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-HELINK=/var/www/helink/shortlink-app
+# Cek sudo credential cache bila tersedia
+sudo -v 2>/dev/null || true
+
+if [ -d "/var/www/helink/linkhop" ]; then
+  HELINK=/var/www/helink/linkhop
+elif [ -d "/var/www/helink/hub" ]; then
+  HELINK=/var/www/helink/hub
+else
+  HELINK=/var/www/helink/shortlink-app
+fi
 PIXELHOP=/home/carawin/apps/pixelhop
 NOTEHOP_DB=/var/lib/notehop/notehop.db
 NOTEHOP_ENV=/etc/notehop/notehop.env
@@ -88,7 +97,7 @@ fi
 # ---------- Sistem ----------
 say "Sistem: nginx, systemd, cron, paket"
 cp -r /etc/nginx/sites-enabled "$DEST/system/nginx-sites-enabled" 2>/dev/null || warn "nginx sites tidak terbaca"
-for u in notehop pixelhop pixelhop-ai pixelhop-rembg queue-worker imperium hop-agent notehop-backup.timer notehop-backup.service; do
+for u in notehop pixelhop pixelhop-ai pixelhop-rembg linkhop-queue hub-queue biohop-queue imperium hop-agent notehop-backup.timer notehop-backup.service; do
   systemctl cat "$u" > "$DEST/system/$u.unit" 2>/dev/null || rm -f "$DEST/system/$u.unit"
 done
 crontab -l > "$DEST/system/crontab-$USER.txt" 2>/dev/null || true
