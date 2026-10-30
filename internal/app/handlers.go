@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/navi-crwn/imperium/internal/db"
 )
@@ -165,8 +166,38 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 		u.Profile["name"], u.Profile["email"] = alias, ""
 		raw = nil
 	}
-	a.render(w, r, "user.html", "@"+str(u.Profile["username"]), map[string]any{"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)),
-		"RoleOptions": []string{"owner", "admin", "moderator", "support"}})
+
+	// Each app's own view of the person, fetched side by side. An app that has
+	// no account for this HOP id answers not_found; any other error is shown as
+	// such, so a broken app never reads as "not linked".
+	summaries := map[string]*appSummary{"pixelhop": {}, "notehop": {}}
+	var wg sync.WaitGroup
+	for slug, sum := range summaries {
+		ap, err := a.db.App(r.Context(), slug)
+		if err != nil || ap == nil || ap.Secret == "" {
+			continue
+		}
+		wg.Add(1)
+		go func(ap *db.App, sum *appSummary) {
+			defer wg.Done()
+			var resp map[string]any
+			err := a.call(r.Context(), current(r), ap, "GET", "/users/"+url.PathEscape(id), nil, &resp)
+			switch {
+			case err == nil && len(resp) > 0:
+				sum.User = resp
+			case err != nil && err.Error() != "not_found":
+				sum.Err = err.Error()
+			}
+		}(ap, sum)
+	}
+	wg.Wait()
+
+	a.render(w, r, "user.html", "@"+str(u.Profile["username"]), map[string]any{
+		"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)),
+		"PixelUser": summaries["pixelhop"].User, "PixelErr": summaries["pixelhop"].Err,
+		"NoteUser": summaries["notehop"].User, "NoteErr": summaries["notehop"].Err,
+		"RoleOptions": []string{"owner", "admin", "moderator", "support"},
+	})
 }
 
 func str(v any) string { s, _ := v.(string); return s }
@@ -259,4 +290,10 @@ func (a *App) audit(w http.ResponseWriter, r *http.Request) {
 		errMsg = err.Error()
 	}
 	a.render(w, r, "audit.html", a.T("audit.title"), map[string]any{"Local": local, "Remote": remote, "Err": errMsg})
+}
+
+// appSummary is one app's answer for the User 360 page.
+type appSummary struct {
+	User map[string]any
+	Err  string
 }

@@ -28,6 +28,7 @@ const pxSecret = "px-secret-that-is-long-enough-123456789"
 type fakeHop struct {
 	srv            *httptest.Server
 	px             *httptest.Server // PixelHop, an app with its own admin API
+	pxmux          *http.ServeMux
 	ticket         map[string]any
 	actions        []map[string]any
 	contentQueries []string
@@ -67,6 +68,7 @@ func newFakeHop(t *testing.T) *fakeHop {
 	f.srv = httptest.NewServer(mux)
 	// PixelHop's admin API (prefix /hop), signed with its own secret, on its own server.
 	pxmux := http.NewServeMux()
+	f.pxmux = pxmux
 	px := func(h func(w http.ResponseWriter, r *http.Request, body []byte)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 			body, _ := io.ReadAll(r.Body)
@@ -114,6 +116,9 @@ func newFakeHop(t *testing.T) *fakeHop {
 	}))
 	mux.HandleFunc("GET /api/hop/users/26", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
 		_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"26","username":"rani","name":"Rani","email":"r@x","status":"active","verified":true},"counts":{"links":3},"sessions":{"count":1},"logins":[],"activity":[],"roles":[],"notes":[],"recent_links":[]}}`))
+	}))
+	mux.HandleFunc("GET /api/hop/users/27", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"27","username":"budi","name":"Budi","email":"b@x","status":"active","verified":true},"counts":{},"sessions":{"count":0},"logins":[],"activity":[],"roles":[],"notes":[],"recent_links":[]}}`))
 	}))
 	mux.HandleFunc("POST /api/hop/users/26/actions", api(func(w http.ResponseWriter, r *http.Request, body []byte) {
 		var m map[string]any
@@ -728,5 +733,86 @@ func TestBioHopAppDashboard(t *testing.T) {
 	body(res)
 	if len(bhActions) != 1 || bhActions[0]["action"] != "clear_custom_css" {
 		t.Fatalf("biohop action not forwarded: %+v", bhActions)
+	}
+}
+
+func TestUser360AppSummaries(t *testing.T) {
+	hop := newFakeHop(t)
+	defer hop.srv.Close()
+	defer hop.px.Close()
+	a, srv := newApp(t, hop)
+	defer srv.Close()
+
+	// Sync pixelhop app into DB with pxSecret
+	_ = a.db.UpsertApp(t.Context(), &db.App{
+		Slug: "pixelhop", Name: "PixelHop", URL: hop.px.URL, Prefix: "/hop", Secret: pxSecret, Status: "active",
+	})
+
+	// Add signed GET /hop/users/26 handler to px
+	hop.pxmux.HandleFunc("GET /hop/users/26", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if err := hop.nonces.Verify(r, body, "imperium", []string{pxSecret}, time.Minute); err != nil {
+			w.WriteHeader(401)
+			_, _ = w.Write([]byte(`{"ok":false,"error":"` + err.Error() + `"}`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"role":"admin","status":"active","images":12,"albums":3,"storage_bytes":1048576,"quota_bytes":1073741824,"sessions":2}}`))
+	})
+
+	// NoteHop mock server
+	const ntSecret = "nt-secret-that-is-long-enough-123456789"
+	ntmux := http.NewServeMux()
+	ntmux.HandleFunc("GET /hop/users/26", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if err := hop.nonces.Verify(r, body, "imperium", []string{ntSecret}, time.Minute); err != nil {
+			w.WriteHeader(401)
+			_, _ = w.Write([]byte(`{"ok":false,"error":"` + err.Error() + `"}`))
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"role":"user","status":"active","notes":42,"notes_public":5,"vault_set":true,"sessions":1}}`))
+	})
+	ntSrv := httptest.NewServer(ntmux)
+	defer ntSrv.Close()
+
+	_ = a.db.UpsertApp(t.Context(), &db.App{
+		Slug: "notehop", Name: "NoteHop", URL: ntSrv.URL, Prefix: "/hop", Secret: ntSecret, Status: "active",
+	})
+
+	hop.ticket = map[string]any{"sub": "26", "username": "rani", "name": "Rani", "email": "r@x", "roles": []string{"owner"}, "mfa": true, "status": "active"}
+	c := client(t)
+	login(t, c, srv)
+
+	res, err := c.Get(srv.URL + "/users/26")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := body(res)
+	if !strings.Contains(b, "PixelHop") || !strings.Contains(b, "12") || !strings.Contains(b, "1.0 MB") {
+		t.Fatalf("user page missing pixelhop summary: %s", b)
+	}
+	if !strings.Contains(b, "NoteHop") || !strings.Contains(b, "42") || !strings.Contains(b, "5 public") {
+		t.Fatalf("user page missing notehop summary: %s", b)
+	}
+	// An app that does not know the person says "not linked"; an app that fails says so instead.
+	hop.pxmux.HandleFunc("GET /hop/users/27", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+		_, _ = w.Write([]byte(`{"ok":false,"error":"not_found"}`))
+	})
+	ntmux.HandleFunc("GET /hop/users/27", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(500)
+		_, _ = w.Write([]byte(`{"ok":false,"error":"db_locked"}`))
+	})
+	res, err = c.Get(srv.URL + "/users/27")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b = body(res)
+	if !strings.Contains(b, "Not linked") {
+		t.Fatalf("pixelhop without the account should read as not linked: %s", b)
+	}
+	if !strings.Contains(b, "Could not reach this app") || !strings.Contains(b, "db_locked") {
+		t.Fatalf("a failing notehop must not look like an unlinked account: %s", b)
 	}
 }
