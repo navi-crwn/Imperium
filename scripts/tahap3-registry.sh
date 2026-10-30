@@ -11,7 +11,7 @@ case "$APP" in
   *) echo "aplikasi tidak dikenal: $APP"; exit 1;;
 esac
 cd /var/www/helink/hub
-sudo -v || { echo "Gagal mengautentikasi sudo"; exit 1; }
+sudo -n true 2>/dev/null || sudo -v || { echo "Gagal mengautentikasi sudo"; exit 1; }
 sudo -u www-data env XDG_CONFIG_HOME=/tmp/psysh-www HOME=/tmp/psysh-www php8.3 artisan tinker --execute="
 \$a = App\Models\HopApp::where('slug', '$APP')->firstOrFail();
 \$a->capabilities = json_decode('$CAPS', true); \$a->save();
