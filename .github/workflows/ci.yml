@@ -14,4 +14,8 @@ jobs:
       - run: test -z "$(gofmt -l cmd internal scripts)"
       - run: go vet ./...
       - run: go test -race ./...
+      - name: Test backup snapshot summary fixtures
+        run: python3 -I tests/test_hop_backup_latest.py
+      - name: Check backup script syntax
+        run: bash -n scripts/hop-backup.sh
       - run: make build GO=go && ./bin/imperium version

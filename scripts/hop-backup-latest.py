@@ -1,12 +1,24 @@
 #!/usr/bin/env python3
-"""Print a safe summary of the newest snapshot in restic JSON input."""
+"""Print a safe summary of the newest snapshot in restic JSON input.
+
+Requires Python 3.10 or newer (standard library only).
+"""
 
 import datetime
 import json
 import re
 import sys
 
-SAFE_ID = re.compile(r"^[A-Za-z0-9_-]+$")
+if sys.version_info < (3, 10):
+    print("PERINGATAN: helper ringkasan membutuhkan Python 3.10+", file=sys.stderr)
+    sys.exit(1)
+
+SAFE_ID = re.compile(r"[A-Za-z0-9_-]+\Z")
+RFC3339 = re.compile(
+    r"(\d{4})-(\d{2})-(\d{2})T"
+    r"(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?"
+    r"(Z|[+-]\d{2}:\d{2})\Z"
+)
 
 
 def warn(message):
@@ -19,9 +31,42 @@ def snapshot_id(snapshot):
     candidate = short_id if short_id is not None else full_id
     if candidate is None:
         return "unavailable"
-    if not isinstance(candidate, str) or not SAFE_ID.fullmatch(candidate):
+    if not isinstance(candidate, str):
+        raise ValueError("ID snapshot tidak valid")
+    if len(candidate) > 64:
+        raise ValueError("ID snapshot terlalu panjang")
+    if not SAFE_ID.fullmatch(candidate):
         raise ValueError("ID snapshot tidak valid")
     return candidate if short_id is not None else candidate[:8]
+
+
+def parse_rfc3339(value):
+    """Return (epoch seconds, nanoseconds, normalized timestamp)."""
+    match = RFC3339.fullmatch(value)
+    if match is None:
+        raise ValueError("format waktu bukan RFC3339")
+    year, month, day, hour, minute, second = map(int, match.groups()[:6])
+    if second > 59:
+        raise ValueError("detik kabisat tidak didukung")
+    fraction = match.group(7) or ""
+    nanoseconds = int(fraction.ljust(9, "0")) if fraction else 0
+    zone = match.group(8)
+    offset = datetime.timedelta(0)
+    if zone != "Z":
+        offset_hour, offset_minute = map(int, zone[1:].split(":"))
+        if offset_hour > 23 or offset_minute > 59:
+            raise ValueError("offset zona waktu tidak valid")
+        offset = datetime.timedelta(hours=offset_hour, minutes=offset_minute)
+        if zone[0] == "-":
+            offset = -offset
+    local = datetime.datetime(year, month, day, hour, minute, second)
+    utc = local - offset
+    elapsed = utc - datetime.datetime(1970, 1, 1)
+    seconds = elapsed.days * 86400 + elapsed.seconds
+    normalized = utc.strftime("%Y-%m-%dT%H:%M:%S")
+    if nanoseconds:
+        normalized += "." + f"{nanoseconds:09d}".rstrip("0")
+    return seconds, nanoseconds, normalized + "+00:00"
 
 
 def main():
@@ -44,17 +89,16 @@ def main():
             if not isinstance(snapshot, dict):
                 raise ValueError("entri bukan objek")
             value = snapshot.get("time")
-            if not isinstance(value, str):
-                raise ValueError("waktu tidak tersedia")
-            parsed = datetime.datetime.fromisoformat(value)
-            if parsed.tzinfo is None or parsed.utcoffset() is None:
-                raise ValueError("zona waktu tidak tersedia")
-            parsed = parsed.astimezone(datetime.timezone.utc)
+            if not isinstance(value, str) or len(value) > 64:
+                raise ValueError("waktu tidak tersedia atau terlalu panjang")
+            parsed = parse_rfc3339(value)
             identifier = snapshot_id(snapshot)
-        except (ValueError, OverflowError):
+        except (ValueError, OverflowError) as error:
+            if str(error) == "ID snapshot terlalu panjang":
+                warn(str(error))
             invalid += 1
             continue
-        candidates.append((parsed, identifier))
+        candidates.append((parsed[0], parsed[1], identifier, parsed[2]))
 
     if invalid:
         warn(f"{invalid} entri snapshot dilewati karena waktu atau ID tidak valid")
@@ -62,8 +106,8 @@ def main():
         warn("tidak ada snapshot dengan waktu yang valid")
         return 1
 
-    parsed, identifier = max(candidates)
-    print(f"snapshot={identifier} time={parsed.isoformat()}")
+    _, _, identifier, normalized = max(candidates)
+    print(f"snapshot={identifier} time={normalized}")
     return 0
 
 

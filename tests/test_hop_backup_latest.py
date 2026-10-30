@@ -123,6 +123,77 @@ class SnapshotSummaryTests(unittest.TestCase):
         self.assertNotIn("/private/path", result.stderr.decode())
         self.assertIn("PERINGATAN", result.stderr.decode())
 
+    def test_million_character_id_fails_with_bounded_generic_warning(self):
+        result = self.run_helper(json.dumps([{
+            "time": "2026-10-30T00:00:00Z",
+            "short_id": "a" * 1_000_000,
+        }]))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, b"")
+        self.assertLessEqual(len(result.stderr), 200)
+        self.assertEqual(
+            result.stderr.decode(),
+            "PERINGATAN: ID snapshot terlalu panjang\n"
+            "PERINGATAN: 1 entri snapshot dilewati karena waktu atau ID tidak valid\n"
+            "PERINGATAN: tidak ada snapshot dengan waktu yang valid\n",
+        )
+
+    def test_65_character_valid_id_fails_without_echoing_input(self):
+        result = self.run_helper(json.dumps([{
+            "time": "2026-10-30T00:00:00Z",
+            "short_id": "A1_-" * 16 + "A",
+        }]))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, b"")
+        self.assertLessEqual(len(result.stderr), 200)
+        self.assertEqual(
+            result.stderr.decode(),
+            "PERINGATAN: ID snapshot terlalu panjang\n"
+            "PERINGATAN: 1 entri snapshot dilewati karena waktu atau ID tidak valid\n"
+            "PERINGATAN: tidak ada snapshot dengan waktu yang valid\n",
+        )
+
+    def test_nanoseconds_determine_latest_before_id_tiebreak(self):
+        data = [
+            {"time": "2026-10-30T01:00:00.000000001+01:00", "short_id": "zzzzzzzz"},
+            {"time": "2026-10-30T00:00:00.000000002Z", "short_id": "aaaaaaaa"},
+        ]
+        self.assert_success(
+            self.run_helper(json.dumps(data)),
+            "aaaaaaaa",
+            "2026-10-30T00:00:00.000000002+00:00",
+        )
+
+    def test_nanosecond_offset_timestamp_is_normalized(self):
+        data = [{"time": "2026-10-30T05:30:00.123456789+05:30", "short_id": "abcdef12"}]
+        self.assert_success(
+            self.run_helper(json.dumps(data)),
+            "abcdef12",
+            "2026-10-30T00:00:00.123456789+00:00",
+        )
+
+    def test_equal_nanosecond_instants_use_id_tiebreak(self):
+        data = [
+            {"time": "2026-10-30T01:00:00.123456789+01:00", "short_id": "11111111"},
+            {"time": "2026-10-30T00:00:00.123456789Z", "short_id": "22222222"},
+        ]
+        self.assert_success(
+            self.run_helper(json.dumps(data)),
+            "22222222",
+            "2026-10-30T00:00:00.123456789+00:00",
+        )
+
+    def test_unbounded_timestamp_fraction_fails_with_generic_warning(self):
+        result = self.run_helper(json.dumps([{
+            "time": "2026-10-30T00:00:00." + "1" * 10000 + "Z",
+            "short_id": "deadbeef",
+        }]))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, b"")
+        self.assertLessEqual(len(result.stderr), 300)
+        self.assertNotIn("1" * 20, result.stderr.decode())
+        self.assertIn("PERINGATAN", result.stderr.decode())
+
 
 if __name__ == "__main__":
     unittest.main()
