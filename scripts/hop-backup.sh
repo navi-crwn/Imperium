@@ -7,6 +7,8 @@
 # Opsional: snapshot restic ke R2 (memakai ~/.config/hop/backup.env).
 #
 # Pemakaian:  hop-backup.sh [--out DIR] [--no-images] [--no-remote]
+# Deploy hop-backup-latest.py sebagai sibling skrip ini di checkout yang sama.
+# Helper membutuhkan Python 3.10+; tidak ada dependency tambahan.
 # Rahasia tidak pernah dicetak. Jalankan sebagai user carawin.
 set -euo pipefail
 
