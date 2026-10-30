@@ -56,6 +56,38 @@
     {{end}}
   </div>
 </div>
+<div class="grid g2 mt14">
+  <div class="card"><h2 class="card-title">PixelHop</h2>
+    {{if .Data.PixelUser}}
+      {{$px := .Data.PixelUser}}
+      <table>
+        <tr><th>Status</th><td><span class="chip {{$px.status}}">{{$px.status}}</span> {{if $px.role}}<span class="chip {{$px.role}}">{{$px.role}}</span>{{end}}</td></tr>
+        <tr><th>Images</th><td>{{n $px.images}} {{if $px.albums}}({{n $px.albums}} albums){{end}}</td></tr>
+        <tr><th>Storage</th><td>{{bytes $px.storage_bytes}}{{if $px.quota_bytes}} / {{bytes $px.quota_bytes}}{{end}}</td></tr>
+        {{if $px.sessions}}<tr><th>Active sessions</th><td>{{n $px.sessions}}</td></tr>{{end}}
+      </table>
+    {{else if .Data.PixelErr}}
+      <p class="flash err small">{{t "user.app_unreachable"}}: {{.Data.PixelErr}}</p>
+    {{else}}
+      <p class="muted small">{{t "user.app_not_linked"}}</p>
+    {{end}}
+  </div>
+  <div class="card"><h2 class="card-title">NoteHop</h2>
+    {{if .Data.NoteUser}}
+      {{$nt := .Data.NoteUser}}
+      <table>
+        <tr><th>Status</th><td><span class="chip {{$nt.status}}">{{$nt.status}}</span> {{if $nt.role}}<span class="chip {{$nt.role}}">{{$nt.role}}</span>{{end}}</td></tr>
+        <tr><th>Notes</th><td>{{n $nt.notes}} {{if $nt.notes_public}}({{n $nt.notes_public}} public){{end}}</td></tr>
+        <tr><th>Vault</th><td>{{if $nt.vault_set}}<span class="chip active">set</span>{{else}}<span class="chip">unset</span>{{end}}</td></tr>
+        {{if $nt.sessions}}<tr><th>Active sessions</th><td>{{n $nt.sessions}}</td></tr>{{end}}
+      </table>
+    {{else if .Data.NoteErr}}
+      <p class="flash err small">{{t "user.app_unreachable"}}: {{.Data.NoteErr}}</p>
+    {{else}}
+      <p class="muted small">{{t "user.app_not_linked"}}</p>
+    {{end}}
+  </div>
+</div>
 <div class="card mt14"><h2 class="card-title">{{t "user.activity"}}</h2>
   <table>{{range $u.Activity}}<tr><td class="small">{{index . "at"}}</td><td><span class="chip">{{index . "action"}}</span> {{index . "model"}}</td><td class="small">{{index . "description"}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>
   <details class="mt10"><summary>JSON</summary><pre class="mono">{{.Data.Raw}}</pre></details>

@@ -72,7 +72,22 @@ func parseTime(s string) time.Time {
 }
 
 // humanBytes formats a byte count: 0 B, 12,3 KB, 4,5 GB.
-func humanBytes(n int64) string {
+func humanBytes(v any) string {
+	var n int64
+	switch x := v.(type) {
+	case int:
+		n = int64(x)
+	case int64:
+		n = x
+	case float64:
+		n = int64(x)
+	case int32:
+		n = int64(x)
+	case uint64:
+		n = int64(x)
+	default:
+		return fmt.Sprint(v)
+	}
 	const unit = 1024
 	if n < unit {
 		return fmt.Sprintf("%d B", n)
