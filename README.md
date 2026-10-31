@@ -1,20 +1,29 @@
 # Imperium
 
-HOP Dashboard & Operations Console untuk keluarga aplikasi HOP (LinkHop, BioHop, PixelHop, NoteHop, RemoteHop). Privat.
+[Read this in Indonesian (Bahasa Indonesia)](README.id.md)
 
-- `cmd/imperium/` binary server Go tunggal (UI web, server-to-server HMAC client)
-- `docs/` analisis arsitektur, daftar fitur, planning, dan inventaris admin tiap aplikasi
-- `protocol/` HOP App Protocol (kontrak Admin API & webhook semua aplikasi)
-- `scripts/` `hop-backup.sh`, `hop-restore.sh`, skrip deploy dan registry
-- `deploy/` vhost nginx (Tailscale-only), cloudflared, unit systemd
+HOP Dashboard & Operations Console for the HOP app family (LinkHop, BioHop, PixelHop, NoteHop, RemoteHop). Private.
 
-### Ekosistem Keluarga HOP
+- `cmd/imperium/` single Go server binary (web UI, server-to-server HMAC client)
+- `docs/` architecture analysis, feature list, planning, and per-app admin inventories
+- `protocol/` HOP App Protocol (the Admin API & webhook contract for every app)
+- `scripts/` `hop-backup.sh`, `hop-restore.sh`, deploy and registry scripts
+- `deploy/` nginx vhost (Tailscale-only), cloudflared, systemd units
 
-| App | Alamat Live | Repository | Kegunaan |
+### HOP Family Ecosystem
+
+| App | Live address | Repository | Purpose |
 | --- | --- | --- | --- |
-| **Hub** | `hel.ink` · `hub.hel.ink` | [navi-crwn/HEL.ink](https://github.com/navi-crwn/HEL.ink) | Akun HOP ID, SSO issuer, launcher, admin pusat |
-| **LinkHop** | `link.hel.ink` · `hel.ink/l/{slug}` | [navi-crwn/LinkHop](https://github.com/navi-crwn/LinkHop) | Pemendek link, QR code, analitik klik, API |
-| **BioHop** | `bio.hel.ink` · `hel.ink/b/{slug}` | [navi-crwn/BioHop](https://github.com/navi-crwn/BioHop) | Halaman link-in-bio dengan blok, tema, statistik |
-| **PixelHop** | `p.hel.ink` (segera `pixel.hel.ink`) | [navi-crwn/PixelHop](https://github.com/navi-crwn/PixelHop) | Hosting media & gambar, pembersihan GPS, studio foto |
-| **NoteHop** | `note.hel.ink` | [navi-crwn/NoteHop](https://github.com/navi-crwn/NoteHop) | Catatan kolaboratif real-time terenkripsi zero-knowledge |
-| **Imperium** (repo ini) | Internal / Tailscale | Privat | Konsol operasional & admin terpadu lintas aplikasi |
+| **Hub** | `hel.ink` · `hub.hel.ink` | [navi-crwn/HEL.ink](https://github.com/navi-crwn/HEL.ink) | HOP ID accounts, SSO issuer, launcher, central admin |
+| **LinkHop** | `link.hel.ink` · `hel.ink/l/{slug}` | [navi-crwn/LinkHop](https://github.com/navi-crwn/LinkHop) | Link shortener, QR codes, click analytics, API |
+| **BioHop** | `bio.hel.ink` · `hel.ink/b/{slug}` | [navi-crwn/BioHop](https://github.com/navi-crwn/BioHop) | Link-in-bio pages with blocks, themes, stats |
+| **PixelHop** | `p.hel.ink` (soon `pixel.hel.ink`) | [navi-crwn/PixelHop](https://github.com/navi-crwn/PixelHop) | Media & image hosting, GPS scrubbing, photo studio |
+| **NoteHop** | `note.hel.ink` | [navi-crwn/NoteHop](https://github.com/navi-crwn/NoteHop) | Real-time collaborative notes, zero-knowledge encrypted |
+| **Imperium** (this repo) | Internal / Tailscale | Private | Unified cross-app operations & admin console |
+
+### Languages
+
+The UI language is set by the operator with `IMPERIUM_LANG` (see
+`deploy/imperium.env.example`). The default is `en`; `IMPERIUM_LANG=id`
+selects the Indonesian catalog. Unknown values fall back to English, and the
+rendered `<html lang>` always reflects the catalog in use.

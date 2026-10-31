@@ -32,7 +32,7 @@ type Config struct {
 	RequireMFA     bool
 	TrustProxy     bool
 	Secure         bool
-	Lang           string // id or en
+	Lang           string // UI language: id or en (default en)
 	AllowedCIDR    []string
 	// Aliases hide the owner's real identity on every screen, audit row and
 	// alert: "ivan_smb787=superadmin,ivan@x=superadmin" (key = username or email).
@@ -103,7 +103,7 @@ func LoadConfig(version string) Config {
 		SessionTTL:     time.Duration(hours) * time.Hour,
 		RequireMFA:     envBool("IMPERIUM_REQUIRE_MFA", true),
 		TrustProxy:     envBool("IMPERIUM_TRUST_PROXY", false),
-		Lang:           env("IMPERIUM_LANG", "id"),
+		Lang:           env("IMPERIUM_LANG", "en"),
 		Aliases:        envAliases("IMPERIUM_ALIASES"),
 		Version:        version,
 	}

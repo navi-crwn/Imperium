@@ -41,6 +41,7 @@ func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
 	a.hop = &hopproto.Client{As: cfg.HopClient, HTTP: a.httpClient()}
 	funcs := template.FuncMap{
 		"t":     a.T,
+		"lang":  a.lang,
 		"since": humanSince,
 		"date":  func(t time.Time) string { return t.Local().Format("2006-01-02 15:04") },
 		"n":     humanAny,
