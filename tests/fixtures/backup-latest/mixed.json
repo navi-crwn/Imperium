@@ -1,0 +1,27 @@
+[
+  {
+    "time": "2026-10-30T01:15:00+02:00",
+    "short_id": "11111111",
+    "hostname": "private-host-a",
+    "paths": ["/private/path/a"],
+    "tags": ["hop", "private-tag"]
+  },
+  {
+    "time": "2026-10-29T19:45:00.123456-04:00",
+    "short_id": "99999999",
+    "hostname": "private-host-b",
+    "paths": ["/private/path/b"]
+  },
+  {
+    "time": "2026-10-29T19:45:00.123457-04:00",
+    "short_id": "abcdef12",
+    "hostname": "private-host-c",
+    "paths": ["/private/path/c", "/private/path/other"]
+  },
+  {
+    "time": "2026-10-27T08:00:00+00:00",
+    "short_id": "00000000",
+    "hostname": "private-host-d",
+    "paths": ["/private/path/d"]
+  }
+]

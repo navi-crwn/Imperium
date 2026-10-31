@@ -7,6 +7,8 @@
 # Opsional: snapshot restic ke R2 (memakai ~/.config/hop/backup.env).
 #
 # Pemakaian:  hop-backup.sh [--out DIR] [--no-images] [--no-remote]
+# Deploy hop-backup-latest.py sebagai sibling skrip ini di checkout yang sama.
+# Helper membutuhkan Python 3.10+; tidak ada dependency tambahan.
 # Rahasia tidak pernah dicetak. Jalankan sebagai user carawin.
 set -euo pipefail
 
@@ -149,7 +151,11 @@ if [ "$WITH_REMOTE" = 1 ] && [ -f "$REMOTE_ENV" ]; then
   "$R" snapshots >/dev/null 2>&1 || "$R" init
   "$R" backup --quiet --tag hop "$DEST"
   "$R" forget --quiet --tag hop --keep-daily 14 --keep-weekly 8 --keep-monthly 12 --prune
-  say "Off-site: $("$R" snapshots --tag hop --latest 1 --compact 2>/dev/null | sed -n 3p)"
+  if OFFSITE_SUMMARY=$("$R" snapshots --tag hop --json 2>/dev/null | python3 -I "$(dirname "$0")/hop-backup-latest.py"); then
+    say "Off-site: $OFFSITE_SUMMARY"
+  else
+    warn "Off-site: ringkasan snapshot terbaru tidak tersedia"
+  fi
 elif [ "$WITH_REMOTE" = 1 ]; then
   warn "Off-site dilewati: buat $REMOTE_ENV (RESTIC_REPOSITORY, RESTIC_PASSWORD_FILE, AWS_*) seperti milik PixelHop tapi dengan path repo berbeda"
 fi
