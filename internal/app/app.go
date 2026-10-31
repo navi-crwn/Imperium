@@ -40,18 +40,29 @@ func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
 	a := &App{cfg: cfg, db: d, health: map[string]Health{}, start: time.Now(), manifests: manifestCache{m: map[string]*Manifest{}}}
 	a.hop = &hopproto.Client{As: cfg.HopClient, HTTP: a.httpClient()}
 	funcs := template.FuncMap{
-		"t":     a.T,
-		"lang":  a.lang,
-		"since": humanSince,
-		"date":  func(t time.Time) string { return t.Local().Format("2006-01-02 15:04") },
-		"n":     humanAny,
-		"has":   func(list []string, x string) bool { return contains(list, x) },
-		"json":  jsonPretty,
-		"lower": strings.ToLower,
-		"list":  func(items ...string) []string { return items },
-		"bytes": humanBytes,
-		"day":   dayOf,
-		"ext":   a.extLabel,
+		"t":             a.T,
+		"lang":          a.lang,
+		"since":         humanSince,
+		"date":          func(t time.Time) string { return t.Local().Format("2006-01-02 15:04") },
+		"n":             humanAny,
+		"has":           func(list []string, x string) bool { return contains(list, x) },
+		"json":          jsonPretty,
+		"lower":         strings.ToLower,
+		"list":          func(items ...string) []string { return items },
+		"bytes":         humanBytes,
+		"day":           dayOf,
+		"ext":           a.extLabel,
+		"actionLabel":   a.actionLabel,
+		"confirmAction": confirmAction,
+		"appMark": func(slug string) string {
+			switch slug {
+			case "hub":
+				return "/static/hop/apps/hub/hop-id-mark.svg"
+			case "linkhop", "biohop", "pixelhop", "notehop":
+				return "/static/hop/apps/" + slug + "/mark.svg"
+			}
+			return "/static/imperium.svg"
+		},
 	}
 	tpl, err := template.New("").Funcs(funcs).ParseFS(web, "web/templates/*.html")
 	if err != nil {
@@ -265,6 +276,12 @@ type page struct {
 }
 
 func (a *App) render(w http.ResponseWriter, r *http.Request, name, title string, data any) {
+	if d, ok := data.(map[string]any); ok {
+		if ap, ok := d["App"].(*db.App); ok {
+			m, _ := d["M"].(*Manifest)
+			d["Items"] = a.appItems(ap.Slug, m, r.URL.Path, r.URL.Query().Get("type"))
+		}
+	}
 	p := page{Title: title, Session: current(r), Path: r.URL.Path, Query: r.URL.Query().Get("q"), Version: a.cfg.Version, Data: data}
 	if p.Session != nil {
 		p.Nav = a.nav(r)

@@ -11,7 +11,7 @@
   <td class="small">{{index . "reason"}} {{index . "summary"}} {{index . "note"}}</td>
   <td><span class="chip {{index . "status"}}">{{index . "status"}}</span></td>
   <td>{{if $.Data.CanAct}}<form method="post" action="/apps/{{$.Data.App.Slug}}/reports/{{index . "id"}}/actions" class="row"><input type="hidden" name="kind" value="{{index . "kind"}}">
-    {{range $.Data.M.ReportActions (index . "kind")}}<button class="btn sm {{if or (eq . "resolve") (eq . "takedown") (eq . "delete") (eq . "confirm")}}danger{{end}}" name="action" value="{{.}}">{{.}}</button>{{end}}</form>{{end}}</td>
+    {{range $.Data.M.ReportActions (index . "kind")}}<button class="btn sm {{if confirmAction .}}danger{{end}}" name="action" value="{{.}}">{{actionLabel .}}</button>{{end}}</form>{{end}}</td>
 </tr>{{else}}<tr><td colspan="6" class="muted">{{t "content.none"}}</td></tr>{{end}}
 </table>
 {{template "foot" .}}

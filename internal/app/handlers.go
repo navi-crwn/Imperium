@@ -32,7 +32,7 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	if _, err := a.callHop(r.Context(), s, "GET", "/stats", nil, &st); err != nil {
 		statsErr = err.Error()
 	}
-	kpiOrder := []string{"users", "users_new_7d", "users_suspended", "links", "links_live", "bio_pages", "clicks_30d", "clicks_today", "open_reports", "open_flags"}
+	kpiOrder := []string{"users", "users_new_7d", "users_suspended"}
 	attention := map[string]int64{}
 	for _, k := range []string{"open_reports", "open_flags", "users_suspended"} {
 		if v := st.KPI[k]; v > 0 {
@@ -41,7 +41,7 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	}
 	a.render(w, r, "home.html", a.T("nav.home"), map[string]any{
 		"Health": health, "Stats": st, "StatsErr": statsErr, "KPIOrder": kpiOrder, "Attention": attention,
-		"Signups": series(st.Series["signups"]), "Clicks": series(st.Series["clicks"]),
+		"Series": a.seriesViews(st.Series),
 	})
 }
 
@@ -235,7 +235,7 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 	}
 	body := map[string]any{"action": action, "reason": reason, "params": params}
 	_, err := a.callHop(r.Context(), s, "POST", "/users/"+url.PathEscape(id)+"/actions", body, nil)
-	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: "linkhop", Action: "user." + action, Target: id,
+	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: "hub", Action: "user." + action, Target: id,
 		Detail: map[string]any{"reason": reason, "params": params, "error": errString(err)}, OK: err == nil})
 	if err != nil {
 		a.flashError(w, a.T("action.failed")+": "+err.Error())
