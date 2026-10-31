@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -12,9 +13,9 @@ import (
 	"github.com/navi-crwn/imperium/internal/hopproto"
 )
 
-// hopID is HOP ID (LinkHop) as a call target: its protocol lives under /api/hop.
+// hopID is the account hub as a call target; LinkHop is a separate registry app.
 func (a *App) hopID() hopproto.App {
-	return hopproto.App{Slug: "linkhop", URL: a.cfg.HopURL, Prefix: "/api/hop", Secret: a.cfg.HopSecret}
+	return hopproto.App{Slug: "hub", URL: a.cfg.HopURL, Prefix: "/api/hop", Secret: a.cfg.HopSecret}
 }
 
 // target is an app as a call target. BioHop lives in HOP ID's shared
@@ -22,7 +23,7 @@ func (a *App) hopID() hopproto.App {
 // like HOP ID itself it is signed with Imperium's own secret, under /api/hop.
 func (a *App) target(ap db.App) hopproto.App {
 	prefix, secret := ap.Prefix, ap.Secret
-	if ap.Slug == "biohop" {
+	if ap.Slug == "biohop" || ap.Slug == "linkhop" || ap.Slug == "hub" {
 		secret = a.cfg.HopSecret
 		if prefix == "" || prefix == "/hop" {
 			prefix = "/api/hop"
@@ -77,12 +78,13 @@ func (a *App) syncApps(s *db.Session) error {
 		return err
 	}
 	for _, r := range apps {
-		if r.Slug == a.cfg.HopClient || r.Slug == a.cfg.AltClient {
+		if r.Slug == a.cfg.HopClient || r.Slug == a.cfg.AltClient || r.Slug == "hub" {
 			continue // ourselves (both doors)
 		}
 		prefix := "/hop"
-		if r.Slug == "biohop" {
+		if r.Slug == "biohop" || r.Slug == "linkhop" {
 			prefix = "/api/hop"
+			r.Secret = a.cfg.HopSecret
 		}
 		_ = a.db.UpsertApp(ctx, &db.App{Slug: r.Slug, Name: r.Name, URL: r.URL, Prefix: prefix, Secret: r.Secret, Status: r.Status,
 			Icon: r.Icon, Color: r.Color, MenuLabel: r.MenuLabel, Capabilities: r.Capabilities, Hidden: r.Hidden, SortOrder: r.SortOrder})
@@ -120,8 +122,14 @@ func (a *App) probe(ctx context.Context, s *db.Session, ap db.App) Health {
 			DB      string `json:"db"`
 		}
 		env, err := a.hop.Call(ctx, a.target(ap), actorOf(s), "GET", "/health", nil)
-		if err == nil && len(env.Data) > 0 {
-			_ = json.Unmarshal(env.Data, &data)
+		if err == nil {
+			if env == nil || len(env.Data) == 0 {
+				err = fmt.Errorf("empty health response")
+			} else if decodeErr := json.Unmarshal(env.Data, &data); decodeErr != nil {
+				err = fmt.Errorf("invalid health response")
+			} else if data.DB != "" && data.DB != "ok" {
+				err = fmt.Errorf("database health: %s", data.DB)
+			}
 		}
 		h.Latency = time.Since(start)
 		h.OK, h.Version = err == nil, data.Version
@@ -133,7 +141,11 @@ func (a *App) probe(ctx context.Context, s *db.Session, ap db.App) Health {
 		return h
 	}
 	for _, p := range []string{"/healthz", "/up", "/"} {
-		req, _ := http.NewRequestWithContext(ctx, "GET", ap.URL+p, nil)
+		req, err := http.NewRequestWithContext(ctx, "GET", ap.URL+p, nil)
+		if err != nil {
+			h.Detail = "invalid app URL"
+			return h
+		}
 		res, err := a.hop.HTTP.Do(req)
 		if err != nil {
 			h.Detail = err.Error()
@@ -152,7 +164,13 @@ func (a *App) probe(ctx context.Context, s *db.Session, ap db.App) Health {
 
 // probeAll checks every app and HOP ID concurrently.
 func (a *App) probeAll(ctx context.Context, s *db.Session, apps []db.App) []Health {
-	all := append([]db.App{{Slug: "linkhop", Name: "LinkHop (HOP ID)", URL: a.cfg.HopURL, Prefix: "/api/hop", Secret: a.cfg.HopSecret, Capabilities: []string{"admin_api"}, SortOrder: 0}}, apps...)
+	hub, _ := a.source(ctx, "hub")
+	all := []db.App{*hub}
+	for _, ap := range apps {
+		if ap.Slug != "hub" {
+			all = append(all, ap)
+		}
+	}
 	out := make([]Health, len(all))
 	var wg sync.WaitGroup
 	for i, ap := range all {

@@ -1,6 +1,6 @@
 # Inventaris admin PixelHop
 
-Read-only, 2026-10-27. **Perhatian versi:** checkout `~/pixelhop` di `main` = v3.5.1, binary live = v3.6.0 yang hanya ada sebagai tag di branch `claude/musing-shtern-2628ad`. Inventaris ini menggambarkan v3.6.0.
+Read-only, 2026-10-27. **Perhatian versi:** checkout `~/pixelhop` di `main` = v3.5.1, binary live = v3.6.0 yang saat itu belum digabung ke main. Inventaris ini menggambarkan v3.6.0.
 
 ## Penjaga akses
 

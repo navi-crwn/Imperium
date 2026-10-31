@@ -63,7 +63,7 @@ func newFakeHop(t *testing.T) *fakeHop {
 		}
 	}
 	mux.HandleFunc("GET /api/hop/apps", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
-		_, _ = w.Write([]byte(`{"ok":true,"data":[{"slug":"pixelhop","name":"PixelHop","url":"` + f.px.URL + `","status":"active","capabilities":["account_api","admin_api"],"secret":"` + pxSecret + `"},{"slug":"imperium","name":"Imperium","url":"x","status":"active","hidden":true}]}`))
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"slug":"linkhop","name":"LinkHop","url":"` + f.srv.URL + `","status":"active","capabilities":["admin_api"]},{"slug":"pixelhop","name":"PixelHop","url":"` + f.px.URL + `","status":"active","capabilities":["account_api","admin_api"],"secret":"` + pxSecret + `"},{"slug":"imperium","name":"Imperium","url":"x","status":"active","hidden":true}]}`))
 	}))
 	f.srv = httptest.NewServer(mux)
 	// PixelHop's admin API (prefix /hop), signed with its own secret, on its own server.
@@ -209,7 +209,7 @@ func TestLoginRolesAndMFA(t *testing.T) {
 	deadline := time.Now().Add(3 * time.Second)
 	for {
 		apps, _ := a.db.Apps(t.Context())
-		if len(apps) == 1 && apps[0].Slug == "pixelhop" && apps[0].Secret != "" {
+		if len(apps) == 2 && apps[0].Secret != "" && apps[1].Secret != "" {
 			break
 		}
 		if time.Now().After(deadline) {
@@ -274,7 +274,7 @@ func TestHomeUserActionsAudit(t *testing.T) {
 	// home: health of HOP ID and PixelHop, KPIs, attention
 	res, _ := c.Get(srv.URL + "/")
 	b := body(res)
-	for _, want := range []string{"LinkHop (HOP ID)", "PixelHop", "Healthy", ">74<", "Open reports", "abc123"} {
+	for _, want := range []string{"HOP ID", "LinkHop", "PixelHop", "Healthy", ">74<", "Open reports", "abc123"} {
 		if !strings.Contains(b, want) {
 			t.Errorf("home missing %q", want)
 		}
@@ -511,7 +511,7 @@ func TestHealthFlipsSendTelegram(t *testing.T) {
 	for len(got()) == 0 && time.Now().Before(deadline) {
 		time.Sleep(20 * time.Millisecond)
 	}
-	if s := got(); len(s) != 1 || !strings.Contains(s[0], "🔴 LinkHop (HOP ID)") {
+	if s := got(); len(s) != 1 || !strings.Contains(s[0], "🔴 HOP ID") {
 		t.Fatalf("telegram alerts: %q", s)
 	}
 	audits, _ := a.db.Audits(t.Context(), 0, 5)
@@ -579,7 +579,7 @@ func TestSidebarAndAppDashboards(t *testing.T) {
 	res, _ = c.Get(srv.URL + "/apps/pixelhop")
 	b = body(res)
 	for _, want := range []string{"1.0 GB", ">1.234<", "Open reports", "Uploads today", "Bytes uploaded", `class="h100"`, "cat.jpg", "/apps/pixelhop/content/image/img1", "@rani", "nudity", `value="dismiss"`, `value="resolve"`,
-		`class="leaf leaf-dash on" href="/apps/pixelhop"`, `class="leaf leaf-content " href="/apps/pixelhop/content?type=image"`, `href="/apps/pixelhop/content?type=album"`, `href="/apps/pixelhop/reports"`, `href="/apps/pixelhop/settings"`, "3.7.0"} {
+		`class="chip active" href="/apps/pixelhop"`, `href="/apps/pixelhop/content?type=image"`, `href="/apps/pixelhop/content?type=album"`, `href="/apps/pixelhop/reports"`, `href="/apps/pixelhop/settings"`, "3.7.0"} {
 		if !strings.Contains(b, want) {
 			t.Errorf("pixelhop dashboard missing %q", want)
 		}
@@ -601,10 +601,10 @@ func TestSidebarAndAppDashboards(t *testing.T) {
 			t.Errorf("linkhop dashboard missing %q", want)
 		}
 	}
-	// the sidebar remembers the modules on other pages too (cached manifests)
+	// The sidebar stays flat even after all app manifests have been cached.
 	res, _ = c.Get(srv.URL + "/audit")
-	if b := body(res); !strings.Contains(b, `href="/apps/pixelhop/content?type=album"`) || !strings.Contains(b, `href="/apps/linkhop/x/queue"`) {
-		t.Error("sidebar should list the modules of every app from the cached manifests")
+	if b := body(res); strings.Contains(b, `href="/apps/pixelhop/content?type=album"`) || strings.Contains(b, `href="/apps/linkhop/x/queue"`) || strings.Contains(b, `class="tree-app"`) {
+		t.Error("sidebar must not duplicate per-app tabs")
 	}
 	// an extension action may address a nested resource (NoteHop-style slug holds), but not escape the extension
 	res, _ = c.PostForm(srv.URL+"/apps/linkhop/x/names/actions", url.Values{"action": {"release"}, "path": {"holds/bad-slug"}})

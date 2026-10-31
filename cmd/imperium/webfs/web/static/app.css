@@ -97,12 +97,15 @@ table.tight th, table.tight td { padding:6px 8px; } table.tight th { white-space
 @media (prefers-reduced-motion: reduce) { .side, .caret, .menu-btn span { transition:none; } }
 
 /* Login page: a soft colour wash over the background, a glass card, the HOP tiles behind. */
-.login-wrap { min-height: calc(100vh - 60px); display:flex; align-items:center; justify-content:center; position:relative; z-index:1; padding:40px 16px; }
-body:has(.login-wrap) { background:
+.login-wrap { width:100%; max-width:none; min-height:0; display:flex; align-items:center; justify-content:center; position:relative; z-index:1; padding:32px 16px; }
+body:has(.login-wrap) { min-height:100vh; min-height:100dvh; display:grid; grid-template-rows:1fr auto; background:
   radial-gradient(55% 45% at 15% 10%, rgb(139 156 255 / .22), transparent 65%),
   radial-gradient(45% 40% at 88% 90%, rgb(236 72 153 / .16), transparent 65%),
   radial-gradient(40% 35% at 80% 15%, rgb(61 220 151 / .12), transparent 65%), var(--bg); }
 .login { max-width:440px; width:100%; margin:0 auto; text-align:center; }
+body:has(.login-wrap) > footer { margin:0; padding:16px; font-size:13px; }
+.login-door { flex-wrap:wrap; overflow-wrap:anywhere; }
+.login-door .mono { min-width:0; }
 .login-logo { width:64px; height:64px; margin:0 auto 12px; display:block; border-radius:16px; box-shadow:0 5px 0 0 rgb(0 0 0 / .22), 0 18px 40px -14px rgb(251 113 133 / .6); }
 .brand-xl { font-size:30px; display:block; margin-bottom:2px; letter-spacing:.32em; padding-left:.32em; }
 .login-tagline { margin:0 0 18px; }
@@ -118,3 +121,21 @@ body:has(.login-wrap) { background:
 footer:has(+ script) { position:relative; z-index:1; }
 
 /* Floating HOP tiles: static/hop/hop-float.css and .js, copied from hel.ink by scripts/sync-hop-assets.sh. */
+
+/* One flat app list and one content navigation bar. */
+.dash-tabs{gap:8px;margin:20px 0 24px;padding:6px;overflow-x:auto;flex-wrap:nowrap;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.dash-tabs .chip{flex:none;margin:0;font-size:14px;padding:9px 14px;border-radius:9px;background:transparent}
+.dash-tabs .active{background:var(--accent);color:var(--bg);font-weight:700}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.tree-group,.node .chip,.card .k,.mono,th,.chip,.btn.sm,.login-door,.login-door .mono,.login-facts span,footer{font-size:13px}
+.node,.leaf,.btn,table{font-size:15px}
+.node{padding:12px 10px;margin-bottom:3px}
+.node.on{box-shadow:inset 3px 0 var(--accent)}
+main{padding:28px 32px 48px}.card{padding:20px;border-radius:18px}.card .v{font-size:32px;line-height:1.25;margin-top:8px;font-variant-numeric:tabular-nums}
+h1{font-size:28px;letter-spacing:-.035em}h2{font-size:15px;letter-spacing:.06em}
+th,td{padding:12px 14px}table.tight th,table.tight td{padding:10px 12px}.scroll-x{border-radius:12px}
+.g2,.dash-cols{grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))}.grid>.card{min-width:0}.card-title{flex-wrap:wrap}.card .v{overflow-wrap:anywhere}.bars div:last-child .chart-date{left:auto;right:0;text-align:right}.bars div:last-child .chart-tooltip{left:auto;right:0;transform:none}
+.bars{height:150px;margin:24px 0 38px;border-bottom:1px solid var(--line);gap:8px}.bars div span{font-size:13px;bottom:-26px;white-space:nowrap}.bars div:focus-visible,.bars div:hover{opacity:1;filter:brightness(1.15)}
+.actions .danger{margin-top:12px}.actions form:has(.danger){padding-top:16px;border-top:1px solid var(--line)}
+@media(max-width:720px){main{padding:20px 14px 36px}.card{padding:16px}.dash-tabs{margin:16px 0}.login-wrap{padding:32px 16px}.login-card{padding:22px 24px 20px}}
+.app-mark{object-fit:contain;flex:none}.app-card-title{display:flex;align-items:center;gap:12px}.chart-card{position:relative}.chart-card .bars{margin-left:54px;background:repeating-linear-gradient(to top,transparent 0,transparent calc(25% - 1px),var(--line) calc(25% - 1px),var(--line) 25%)}.chart-scale{position:absolute;top:65px;bottom:77px;left:18px;display:flex;flex-direction:column;justify-content:space-between;font:13px var(--hop-font-mono,monospace);color:var(--muted)}.bars div .chart-tooltip{display:none;bottom:calc(100% + 8px);left:50%;right:auto;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:7px 10px;border-radius:8px;z-index:3;white-space:nowrap;font-size:13px;box-shadow:0 4px 16px #0002}.bars div:hover .chart-tooltip,.bars div:focus .chart-tooltip{display:block}.bars div:not(:first-child):not(:last-child):not(:nth-child(7)) .chart-date{display:none}.chart-data{font-size:13px}.chart-data summary{cursor:pointer}.chart-card .k{margin:0}.actions .row{gap:12px}.actions .btn.danger{margin-inline-start:12px;border-width:2px}dialog{color:var(--ink);background:var(--panel,var(--bg));border:1px solid var(--line);border-radius:20px;padding:28px;width:min(480px,calc(100% - 32px));max-width:calc(100% - 32px);box-shadow:0 24px 100px #0005}dialog::backdrop{background:#02061799;backdrop-filter:blur(3px)}dialog h2{margin-top:0}dialog .row{justify-content:flex-end;gap:12px}
