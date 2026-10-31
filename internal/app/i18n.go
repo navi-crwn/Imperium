@@ -334,3 +334,12 @@ func (a *App) T(key string) string {
 	}
 	return key
 }
+
+// lang is the language actually in use: the configured one when the catalog
+// has it, English otherwise. Templates render it as <html lang>.
+func (a *App) lang() string {
+	if _, ok := catalog[a.cfg.Lang]; ok {
+		return a.cfg.Lang
+	}
+	return "en"
+}
