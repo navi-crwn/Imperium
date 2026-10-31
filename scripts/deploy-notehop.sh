@@ -12,3 +12,10 @@ mkdir -p bin
 CGO_ENABLED=0 $GO build -trimpath -ldflags "-s -w -X main.version=$(git describe --tags --always)" -o bin/notehop-linux-amd64 ./cmd/notehop
 (cd bin && sha256sum notehop-linux-amd64 > SHA256SUMS)
 S bash /home/carawin/notehop/deploy-vps/pasang-update.sh
+
+echo
+echo "--- cek bahasa NoteHop (?lang=) ---"
+B=https://note.hel.ink
+printf 'en (default) → %s\n' "$(curl -s "$B/" | grep -o '<html lang="[a-z]*"')"
+printf 'fr (?lang=fr) → %s\n' "$(curl -s "$B/?lang=fr" | grep -o '<html lang="[a-z]*"')"
+printf 'ar (?lang=ar) → %s\n' "$(curl -s "$B/?lang=ar" | grep -o 'dir="rtl"')"
