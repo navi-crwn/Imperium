@@ -2,7 +2,7 @@
 <h2>{{t "home.apps"}}</h2>
 <div class="grid g3">
 {{range .Data.Health}}<a class="card card-link" href="/apps/{{.Slug}}">
-  <div><span class="dot {{if eq .Status "maint"}}maint{{else if .OK}}ok{{else}}bad{{end}}"></span><b>{{.Name}}</b></div>
+  <div class="app-card-title"><img class="app-mark" src="{{appMark .Slug}}" alt="" width="32" height="32"><b>{{.Name}}</b><span class="dot {{if eq .Status "maint"}}maint{{else if .OK}}ok{{else}}bad{{end}}"></span></div>
   <div class="small muted">{{.URL}}</div>
   <div class="small">{{if eq .Status "maint"}}{{t "status.maint"}}{{else if .OK}}{{t "status.ok"}} · {{.Latency.Milliseconds}} ms{{if .Version}} · {{.Version}}{{end}}{{else}}{{t "status.down"}}{{if .Detail}} · {{.Detail}}{{end}}{{end}}</div>
 </a>{{end}}
@@ -16,8 +16,7 @@
 {{range $k := .Data.KPIOrder}}<div class="card"><div class="k">{{t (printf "kpi.%s" $k)}}</div><div class="v">{{with index $.Data.Stats.KPI $k}}{{n .}}{{else}}0{{end}}</div></div>{{end}}
 </div>
 <div class="grid g2 mt14">
-  <div class="card"><div class="k">{{t "home.signups"}}</div><div class="bars">{{range .Data.Signups}}<div class="h{{.Pct}}" title="{{.Label}}: {{.N}}"><span>{{.Label}}</span></div>{{end}}</div></div>
-  <div class="card"><div class="k">{{t "home.clicks"}}</div><div class="bars">{{range .Data.Clicks}}<div class="h{{.Pct}}" title="{{.Label}}: {{.N}}"><span>{{.Label}}</span></div>{{end}}</div></div>
+  {{range .Data.Series}}{{template "chart" .}}{{end}}
 </div>
 {{end}}
 {{template "foot" .}}

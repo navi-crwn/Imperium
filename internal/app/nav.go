@@ -12,10 +12,8 @@ import (
 	"github.com/navi-crwn/imperium/internal/db"
 )
 
-// The explorer sidebar: Imperium's own pages, then one folder per app in the
-// HOP registry with its health and, once the app's manifest is known, the
-// modules it declares (content types, reports, settings, extensions). Clicking
-// an app opens its dashboard, the heir of the app's retired admin panel.
+// The flat sidebar lists Imperium pages and each app's health. Modules declared
+// by an app's manifest appear in one navigation bar on its content pages.
 
 type navItem struct {
 	Label string
@@ -28,7 +26,7 @@ type navApp struct {
 	Slug   string
 	Name   string
 	URL    string
-	Tag    string // "HOP ID" for LinkHop
+	Tag    string
 	Health Health
 	Admin  bool // reachable through the admin API (has a dashboard)
 	Open   bool // the folder is expanded (current app)
@@ -70,11 +68,11 @@ func (a *App) healthSnapshot() map[string]Health {
 	return out
 }
 
-// appItems lists the modules of one app for the sidebar.
+// appItems lists the modules for one app's content navigation bar.
 func (a *App) appItems(slug string, m *Manifest, path, typ string) []navItem {
 	base := "/apps/" + slug
 	items := []navItem{{Label: a.T("dash.title"), Href: base, Kind: "dash", On: path == base}}
-	if slug == "linkhop" {
+	if slug == "hub" {
 		items = append(items, navItem{Label: a.T("nav.users"), Href: "/users", Kind: "users", On: path == "/users" || strings.HasPrefix(path, "/users/")})
 	}
 	if m == nil {
@@ -125,11 +123,11 @@ func (a *App) nav(r *http.Request) navData {
 		}
 		n.Apps = append(n.Apps, na)
 	}
-	lh, _ := a.source(r.Context(), "linkhop")
-	add(*lh, "HOP ID")
+	lh, _ := a.source(r.Context(), "hub")
+	add(*lh, "")
 	apps, _ := a.db.Apps(r.Context())
 	for _, ap := range apps {
-		if ap.Status == "off" {
+		if ap.Status == "off" || ap.Slug == "hub" {
 			continue
 		}
 		add(ap, "")
@@ -152,11 +150,13 @@ type seriesView struct {
 	Points []point
 	Total  int64
 	Bytes  bool
+	Max    int64
 }
 
 // kpiOrder puts the numbers an admin looks at first at the front; anything
 // else the app reports follows alphabetically.
 var kpiOrder = map[string][]string{
+	"hub":      {"users", "users_new_7d", "users_suspended"},
 	"linkhop":  {"users", "users_new_7d", "users_suspended", "links", "links_live", "bio_pages", "clicks_today", "clicks_30d", "open_reports", "open_flags"},
 	"biohop":   {"pages", "pages_published", "pages_draft", "pages_adult", "blocks", "views_total", "clicks_total", "reports_open"},
 	"pixelhop": {"users", "content", "images", "videos", "pdfs", "albums", "bytes", "views", "uploads_today", "open_reports", "bans", "guest_uploads"},
@@ -235,6 +235,9 @@ func (a *App) seriesViews(raw map[string][][2]any) []seriesView {
 		sv := seriesView{Key: k, Label: a.seriesLabel(k), Points: pts, Bytes: isBytesKey(k)}
 		for _, p := range pts {
 			sv.Total += p.N
+			if p.N > sv.Max {
+				sv.Max = p.N
+			}
 		}
 		out = append(out, sv)
 	}

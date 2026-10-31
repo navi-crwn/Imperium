@@ -1,9 +1,5 @@
 {{define "appnav"}}
-<p class="small crumbs">
-  <a href="/apps/{{.App.Slug}}">{{.App.Name}}</a> › <b>{{t "dash.title"}}</b> ·
-  {{range .M.ContentTypes}}<a class="chip" href="/apps/{{$.App.Slug}}/content?type={{.Type}}">{{.Label}}</a>{{end}}
-  {{if .M.HasReports}}<a class="chip" href="/apps/{{.App.Slug}}/reports">{{t "mod.reports"}}</a>{{end}}
-  {{if .M.HasSettings}}<a class="chip" href="/apps/{{.App.Slug}}/settings">{{t "mod.settings"}}</a>{{end}}
-  {{range .M.Extensions}}<a class="chip" href="/apps/{{$.App.Slug}}/x/{{.}}">{{ext .}}</a>{{end}}
-</p>
+<nav class="dash-tabs" aria-label="{{.App.Name}}">
+  {{range .Items}}<a class="chip {{if .On}}active{{end}}" href="{{.Href}}" {{if .On}}aria-current="page"{{end}}>{{.Label}}</a>{{end}}
+</nav>
 {{end}}

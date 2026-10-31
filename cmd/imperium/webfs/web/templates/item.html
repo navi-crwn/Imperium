@@ -22,7 +22,7 @@
       <label>params (transfer: to = HOP id; expiry: expires)</label>
       <div class="grid g2cols"><input type="text" name="p_to" placeholder="to"><input type="text" name="p_expires" placeholder="expires (ISO)"></div>
       <div class="row mt10">
-        {{range .Data.CT.Actions}}<button class="btn {{if or (eq . "delete") (eq . "takedown") (eq . "ban_ip") (eq . "purge")}}danger{{end}}" name="action" value="{{.}}">{{.}}</button>{{end}}
+        {{range .Data.CT.Actions}}<button class="btn {{if confirmAction .}}danger{{end}}" name="action" value="{{.}}">{{actionLabel .}}</button>{{end}}
       </div>
     </form>
     {{else}}<p class="muted small">{{t "err.forbidden"}}</p>{{end}}
