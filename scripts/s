@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
-# sudo dengan catatan: setiap perintah root yang dijalankan Claude tercatat di backups/sudo-log.txt
+# sudo dengan catatan: setiap perintah root tercatat di backups/sudo-log.txt
 printf '%s  %s\n' "$(date -Is)" "$*" >> /home/carawin/imperium/backups/sudo-log.txt
 exec sudo -n "$@"

@@ -15,4 +15,4 @@
 {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
 {{if .Error}}<div class="flash err">{{.Error}}</div>{{end}}
 {{end}}
-{{define "foot"}}<footer>{{t "footer"}} · v{{.Version}}</footer></main></div><script src="/static/app.js" defer></script></body></html>{{end}}
+{{define "foot"}}<footer>{{t "footer"}} · v{{.Version}}</footer></main></div><dialog id="action-confirm" aria-labelledby="confirm-title"><form method="dialog"><h2 id="confirm-title">{{t "action.confirm_title"}}</h2><p>{{t "action.confirm_hint"}}</p><p class="mono" data-confirm-label></p><div class="row"><button class="btn" value="cancel" autofocus>{{t "action.cancel"}}</button><button class="btn danger" value="confirm">{{t "action.continue"}}</button></div></form></dialog><script src="/static/app.js" defer></script></body></html>{{end}}

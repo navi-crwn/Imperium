@@ -94,10 +94,10 @@ type manifestCache struct {
 }
 
 // source is an app Imperium can read through the protocol: HOP ID itself
-// ("linkhop", prefix /api/hop) or a registry app with the admin_api capability.
+// ("hub", prefix /api/hop) or a registry app with the admin_api capability.
 func (a *App) source(ctx context.Context, slug string) (*db.App, bool) {
-	if slug == "linkhop" {
-		return &db.App{Slug: "linkhop", Name: "LinkHop", URL: a.cfg.HopURL, Prefix: "/api/hop", Secret: a.cfg.HopSecret, Capabilities: []string{"admin_api"}, Status: "active"}, true
+	if slug == "hub" {
+		return &db.App{Slug: "hub", Name: "HOP ID", URL: a.cfg.HopURL, Prefix: "/api/hop", Secret: a.cfg.HopSecret, Capabilities: []string{"admin_api"}, Status: "active"}, true
 	}
 	ap, err := a.db.App(ctx, slug)
 	if err != nil || !ap.Can("admin_api") || ap.Secret == "" {
@@ -108,11 +108,11 @@ func (a *App) source(ctx context.Context, slug string) (*db.App, bool) {
 
 // sources lists every readable app, HOP ID first.
 func (a *App) sources(ctx context.Context) []db.App {
-	lh, _ := a.source(ctx, "linkhop")
+	lh, _ := a.source(ctx, "hub")
 	out := []db.App{*lh}
 	apps, _ := a.db.Apps(ctx)
 	for _, ap := range apps {
-		if ap.Can("admin_api") && ap.Secret != "" && ap.Status != "off" {
+		if ap.Slug != "hub" && ap.Can("admin_api") && ap.Secret != "" && ap.Status != "off" {
 			out = append(out, ap)
 		}
 	}

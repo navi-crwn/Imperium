@@ -1,0 +1,10 @@
+{{define "chart"}}
+<div class="card chart-card">
+  <h3 class="k">{{.Label}} <span class="muted">· {{if .Bytes}}{{bytes .Total}}{{else}}{{n .Total}}{{end}} {{t "total"}}</span></h3>
+  <div class="chart-scale"><span>{{if .Bytes}}{{bytes .Max}}{{else}}{{n .Max}}{{end}}</span><span>0</span></div>
+  <div class="bars" aria-label="{{.Label}}">
+    {{$bytes := .Bytes}}{{range .Points}}<div class="h{{.Pct}}" tabindex="0" aria-label="{{.Label}}: {{if $bytes}}{{bytes .N}}{{else}}{{n .N}}{{end}}"><span class="chart-date">{{.Label}}</span><span class="chart-tooltip">{{.Label}} · {{if $bytes}}{{bytes .N}}{{else}}{{n .N}}{{end}}</span></div>{{end}}
+  </div>
+  <details class="chart-data"><summary>{{t "chart.data"}}</summary><div class="scroll-x"><table><tr><th>{{t "chart.date"}}</th><th>{{t "chart.value"}}</th></tr>{{range .Points}}<tr><td>{{.Label}}</td><td>{{if $bytes}}{{bytes .N}}{{else}}{{n .N}}{{end}}</td></tr>{{end}}</table></div></details>
+</div>
+{{end}}

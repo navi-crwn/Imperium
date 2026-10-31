@@ -39,14 +39,14 @@
       <label>{{t "action.reason"}}</label><input type="text" name="reason" placeholder="…">
       <div class="row mt8">
         {{if eq $p.status "suspended"}}<button class="btn" name="action" value="activate">{{t "action.activate"}}</button>{{else}}<button class="btn danger" name="action" value="suspend">{{t "action.suspend"}}</button>{{end}}
-        <button class="btn" name="action" value="revoke_sessions">{{t "action.revoke_sessions"}}</button>
-        <button class="btn" name="action" value="revoke_tokens">{{t "action.revoke_tokens"}}</button>
+        <button class="btn danger" name="action" value="revoke_sessions">{{t "action.revoke_sessions"}}</button>
+        <button class="btn danger" name="action" value="revoke_tokens">{{t "action.revoke_tokens"}}</button>
       </div>
     </form>
     <form method="post" action="/users/{{.Data.ID}}/actions">
       <label>{{t "user.roles"}}</label>
       {{range .Data.RoleOptions}}<label class="inline"><input type="checkbox" name="roles" value="{{.}}" {{if has $u.Roles .}}checked{{end}}> {{.}}</label>{{end}}
-      <input type="hidden" name="action" value="set_roles"><div><button class="btn mt6" type="submit">{{t "action.set_roles"}}</button></div>
+      <input type="hidden" name="action" value="set_roles"><div><button class="btn danger mt6" type="submit">{{t "action.set_roles"}}</button></div>
     </form>
     <form method="post" action="/users/{{.Data.ID}}/actions">
       <label>{{t "action.delete"}} · {{t "action.confirm_delete"}}</label><input type="text" name="confirm" placeholder="@{{$p.username}}">

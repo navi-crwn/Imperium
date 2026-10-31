@@ -1,4 +1,4 @@
-// fakehop plays HOP ID, PixelHop and NoteHop on localhost so Imperium's UI can
+// fakehop plays HOP ID, LinkHop, PixelHop and NoteHop on localhost so Imperium's UI can
 // be developed and screenshotted without the real servers. Sign-in always
 // succeeds as an owner with 2FA. Not for production.
 //
@@ -21,7 +21,8 @@ import (
 )
 
 var (
-	addr     = flag.String("addr", "127.0.0.1:9101", "HOP ID (LinkHop) address")
+	addr     = flag.String("addr", "127.0.0.1:9101", "HOP ID address")
+	lhAddr   = flag.String("lh", "127.0.0.1:9104", "LinkHop address")
 	pxAddr   = flag.String("px", "127.0.0.1:9102", "PixelHop address")
 	nhAddr   = flag.String("nh", "127.0.0.1:9103", "NoteHop address")
 	secret   = flag.String("secret", "imperium-dev-secret-that-is-long-enough-1234", "Imperium's secret in the registry")
@@ -68,11 +69,12 @@ func main() {
 	flag.Parse()
 	go func() { log.Fatal(http.ListenAndServe(*pxAddr, pixelhop())) }()
 	go func() { log.Fatal(http.ListenAndServe(*nhAddr, notehop())) }()
-	log.Printf("fakehop: HOP ID %s, PixelHop %s, NoteHop %s", *addr, *pxAddr, *nhAddr)
-	log.Fatal(http.ListenAndServe(*addr, hopID()))
+	go func() { log.Fatal(http.ListenAndServe(*lhAddr, laravelApp(false))) }()
+	log.Printf("fakehop: HOP ID %s, LinkHop %s, PixelHop %s, NoteHop %s", *addr, *lhAddr, *pxAddr, *nhAddr)
+	log.Fatal(http.ListenAndServe(*addr, laravelApp(true)))
 }
 
-func hopID() http.Handler {
+func laravelApp(hub bool) http.Handler {
 	m := http.NewServeMux()
 	m.HandleFunc("GET /sso/{app}", func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now().Unix()
@@ -87,6 +89,7 @@ func hopID() http.Handler {
 	s := func(p string, h http.HandlerFunc) { m.HandleFunc(p, signed(*secret, h)) }
 	s("GET /api/hop/apps", func(w http.ResponseWriter, r *http.Request) {
 		ok(w, []map[string]any{
+			{"slug": "linkhop", "name": "LinkHop", "url": "http://" + *lhAddr, "status": "active", "icon": "link", "capabilities": []string{"admin_api", "metrics"}, "secret": *secret, "sort_order": 5},
 			{"slug": "pixelhop", "name": "PixelHop", "url": "http://" + *pxAddr, "status": "active", "icon": "image", "capabilities": []string{"account_api", "admin_api", "events", "metrics"}, "secret": *pxSecret, "sort_order": 10},
 			{"slug": "notehop", "name": "NoteHop", "url": "http://" + *nhAddr, "status": "active", "icon": "note", "capabilities": []string{"admin_api", "events", "metrics", "zero_knowledge"}, "secret": *nhSecret, "sort_order": 20},
 			{"slug": "remotehop", "name": "RemoteHop", "url": "http://127.0.0.1:9", "status": "active", "capabilities": []string{"account_api"}, "sort_order": 30},
@@ -94,16 +97,28 @@ func hopID() http.Handler {
 		})
 	})
 	s("GET /api/hop/health", func(w http.ResponseWriter, r *http.Request) {
+		if hub {
+			ok(w, map[string]any{"app": "hub", "version": "hub-demo", "db": "ok"})
+			return
+		}
 		ok(w, map[string]any{"app": "linkhop", "version": "8a22b3d", "db": "ok"})
 	})
 	s("GET /api/hop/manifest", func(w http.ResponseWriter, r *http.Request) {
+		if hub {
+			ok(w, map[string]any{"app": "hub", "name": "HOP ID", "capabilities": []string{"admin_api", "account_server", "metrics"}, "content_types": []any{}})
+			return
+		}
 		ok(w, map[string]any{"app": "linkhop", "name": "LinkHop", "icon": "link", "capabilities": []string{"admin_api", "account_server", "reports", "settings", "search", "metrics"},
 			"content_types": []map[string]any{{"type": "link", "label": "Links", "actions": []string{"disable", "enable", "delete", "transfer", "rescan"}}, {"type": "bio", "label": "Bio pages", "actions": []string{"unpublish", "publish", "delete", "transfer"}}},
 			"extensions":    []string{"ip", "domains", "queue"}, "settings_schema": []map[string]any{{"key": "seo.site_title", "type": "string"}}})
 	})
 	s("GET /api/hop/stats", func(w http.ResponseWriter, r *http.Request) {
-		ok(w, map[string]any{"kpi": map[string]any{"users": 74, "users_new_7d": 6, "users_suspended": 2, "links": 1532, "links_live": 1377, "bio_pages": 41, "clicks_30d": 48213, "clicks_today": 1206, "open_reports": 3, "open_flags": 5},
-			"series": map[string]any{"signups": series(1, 0, 2, 3, 1, 0, 4, 2, 1, 0, 1, 3, 2, 1), "clicks": series(1400, 1520, 1310, 1780, 2100, 1900, 1650, 1720, 1580, 1660, 1840, 1990, 1750, 1206)}})
+		if hub {
+			ok(w, map[string]any{"kpi": map[string]any{"users": 74, "users_new_7d": 6, "users_suspended": 2}, "series": map[string]any{"signups": series(1, 0, 2, 3, 1, 0, 4, 2, 1, 0, 1, 3, 2, 1)}})
+			return
+		}
+		ok(w, map[string]any{"kpi": map[string]any{"links": 1532, "links_live": 1377, "clicks_30d": 48213, "clicks_today": 1206, "open_reports": 3, "open_flags": 5},
+			"series": map[string]any{"clicks": series(1400, 1520, 1310, 1780, 2100, 1900, 1650, 1720, 1580, 1660, 1840, 1990, 1750, 1206)}})
 	})
 	s("GET /api/hop/search", func(w http.ResponseWriter, r *http.Request) {
 		ok(w, []map[string]any{{"kind": "user", "id": "26", "label": "@rani", "sub": "Rani Dewi"}})

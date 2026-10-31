@@ -5,13 +5,7 @@
     {{range .Nav.Pages}}<a class="node {{if .On}}on{{end}}" href="{{.Href}}"><span class="ico ico-{{.Kind}}"></span>{{.Label}}</a>{{end}}
     <div class="tree-group">{{t "nav.apps_group"}}</div>
     {{range .Nav.Apps}}
-    <details class="tree-app" {{if .Open}}open{{end}}>
-      <summary class="node {{if .Open}}on{{end}}" title="{{.URL}}"><span class="caret"></span><span class="dot {{if not .Health.Known}}{{else if eq .Health.Status "maint"}}maint{{else if .Health.OK}}ok{{else}}bad{{end}}"></span><span class="name">{{.Name}}</span>{{if .Tag}}<span class="chip">{{.Tag}}</span>{{end}}</summary>
-      {{if .Admin}}
-        {{range .Items}}<a class="leaf leaf-{{.Kind}} {{if .On}}on{{end}}" href="{{.Href}}">{{.Label}}</a>{{end}}
-        {{if le (len .Items) 2}}<span class="leaf muted">{{t "nav.loading"}}</span>{{end}}
-      {{else}}<a class="leaf" href="{{.URL}}" target="_blank" rel="noopener">{{t "apps.open"}} ↗</a><span class="leaf muted">{{t "nav.no_admin"}}</span>{{end}}
-    </details>
+    <a class="node {{if .Open}}on{{end}}" href="{{.Href}}" {{if .Open}}aria-current="page"{{end}} title="{{.URL}}"><img class="app-mark" src="{{appMark .Slug}}" alt="" width="28" height="28"><span class="name">{{.Name}}</span><span class="dot {{if not .Health.Known}}{{else if eq .Health.Status "maint"}}maint{{else if .Health.OK}}ok{{else}}bad{{end}}"></span></a>
     {{end}}
   </nav>
 </aside>
