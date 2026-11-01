@@ -29,6 +29,9 @@
     <table>{{range $u.RecentLinks}}<tr><td class="mono">{{index . "slug"}}</td><td class="small ellipsis">{{index . "target_url"}}</td><td><span class="chip {{index . "status"}}">{{index . "status"}}</span></td><td>{{index . "clicks"}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>
   </div>
   <div class="card actions"><h2 class="card-title">{{t "user.actions"}}</h2>
+    {{if .Data.Protected}}
+    <p role="status">Superadmin accounts are permanent and read-only, including for the account itself.</p>
+    {{else}}
     <form method="post" action="/users/{{.Data.ID}}/actions">
       <label>{{t "user.notes"}}</label><textarea name="text" rows="2" required></textarea>
       <input type="hidden" name="action" value="note"><button class="btn mt6" type="submit">{{t "action.note"}}</button>
@@ -53,6 +56,7 @@
       <input type="hidden" name="action" value="delete"><input type="hidden" name="reason" value="deleted via Imperium">
       <button class="btn danger mt6" type="submit">{{t "action.delete"}}</button>
     </form>
+    {{end}}
     {{end}}
   </div>
 </div>
