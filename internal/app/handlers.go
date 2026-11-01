@@ -152,6 +152,25 @@ type user360 struct {
 	RecentLinks []map[string]any `json:"recent_links"`
 }
 
+func (u user360) protected() bool {
+	if owner, _ := u.Profile["owner"].(bool); owner {
+		return true
+	}
+	for _, role := range u.Roles {
+		if role == "owner" {
+			return true
+		}
+	}
+	if roles, ok := u.Profile["roles"].([]any); ok {
+		for _, role := range roles {
+			if role == "owner" {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	var u user360
@@ -194,6 +213,7 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 
 	a.render(w, r, "user.html", "@"+str(u.Profile["username"]), map[string]any{
 		"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)),
+		"Protected": u.protected(),
 		"PixelUser": summaries["pixelhop"].User, "PixelErr": summaries["pixelhop"].Err,
 		"NoteUser": summaries["notehop"].User, "NoteErr": summaries["notehop"].Err,
 		"RoleOptions": []string{"owner", "admin", "moderator", "support"},
@@ -234,6 +254,17 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 		params["confirm"] = strings.TrimSpace(r.FormValue("confirm"))
 	}
 	body := map[string]any{"action": action, "reason": reason, "params": params}
+	var target user360
+	if _, err := a.callHop(r.Context(), s, "GET", "/users/"+url.PathEscape(id), nil, &target); err != nil {
+		a.flashError(w, a.T("action.failed")+": "+err.Error())
+		http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
+		return
+	}
+	if target.protected() {
+		a.flashError(w, "Superadmin accounts are permanent and read-only, including for the account itself.")
+		http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
+		return
+	}
 	_, err := a.callHop(r.Context(), s, "POST", "/users/"+url.PathEscape(id)+"/actions", body, nil)
 	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: "hub", Action: "user." + action, Target: id,
 		Detail: map[string]any{"reason": reason, "params": params, "error": errString(err)}, OK: err == nil})
