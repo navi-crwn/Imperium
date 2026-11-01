@@ -31,6 +31,7 @@ type fakeHop struct {
 	pxmux          *http.ServeMux
 	ticket         map[string]any
 	actions        []map[string]any
+	protectedUser  bool
 	contentQueries []string
 	nonces         hopproto.Nonces
 }
@@ -115,6 +116,10 @@ func newFakeHop(t *testing.T) *fakeHop {
 		_, _ = w.Write([]byte(`{"ok":true,"data":[{"sub":"26","username":"rani","name":"Rani","email":"r@x","status":"active","roles":[],"verified":true,"links":3}],"page":{"next":"26"}}`))
 	}))
 	mux.HandleFunc("GET /api/hop/users/26", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		if f.protectedUser {
+			_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"26","username":"rani","status":"active","owner":true},"roles":["owner"]}}`))
+			return
+		}
 		_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"26","username":"rani","name":"Rani","email":"r@x","status":"active","verified":true},"counts":{"links":3},"sessions":{"count":1},"logins":[],"activity":[],"roles":[],"notes":[],"recent_links":[]}}`))
 	}))
 	mux.HandleFunc("GET /api/hop/users/27", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
