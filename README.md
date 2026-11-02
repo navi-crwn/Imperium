@@ -30,3 +30,19 @@ The UI language is set by the operator with `IMPERIUM_LANG` (see
 `deploy/imperium.env.example`). The default is `en`; `IMPERIUM_LANG=id`
 selects the Indonesian catalog. Unknown values fall back to English, and the
 rendered `<html lang>` always reflects the catalog in use.
+
+The Notifications pages are translated into all nine languages of the HOP family
+(`en`, `zh-CN`, `de`, `id`, `ja`, `pt-BR`, `es`, `fr`, `ru`). The older pages still
+exist in `en` and `id` only; a text a language lacks falls back to English.
+
+### Notifications (HTTP 500 reports)
+
+HOP apps report every HTTP 500 they serve to `POST /hop/notify` on Imperium's
+loopback listener, signed with the app's own registry secret (details, payload
+and limits: `protocol/PROTOCOL.md` section 10). Identical errors are grouped and
+shown on the **Notifications** page (badge = groups still new); an admin can
+acknowledge, resolve, mute (with a reason) or reopen a group, and every action is
+audited. Occurrences are kept 30 days, groups 90 days. Telegram gets at most one
+message per group per `IMPERIUM_NOTIFY_COOLDOWN_MINUTES` (default 60), never with
+user data. The database migrates itself on start (`schema_version`). To try it
+locally: `scripts/fakehop` plus `NOTIFY_SECRET=... go run ./scripts/notifysend`.

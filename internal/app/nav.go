@@ -20,6 +20,7 @@ type navItem struct {
 	Href  string
 	On    bool
 	Kind  string // dash, users, content, reports, settings, ext
+	Badge int    // a count shown next to the label (new notifications)
 }
 
 type navApp struct {
@@ -102,6 +103,7 @@ func (a *App) nav(r *http.Request) navData {
 		{Label: a.T("nav.home"), Href: "/", Kind: "home", On: path == "/"},
 		{Label: a.T("nav.users"), Href: "/users", Kind: "users", On: path == "/users" || strings.HasPrefix(path, "/users/")},
 		{Label: a.T("nav.apps"), Href: "/apps", Kind: "apps", On: path == "/apps"},
+		{Label: a.T("nav.notifications"), Href: "/notifications", Kind: "notifications", On: strings.HasPrefix(path, "/notifications"), Badge: a.newErrors(r)},
 		{Label: a.T("nav.audit"), Href: "/audit", Kind: "audit", On: path == "/audit"},
 	}}
 	health := a.healthSnapshot()

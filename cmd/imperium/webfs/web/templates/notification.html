@@ -1,0 +1,43 @@
+{{template "head" .}}{{template "top" .}}
+{{$n := .Data.N}}
+<p><a href="/notifications">← {{t "notif.back"}}</a></p>
+<h1 class="notif-title"><span class="mono">{{$n.Title}}</span> <span class="chip {{$n.Status}}">{{t (printf "notif.status.%s" $n.Status)}}</span>{{if $n.Regression}}<span class="chip regression">{{t "notif.regression"}}</span>{{end}}</h1>
+<div class="grid g2">
+  <div class="card">
+    <h2 class="card-title">{{t "notif.details"}}</h2>
+    <table>
+      <tr><th class="w30">{{t "notif.app"}}</th><td><b>{{$n.App}}</b>{{if $n.Env}} <span class="muted small">{{$n.Env}}</span>{{end}}</td></tr>
+      <tr><th>{{t "notif.route"}}</th><td class="mono small nwrap">{{$n.Sample.Route}}</td></tr>
+      <tr><th>{{t "notif.method"}}</th><td class="mono small">{{$n.Sample.Method}}</td></tr>
+      <tr><th>{{t "notif.origin"}}</th><td class="mono small nwrap">{{$n.Sample.Origin}}</td></tr>
+      <tr><th>{{t "notif.message"}}</th><td class="mono small nwrap">{{if $n.Sample.Message}}{{$n.Sample.Message}}{{else}}<span class="muted">{{t "notif.no_message"}}</span>{{end}}</td></tr>
+      <tr><th>{{t "notif.version"}}</th><td class="mono small">{{$n.Sample.Version}}</td></tr>
+      <tr><th>{{t "notif.count"}}</th><td class="mono">{{n $n.Count}}{{if $n.Suppressed}} <span class="muted small">· {{t "notif.suppressed"}}: {{n $n.Suppressed}}</span>{{end}}</td></tr>
+      <tr><th>{{t "notif.first_seen"}}</th><td class="mono small">{{utc $n.FirstSeen}} UTC</td></tr>
+      <tr><th>{{t "notif.last_seen"}}</th><td class="mono small">{{utc $n.LastSeen}} UTC</td></tr>
+    </table>
+  </div>
+  <div class="card actions">
+    <h2 class="card-title">{{t "notif.actions"}}</h2>
+    {{if .Data.CanAct}}
+    {{if .Data.Actions}}
+    <form method="post" action="/notifications/{{$n.ID}}/actions">
+      <label for="reason">{{t "notif.reason"}}</label><input type="text" id="reason" name="reason" maxlength="200" autocomplete="off">
+      <p class="muted small">{{t "notif.reason_hint"}}</p>
+      <div class="row notif-btns mt10">
+        {{range .Data.Actions}}<button class="btn {{if or (eq . "mute") (eq . "resolve")}}danger{{end}}" name="action" value="{{.}}">{{t (printf "notif.act.%s" .)}}</button>{{end}}
+      </div>
+    </form>
+    {{end}}
+    {{else}}<p class="muted small">{{t "notif.readonly"}}</p>{{end}}
+  </div>
+</div>
+<h2>{{t "notif.occurrences"}}</h2>
+<p class="muted small">{{t "notif.occurrences_hint"}}</p>
+<div class="scroll-x">
+<table>
+<tr><th>{{t "notif.when"}}</th><th>{{t "notif.ref"}}</th><th>{{t "notif.version"}}</th></tr>
+{{range .Data.Events}}<tr><td class="mono small">{{utc .At}}</td><td class="mono">{{.Ref}}</td><td class="mono small">{{.Version}}</td></tr>{{else}}<tr><td colspan="3" class="muted">{{t "notif.none"}}</td></tr>{{end}}
+</table>
+</div>
+{{template "foot" .}}

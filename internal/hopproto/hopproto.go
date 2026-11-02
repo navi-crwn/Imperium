@@ -269,7 +269,38 @@ func (c *Client) Call(ctx context.Context, app App, actor, method, pathAndQuery 
 		if env.Error == "" {
 			env.Error = fmt.Sprintf("http_%d", res.StatusCode)
 		}
-		return &env, fmt.Errorf("%s", env.Error)
+		return &env, &APIError{Status: res.StatusCode, Code: env.Error, Message: cleanMessage(env.Message)}
 	}
 	return &env, nil
+}
+
+// APIError is an app's refusal. Error() is the protocol code, so callers can
+// compare it ("not_found"); for a 422 (the app rejected a value) it carries the
+// app's own message too, so the admin sees which field or range failed.
+type APIError struct {
+	Status  int
+	Code    string
+	Message string
+}
+
+func (e *APIError) Error() string {
+	if e.Status == http.StatusUnprocessableEntity && e.Message != "" {
+		return e.Code + ": " + e.Message
+	}
+	return e.Code
+}
+
+// cleanMessage makes an app's message safe to show and to keep in a cookie:
+// no control characters, at most 300 characters.
+func cleanMessage(s string) string {
+	s = strings.Join(strings.Fields(strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, s)), " ")
+	if r := []rune(s); len(r) > 300 {
+		s = string(r[:300])
+	}
+	return s
 }
