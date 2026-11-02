@@ -41,7 +41,7 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	}
 	a.render(w, r, "home.html", a.T("nav.home"), map[string]any{
 		"Health": health, "Stats": st, "StatsErr": statsErr, "KPIOrder": kpiOrder, "Attention": attention,
-		"Series": a.seriesViews(st.Series),
+		"Series": a.seriesViews(st.Series), "NewErrors": a.newErrors(r),
 	})
 }
 
