@@ -30,3 +30,20 @@ Bahasa antarmuka diatur lewat `IMPERIUM_LANG` (lihat `deploy/imperium.env.exampl
 Bawaannya `en`; `IMPERIUM_LANG=id` memakai katalog Indonesia. Nilai lain jatuh
 ke bahasa Inggris, dan `<html lang>` pada halaman selalu mengikuti katalog yang
 dipakai.
+
+Halaman Notifications tersedia dalam sembilan bahasa (en, zh-CN, de, id, ja, pt-BR,
+es, fr, ru); halaman lain masih en dan id, dan teks yang belum diterjemahkan jatuh
+ke bahasa Inggris.
+
+### Notifications (laporan HTTP 500)
+
+Aplikasi HOP melaporkan setiap HTTP 500 yang disajikannya ke `POST /hop/notify` di
+listener loopback Imperium, ditandatangani dengan secret aplikasi itu sendiri di
+registry (rincian, payload dan batas: `protocol/PROTOCOL.md` bagian 10). Error yang
+sama dikelompokkan dan tampil di halaman **Notifications** (badge = kelompok yang
+masih baru); admin bisa ack, resolve, mute (dengan alasan) atau reopen, dan setiap
+aksi masuk audit. Kejadian disimpan 30 hari, kelompok 90 hari. Telegram menerima
+paling banyak satu pesan per kelompok per `IMPERIUM_NOTIFY_COOLDOWN_MINUTES`
+(bawaan 60), tanpa data pengguna. Database bermigrasi sendiri saat start
+(`schema_version`). Coba lokal: `scripts/fakehop` dan
+`NOTIFY_SECRET=... go run ./scripts/notifysend`.

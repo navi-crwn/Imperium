@@ -33,11 +33,12 @@ type App struct {
 	start  time.Time
 
 	manifests manifestCache
+	inbox     *notifyInbox
 }
 
 // New wires the app. templates and static come from the embedded web/ folder.
 func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
-	a := &App{cfg: cfg, db: d, health: map[string]Health{}, start: time.Now(), manifests: manifestCache{m: map[string]*Manifest{}}}
+	a := &App{cfg: cfg, db: d, health: map[string]Health{}, start: time.Now(), manifests: manifestCache{m: map[string]*Manifest{}}, inbox: newNotifyInbox()}
 	a.hop = &hopproto.Client{As: cfg.HopClient, HTTP: a.httpClient()}
 	funcs := template.FuncMap{
 		"t":             a.T,
@@ -51,6 +52,7 @@ func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
 		"list":          func(items ...string) []string { return items },
 		"bytes":         humanBytes,
 		"day":           dayOf,
+		"utc":           func(t time.Time) string { return t.UTC().Format("2006-01-02 15:04:05") },
 		"ext":           a.extLabel,
 		"actionLabel":   a.actionLabel,
 		"confirmAction": confirmAction,
@@ -116,10 +118,15 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /apps/{app}/settings", a.member(a.saveSettings))
 	m.HandleFunc("GET /apps/{app}/x/{ext}", a.member(a.extension))
 	m.HandleFunc("POST /apps/{app}/x/{ext}/actions", a.member(a.extensionAction))
+	m.HandleFunc("POST /hop/notify", a.hopNotify) // signed by the sending app, not a browser session
+	m.HandleFunc("GET /notifications", a.member(a.notifications))
+	m.HandleFunc("GET /notifications/{id}", a.member(a.notification))
+	m.HandleFunc("POST /notifications/{id}/actions", a.member(a.notificationAction))
 	m.HandleFunc("GET /audit", a.member(a.audit))
 	m.HandleFunc("GET /me", a.member(a.me))
 
 	cop := http.NewCrossOriginProtection()
+	cop.AddInsecureBypassPattern("POST /hop/notify") // server to server; the HMAC is the authentication
 	var h http.Handler = m
 	h = cop.Handler(h)
 	h = a.withSession(h)
@@ -276,6 +283,11 @@ type page struct {
 }
 
 func (a *App) render(w http.ResponseWriter, r *http.Request, name, title string, data any) {
+	a.renderStatus(w, r, http.StatusOK, name, title, data)
+}
+
+// renderStatus renders a page with an explicit HTTP status.
+func (a *App) renderStatus(w http.ResponseWriter, r *http.Request, status int, name, title string, data any) {
 	if d, ok := data.(map[string]any); ok {
 		if ap, ok := d["App"].(*db.App); ok {
 			m, _ := d["M"].(*Manifest)
@@ -299,6 +311,9 @@ func (a *App) render(w http.ResponseWriter, r *http.Request, name, title string,
 		http.SetCookie(w, &http.Cookie{Name: "imp_error", Path: "/", MaxAge: -1, HttpOnly: true, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode})
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if status != http.StatusOK {
+		w.WriteHeader(status)
+	}
 	if err := a.tpl.ExecuteTemplate(w, name, p); err != nil {
 		log.Printf("render %s: %v", name, err)
 	}
@@ -327,6 +342,7 @@ func (a *App) Sweep(ctx context.Context) {
 			return
 		case <-t.C:
 			a.db.Sweep(ctx)
+			a.pruneNotifications(ctx)
 			// Keep the registry fresh so a newly registered app shows up without a sign-in.
 			if a.cfg.SSOEnabled() {
 				_ = a.syncApps(nil)

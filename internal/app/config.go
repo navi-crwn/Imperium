@@ -28,6 +28,9 @@ type Config struct {
 	TelegramThread string // forum topic id, optional
 	TelegramAPI    string
 	WatchEvery     time.Duration
+	// NotifyCooldown is the least time between two Telegram messages about the
+	// same error group (IMPERIUM_NOTIFY_COOLDOWN_MINUTES, default 60).
+	NotifyCooldown time.Duration
 	SessionTTL     time.Duration
 	RequireMFA     bool
 	TrustProxy     bool
@@ -80,6 +83,10 @@ func LoadConfig(version string) Config {
 	if watchMin <= 0 {
 		watchMin = 2
 	}
+	coolMin, _ := strconv.Atoi(env("IMPERIUM_NOTIFY_COOLDOWN_MINUTES", "60"))
+	if coolMin <= 0 {
+		coolMin = 60
+	}
 	hours, _ := strconv.Atoi(env("IMPERIUM_SESSION_HOURS", "8"))
 	if hours <= 0 {
 		hours = 8
@@ -100,10 +107,11 @@ func LoadConfig(version string) Config {
 		TelegramThread: env("IMPERIUM_TELEGRAM_THREAD", ""),
 		TelegramAPI:    env("IMPERIUM_TELEGRAM_API", "https://api.telegram.org"),
 		WatchEvery:     time.Duration(watchMin) * time.Minute,
+		NotifyCooldown: time.Duration(coolMin) * time.Minute,
 		SessionTTL:     time.Duration(hours) * time.Hour,
 		RequireMFA:     envBool("IMPERIUM_REQUIRE_MFA", true),
 		TrustProxy:     envBool("IMPERIUM_TRUST_PROXY", false),
-		Lang:           env("IMPERIUM_LANG", "en"),
+		Lang:           normLang(env("IMPERIUM_LANG", "en")),
 		Aliases:        envAliases("IMPERIUM_ALIASES"),
 		Version:        version,
 	}
@@ -125,3 +133,21 @@ func (c Config) Door(host string) (client, secret, baseURL string) {
 
 // SSOEnabled reports whether sign-in through HOP ID is configured.
 func (c Config) SSOEnabled() bool { return c.HopURL != "" && len(c.HopSecret) >= 32 }
+
+// normLang maps a language setting to the catalog code ("zh-cn" and "zh" to
+// "zh-CN", "pt" and "pt-br" to "pt-BR"); unknown values stay as they are and
+// fall back to English later.
+func normLang(v string) string {
+	switch strings.ToLower(strings.ReplaceAll(v, "_", "-")) {
+	case "zh", "zh-cn":
+		return "zh-CN"
+	case "pt", "pt-br":
+		return "pt-BR"
+	}
+	for _, l := range []string{"en", "id", "de", "ja", "es", "fr", "ru"} {
+		if strings.EqualFold(v, l) {
+			return l
+		}
+	}
+	return v
+}

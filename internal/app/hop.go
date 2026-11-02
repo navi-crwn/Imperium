@@ -82,12 +82,15 @@ func (a *App) syncApps(s *db.Session) error {
 			continue // ourselves (both doors)
 		}
 		prefix := "/hop"
+		own := r.Secret // the app's own secret: it verifies what the app sends to us (POST /hop/notify)
 		if r.Slug == "biohop" || r.Slug == "linkhop" {
 			prefix = "/api/hop"
-			r.Secret = a.cfg.HopSecret
+			r.Secret = a.cfg.HopSecret // outbound calls to these apps are signed with Imperium's own secret
 		}
-		_ = a.db.UpsertApp(ctx, &db.App{Slug: r.Slug, Name: r.Name, URL: r.URL, Prefix: prefix, Secret: r.Secret, Status: r.Status,
-			Icon: r.Icon, Color: r.Color, MenuLabel: r.MenuLabel, Capabilities: r.Capabilities, Hidden: r.Hidden, SortOrder: r.SortOrder})
+		if err := a.db.UpsertApp(ctx, &db.App{Slug: r.Slug, Name: r.Name, URL: r.URL, Prefix: prefix, Secret: r.Secret, OwnSecret: own, Status: r.Status,
+			Icon: r.Icon, Color: r.Color, MenuLabel: r.MenuLabel, Capabilities: r.Capabilities, Hidden: r.Hidden, SortOrder: r.SortOrder}); err != nil {
+			log.Printf("registry sync: store %s: %v", r.Slug, err)
+		}
 	}
 	return nil
 }

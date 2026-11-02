@@ -2,7 +2,7 @@
 <aside class="side" id="side" aria-label="{{t "nav.menu"}}">
   <nav class="tree">
     <div class="tree-group">{{t "nav.imperium"}}</div>
-    {{range .Nav.Pages}}<a class="node {{if .On}}on{{end}}" href="{{.Href}}"><span class="ico ico-{{.Kind}}"></span>{{.Label}}</a>{{end}}
+    {{range .Nav.Pages}}<a class="node {{if .On}}on{{end}}" href="{{.Href}}"><span class="ico ico-{{.Kind}}"></span>{{.Label}}{{if .Badge}}<span class="badge" title="{{t "notif.status.new"}}">{{.Badge}}</span>{{end}}</a>{{end}}
     <div class="tree-group">{{t "nav.apps_group"}}</div>
     {{range .Nav.Apps}}
     <a class="node {{if .Open}}on{{end}}" href="{{.Href}}" {{if .Open}}aria-current="page"{{end}} title="{{.URL}}"><img class="app-mark" src="{{appMark .Slug}}" alt="" width="28" height="28"><span class="name">{{.Name}}</span><span class="dot {{if not .Health.Known}}{{else if eq .Health.Status "maint"}}maint{{else if .Health.OK}}ok{{else}}bad{{end}}"></span></a>
