@@ -24,6 +24,9 @@ import (
 const secret = "imperium-secret-that-is-long-enough-1234"
 const pxSecret = "px-secret-that-is-long-enough-123456789"
 
+// lhOwnSecret is what LinkHop holds for itself in the registry (Imperium signs its own calls to LinkHop with its own secret).
+const lhOwnSecret = "linkhop-own-secret-that-is-long-enough-1"
+
 // fakeHop plays HOP ID: issues tickets, answers the admin API, records calls.
 type fakeHop struct {
 	srv            *httptest.Server
@@ -64,7 +67,7 @@ func newFakeHop(t *testing.T) *fakeHop {
 		}
 	}
 	mux.HandleFunc("GET /api/hop/apps", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
-		_, _ = w.Write([]byte(`{"ok":true,"data":[{"slug":"linkhop","name":"LinkHop","url":"` + f.srv.URL + `","status":"active","capabilities":["admin_api"]},{"slug":"pixelhop","name":"PixelHop","url":"` + f.px.URL + `","status":"active","capabilities":["account_api","admin_api"],"secret":"` + pxSecret + `"},{"slug":"imperium","name":"Imperium","url":"x","status":"active","hidden":true}]}`))
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"slug":"linkhop","name":"LinkHop","url":"` + f.srv.URL + `","status":"active","capabilities":["admin_api"],"secret":"` + lhOwnSecret + `"},{"slug":"pixelhop","name":"PixelHop","url":"` + f.px.URL + `","status":"active","capabilities":["account_api","admin_api"],"secret":"` + pxSecret + `"},{"slug":"imperium","name":"Imperium","url":"x","status":"active","hidden":true}]}`))
 	}))
 	f.srv = httptest.NewServer(mux)
 	// PixelHop's admin API (prefix /hop), signed with its own secret, on its own server.

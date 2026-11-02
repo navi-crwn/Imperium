@@ -7,6 +7,7 @@
   <div class="small">{{if eq .Status "maint"}}{{t "status.maint"}}{{else if .OK}}{{t "status.ok"}} · {{.Latency.Milliseconds}} ms{{if .Version}} · {{.Version}}{{end}}{{else}}{{t "status.down"}}{{if .Detail}} · {{.Detail}}{{end}}{{end}}</div>
 </a>{{end}}
 </div>
+{{if .Data.NewErrors}}<h2>{{t "notif.title"}}</h2><div class="grid g5"><a class="card card-link" href="/notifications?status=new"><div class="k">{{t "notif.home_new"}}</div><div class="v warn">{{n .Data.NewErrors}}</div></a></div>{{end}}
 {{if .Data.StatsErr}}<p class="flash err">{{t "err.hop"}}: {{.Data.StatsErr}}</p>{{else}}
 {{if .Data.Attention}}<h2>{{t "home.attention"}}</h2><div class="grid g5">
 {{range $k, $v := .Data.Attention}}<div class="card"><div class="k">{{t (printf "kpi.%s" $k)}}</div><div class="v warn">{{n $v}}</div></div>{{end}}

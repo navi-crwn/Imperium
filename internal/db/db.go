@@ -6,12 +6,19 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"time"
 
 	_ "modernc.org/sqlite"
 )
 
-type DB struct{ *sql.DB }
+// DB wraps the SQLite handle. Limits bounds the notification inbox; Open sets
+// the defaults and tests may lower them.
+type DB struct {
+	*sql.DB
+	Limits NotifLimits
+}
 
 const schema = `
 CREATE TABLE IF NOT EXISTS sessions (
@@ -68,9 +75,14 @@ func Open(path string) (*DB, error) {
 	}
 	d.SetMaxOpenConns(1)
 	if _, err := d.Exec(schema); err != nil {
+		d.Close()
 		return nil, err
 	}
-	return &DB{d}, nil
+	if err := migrate(context.Background(), d); err != nil {
+		d.Close()
+		return nil, fmt.Errorf("migrate: %w", err)
+	}
+	return &DB{DB: d, Limits: DefaultNotifLimits}, nil
 }
 
 // ---- sessions ----
@@ -143,13 +155,24 @@ type Audit struct {
 	OK        bool
 }
 
-func (d *DB) AddAudit(ctx context.Context, a *Audit) {
+// execer is what both *sql.DB and *sql.Tx offer for writing.
+type execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+func insertAudit(ctx context.Context, e execer, a *Audit) error {
 	detail, _ := json.Marshal(a.Detail)
 	if a.Detail == nil {
 		detail = []byte("{}")
 	}
-	_, _ = d.ExecContext(ctx, `INSERT INTO audit (at,actor_sub,actor_name,ip,app,action,target,detail,ok) VALUES (?,?,?,?,?,?,?,?,?)`,
+	_, err := e.ExecContext(ctx, `INSERT INTO audit (at,actor_sub,actor_name,ip,app,action,target,detail,ok) VALUES (?,?,?,?,?,?,?,?,?)`,
 		time.Now().Unix(), a.ActorSub, a.ActorName, a.IP, a.App, a.Action, a.Target, string(detail), a.OK)
+	return err
+}
+
+// AddAudit records an action; a failed insert is not reported (existing behaviour).
+func (d *DB) AddAudit(ctx context.Context, a *Audit) {
+	_ = insertAudit(ctx, d, a)
 }
 
 func (d *DB) Audits(ctx context.Context, before int64, limit int) ([]Audit, error) {
@@ -180,10 +203,14 @@ func (d *DB) Audits(ctx context.Context, before int64, limit int) ([]Audit, erro
 
 type App struct {
 	Slug, Name, URL, Prefix, Secret, Status, Icon, Color, MenuLabel string
-	Capabilities                                                    []string
-	Hidden                                                          bool
-	SortOrder                                                       int
-	SyncedAt                                                        time.Time
+	// OwnSecret is the secret the app itself holds in the HOP ID registry. It
+	// only verifies what the app sends to Imperium (POST /hop/notify); calls
+	// from Imperium use Secret (for some apps a different, Imperium-side secret).
+	OwnSecret    string
+	Capabilities []string
+	Hidden       bool
+	SortOrder    int
+	SyncedAt     time.Time
 }
 
 func (a App) Can(c string) bool {
@@ -197,18 +224,19 @@ func (a App) Can(c string) bool {
 
 func (d *DB) UpsertApp(ctx context.Context, a *App) error {
 	caps, _ := json.Marshal(a.Capabilities)
-	_, err := d.ExecContext(ctx, `INSERT INTO apps (slug,name,url,prefix,secret,status,icon,color,menu_label,capabilities,hidden,sort_order,synced_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+	_, err := d.ExecContext(ctx, `INSERT INTO apps (slug,name,url,prefix,secret,own_secret,status,icon,color,menu_label,capabilities,hidden,sort_order,synced_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(slug) DO UPDATE SET name=excluded.name,url=excluded.url,prefix=excluded.prefix,
 		  secret=CASE WHEN excluded.secret='' THEN apps.secret ELSE excluded.secret END,
+		  own_secret=CASE WHEN excluded.own_secret='' THEN apps.own_secret ELSE excluded.own_secret END,
 		  status=excluded.status,icon=excluded.icon,color=excluded.color,menu_label=excluded.menu_label,
 		  capabilities=excluded.capabilities,hidden=excluded.hidden,sort_order=excluded.sort_order,synced_at=excluded.synced_at`,
-		a.Slug, a.Name, a.URL, a.Prefix, a.Secret, a.Status, a.Icon, a.Color, a.MenuLabel, string(caps), a.Hidden, a.SortOrder, time.Now().Unix())
+		a.Slug, a.Name, a.URL, a.Prefix, a.Secret, a.OwnSecret, a.Status, a.Icon, a.Color, a.MenuLabel, string(caps), a.Hidden, a.SortOrder, time.Now().Unix())
 	return err
 }
 
 func (d *DB) Apps(ctx context.Context) ([]App, error) {
-	rows, err := d.QueryContext(ctx, `SELECT slug,name,url,prefix,secret,status,icon,color,menu_label,capabilities,hidden,sort_order,synced_at FROM apps ORDER BY sort_order, name`)
+	rows, err := d.QueryContext(ctx, `SELECT slug,name,url,prefix,secret,own_secret,status,icon,color,menu_label,capabilities,hidden,sort_order,synced_at FROM apps ORDER BY sort_order, name`)
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +246,7 @@ func (d *DB) Apps(ctx context.Context) ([]App, error) {
 		var a App
 		var caps string
 		var synced int64
-		if err := rows.Scan(&a.Slug, &a.Name, &a.URL, &a.Prefix, &a.Secret, &a.Status, &a.Icon, &a.Color, &a.MenuLabel, &caps, &a.Hidden, &a.SortOrder, &synced); err != nil {
+		if err := rows.Scan(&a.Slug, &a.Name, &a.URL, &a.Prefix, &a.Secret, &a.OwnSecret, &a.Status, &a.Icon, &a.Color, &a.MenuLabel, &caps, &a.Hidden, &a.SortOrder, &synced); err != nil {
 			return nil, err
 		}
 		_ = json.Unmarshal([]byte(caps), &a.Capabilities)
@@ -226,6 +254,16 @@ func (d *DB) Apps(ctx context.Context) ([]App, error) {
 		out = append(out, a)
 	}
 	return out, rows.Err()
+}
+
+// OwnSecret is the secret a registry app holds for itself ("" when unknown).
+func (d *DB) OwnSecret(ctx context.Context, slug string) (string, error) {
+	var s string
+	err := d.QueryRowContext(ctx, `SELECT own_secret FROM apps WHERE slug=?`, slug).Scan(&s)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", nil
+	}
+	return s, err
 }
 
 func (d *DB) App(ctx context.Context, slug string) (*App, error) {

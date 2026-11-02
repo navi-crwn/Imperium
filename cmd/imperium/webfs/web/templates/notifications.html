@@ -1,0 +1,26 @@
+{{template "head" .}}{{template "top" .}}
+<h1>{{t "notif.title"}}</h1>
+<p class="muted small">{{t "notif.intro"}}</p>
+<p class="notif-chips">{{range .Data.Chips}}<a class="chip {{if .On}}active{{end}}" href="{{.Href}}">{{if eq .Status "all"}}{{t "notif.status_all"}}{{else}}{{t (printf "notif.status.%s" .Status)}}{{end}} · {{.Count}}</a>{{end}}</p>
+<form class="filters" method="get" action="/notifications">
+  <input type="hidden" name="status" value="{{.Data.Status}}">
+  <div><label for="f-app">{{t "notif.filter_app"}}</label>
+    <select id="f-app" name="app"><option value="">{{t "notif.all_apps"}}</option>{{range .Data.Apps}}<option value="{{.}}" {{if eq . $.Data.App}}selected{{end}}>{{.}}</option>{{end}}</select></div>
+  <div><button class="btn" type="submit">{{t "notif.apply"}}</button></div>
+</form>
+<div class="scroll-x mt14">
+<table>
+<tr><th>{{t "notif.last_seen"}} (UTC)</th><th>{{t "notif.app"}}</th><th>{{t "notif.class"}}</th><th>{{t "notif.route"}}</th><th>{{t "notif.count"}}</th><th>{{t "notif.status"}}</th><th></th></tr>
+{{range .Data.Rows}}<tr>
+  <td class="small mono">{{utc .LastSeen}}</td>
+  <td><b>{{.App}}</b>{{if .Env}} <span class="muted small">{{.Env}}</span>{{end}}</td>
+  <td class="mono nwrap">{{.Title}}</td>
+  <td class="mono small nwrap">{{.Sample.Route}}</td>
+  <td class="mono">{{n .Count}}{{if .Suppressed}} <span class="muted" title="{{t "notif.suppressed"}}">+{{n .Suppressed}}</span>{{end}}</td>
+  <td><span class="chip {{.Status}}">{{t (printf "notif.status.%s" .Status)}}</span>{{if .Regression}}<span class="chip regression">{{t "notif.regression"}}</span>{{end}}</td>
+  <td><a href="/notifications/{{.ID}}">{{t "notif.open"}}</a></td>
+</tr>{{else}}<tr><td colspan="7" class="muted">{{t "notif.none"}}</td></tr>{{end}}
+</table>
+</div>
+{{if or .Data.PrevHref .Data.NextHref}}<p class="mt14">{{if .Data.PrevHref}}<a class="btn sm" href="{{.Data.PrevHref}}">← {{t "notif.prev"}}</a> {{end}}{{if .Data.NextHref}}<a class="btn sm" href="{{.Data.NextHref}}">{{t "notif.next"}} →</a>{{end}}</p>{{end}}
+{{template "foot" .}}

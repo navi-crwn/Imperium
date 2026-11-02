@@ -49,7 +49,7 @@ func TestExplicitIndonesianConfigStillWorks(t *testing.T) {
 func TestUnknownLanguageFallsBackToEnglish(t *testing.T) {
 	hop := newFakeHop(t)
 	defer hop.srv.Close()
-	a, srv := newAppWithLang(t, hop, "fr")
+	a, srv := newAppWithLang(t, hop, "xx")
 	defer srv.Close()
 	hop.ticket = map[string]any{"sub": "1", "username": "boss", "name": "Boss", "email": "b@x", "roles": []string{"owner"}, "mfa": true, "status": "active"}
 	c := client(t)

@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -101,5 +102,46 @@ func TestClientCall(t *testing.T) {
 	_, err = c.Call(t.Context(), App{Slug: "linkhop", URL: srv.URL, Prefix: "/api/hop", Secret: "bad-secret-that-is-long-enough-1234567"}, "sys", "GET", "/stats?since=x", nil)
 	if err == nil || err.Error() != "bad_signature" {
 		t.Fatalf("want bad_signature, got %v", err)
+	}
+}
+
+func TestClientKeepsTheAppsMessageOn422Only(t *testing.T) {
+	replies := map[string]struct {
+		status int
+		body   string
+	}{
+		"/api/hop/settings": {422, `{"ok":false,"error":"bad_params","message":"bio.slug_min_length must be a whole number from 3 to 20\n"}`},
+		"/api/hop/gone":     {404, `{"ok":false,"error":"not_found","message":"no such thing"}`},
+		"/api/hop/long":     {422, `{"ok":false,"error":"bad_params","message":"` + strings.Repeat("é", 400) + `"}`},
+		"/api/hop/nomsg":    {422, `{"ok":false,"error":"bad_params"}`},
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rep := replies[r.URL.Path]
+		w.WriteHeader(rep.status)
+		_, _ = w.Write([]byte(rep.body))
+	}))
+	defer srv.Close()
+	c := &Client{As: "imperium"}
+	app := App{Slug: "biohop", URL: srv.URL, Prefix: "/api/hop", Secret: secret}
+
+	_, err := c.Call(t.Context(), app, "sys", "PUT", "/settings", map[string]any{"bio.slug_min_length": "99"})
+	if err == nil || err.Error() != "bad_params: bio.slug_min_length must be a whole number from 3 to 20" {
+		t.Fatalf("422: %v", err)
+	}
+	var ae *APIError
+	if !errors.As(err, &ae) || ae.Code != "bad_params" || ae.Status != 422 {
+		t.Fatalf("typed error: %#v", err)
+	}
+	// Other statuses still read as the bare protocol code, which callers compare ("not_found").
+	if _, err := c.Call(t.Context(), app, "sys", "GET", "/gone", nil); err == nil || err.Error() != "not_found" {
+		t.Fatalf("404: %v", err)
+	}
+	if _, err := c.Call(t.Context(), app, "sys", "GET", "/nomsg", nil); err == nil || err.Error() != "bad_params" {
+		t.Fatalf("422 without a message: %v", err)
+	}
+	// A long message is cut so it still fits a cookie.
+	_, err = c.Call(t.Context(), app, "sys", "GET", "/long", nil)
+	if err == nil || len([]rune(err.Error())) > len("bad_params: ")+300 {
+		t.Fatalf("long message: %d runes", len([]rune(err.Error())))
 	}
 }
