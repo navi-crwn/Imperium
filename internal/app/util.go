@@ -8,20 +8,21 @@ import (
 	"time"
 )
 
-func humanSince(t time.Time) string {
+// since renders a relative time in the configured catalogue language.
+func (a *App) since(t time.Time) string {
 	if t.IsZero() || t.Unix() <= 0 {
 		return "–"
 	}
 	d := time.Since(t)
 	switch {
 	case d < time.Minute:
-		return "baru saja"
+		return a.T("since.now")
 	case d < time.Hour:
-		return fmt.Sprintf("%d mnt", int(d.Minutes()))
+		return fmt.Sprintf(a.T("since.min"), int(d.Minutes()))
 	case d < 48*time.Hour:
-		return fmt.Sprintf("%d jam", int(d.Hours()))
+		return fmt.Sprintf(a.T("since.hour"), int(d.Hours()))
 	default:
-		return fmt.Sprintf("%d hari", int(d.Hours()/24))
+		return fmt.Sprintf(a.T("since.day"), int(d.Hours()/24))
 	}
 }
 
