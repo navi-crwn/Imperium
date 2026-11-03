@@ -13,6 +13,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -232,7 +233,7 @@ func current(r *http.Request) *db.Session {
 func (a *App) member(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if current(r) == nil {
-			http.Redirect(w, r, "/login?next="+safeNext(r.URL.RequestURI()), http.StatusFound)
+			http.Redirect(w, r, "/login?next="+url.QueryEscape(safeNext(r.URL.RequestURI())), http.StatusFound)
 			return
 		}
 		h(w, r)
