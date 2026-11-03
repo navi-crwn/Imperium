@@ -99,13 +99,17 @@ func (a *App) appItems(slug string, m *Manifest, path, typ string) []navItem {
 func (a *App) nav(r *http.Request) navData {
 	path := r.URL.Path
 	typ := r.URL.Query().Get("type")
-	n := navData{Pages: []navItem{
-		{Label: a.T("nav.home"), Href: "/", Kind: "home", On: path == "/"},
-		{Label: a.T("nav.users"), Href: "/users", Kind: "users", On: path == "/users" || strings.HasPrefix(path, "/users/")},
-		{Label: a.T("nav.apps"), Href: "/apps", Kind: "apps", On: path == "/apps"},
-		{Label: a.T("nav.notifications"), Href: "/notifications", Kind: "notifications", On: strings.HasPrefix(path, "/notifications"), Badge: a.newErrors(r)},
-		{Label: a.T("nav.audit"), Href: "/audit", Kind: "audit", On: path == "/audit"},
-	}}
+	global := globalRole(current(r))
+	n := navData{Pages: []navItem{{Label: a.T("nav.home"), Href: "/", Kind: "home", On: path == "/"}}}
+	if global {
+		n.Pages = append(n.Pages, navItem{Label: a.T("nav.users"), Href: "/users", Kind: "users", On: path == "/users" || strings.HasPrefix(path, "/users/")})
+	}
+	n.Pages = append(n.Pages,
+		navItem{Label: a.T("nav.apps"), Href: "/apps", Kind: "apps", On: path == "/apps"},
+		navItem{Label: a.T("nav.notifications"), Href: "/notifications", Kind: "notifications", On: strings.HasPrefix(path, "/notifications"), Badge: a.newErrors(r)})
+	if global {
+		n.Pages = append(n.Pages, navItem{Label: a.T("nav.audit"), Href: "/audit", Kind: "audit", On: path == "/audit"})
+	}
 	health := a.healthSnapshot()
 	current := ""
 	if rest, ok := strings.CutPrefix(path, "/apps/"); ok {
@@ -342,6 +346,6 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 		"CT": firstCT, "Latest": latest, "LatestErr": latestErr,
 		"Reports": reports, "ReportsErr": reportsErr, "HasReports": m.HasReports(),
 		"Ext": ext, "ExtLabel": a.extLabel(ext), "Ops": kvRows(ops), "OpsErr": opsErr,
-		"CanAct": canAct(s),
+		"CanAct": canActIn(s, ap.Slug),
 	})
 }
