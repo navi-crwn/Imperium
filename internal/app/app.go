@@ -156,8 +156,14 @@ func (a *App) withIP(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 		if a.cfg.TrustProxy {
-			if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
-				ip = strings.TrimSpace(strings.Split(xf, ",")[0])
+			// The trusted door (nginx) overwrites X-Forwarded-For with the
+			// address it saw, so the last entry is the connecting one; any
+			// earlier entry was typed by the client.
+			if xf := strings.Join(r.Header.Values("X-Forwarded-For"), ","); xf != "" {
+				parts := strings.Split(xf, ",")
+				if last := strings.TrimSpace(parts[len(parts)-1]); net.ParseIP(last) != nil {
+					ip = last
+				}
 			}
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxIP, ip)))
