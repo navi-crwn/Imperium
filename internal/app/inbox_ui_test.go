@@ -376,3 +376,31 @@ func TestPruneRunsFromTheSweepJob(t *testing.T) {
 		t.Error("a fresh group must stay")
 	}
 }
+
+// A signed-in page must not be kept by the browser: after a sign-out at the hub
+// (logout chain) the Back button would otherwise show the panel again.
+func TestSignedInPagesAreNotStored(t *testing.T) {
+	_, srv, hop := newInbox(t)
+	c := signedIn(t, hop, srv, "boss", "owner")
+	for _, p := range []string{"/me", "/", "/notifications"} {
+		res, err := c.Get(srv.URL + p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body(res)
+		if res.StatusCode != 200 {
+			t.Fatalf("%s: status %d", p, res.StatusCode)
+		}
+		if cc := res.Header.Get("Cache-Control"); !strings.Contains(cc, "no-store") {
+			t.Errorf("%s: Cache-Control = %q, want no-store", p, cc)
+		}
+	}
+	// static assets keep their public caching
+	res, err := c.Get(srv.URL + "/static/app.css")
+	if err == nil {
+		body(res)
+		if res.StatusCode == 200 && strings.Contains(res.Header.Get("Cache-Control"), "no-store") {
+			t.Errorf("static asset lost its caching: %q", res.Header.Get("Cache-Control"))
+		}
+	}
+}
