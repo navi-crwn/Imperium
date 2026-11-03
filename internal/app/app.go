@@ -45,7 +45,7 @@ func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
 	funcs := template.FuncMap{
 		"t":             a.T,
 		"lang":          a.lang,
-		"since":         humanSince,
+		"since":         a.since,
 		"date":          func(t time.Time) string { return t.Local().Format("2006-01-02 15:04") },
 		"n":             humanAny,
 		"has":           func(list []string, x string) bool { return contains(list, x) },
