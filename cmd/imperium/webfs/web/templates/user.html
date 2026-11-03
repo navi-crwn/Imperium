@@ -32,10 +32,12 @@
     {{if .Data.Protected}}
     <p role="status">Superadmin accounts are permanent and read-only, including for the account itself.</p>
     {{else}}
+    {{if .Data.CanNote}}
     <form method="post" action="/users/{{.Data.ID}}/actions">
       <label>{{t "user.notes"}}</label><textarea name="text" rows="2" required></textarea>
       <input type="hidden" name="action" value="note"><button class="btn mt6" type="submit">{{t "action.note"}}</button>
     </form>
+    {{end}}
     <ul class="small">{{range $u.Notes}}<li><span class="muted">{{index . "created_at"}} · {{index . "author"}}:</span> {{index . "text"}}</li>{{end}}</ul>
     {{if .Data.IsAdmin}}
     <form method="post" action="/users/{{.Data.ID}}/actions">

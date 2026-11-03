@@ -221,13 +221,17 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 
 	a.render(w, r, "user.html", "@"+str(u.Profile["username"]), map[string]any{
-		"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)),
+		"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)), "CanNote": canNote(current(r)),
 		"Protected": u.protected(),
 		"PixelUser": summaries["pixelhop"].User, "PixelErr": summaries["pixelhop"].Err,
 		"NoteUser": summaries["notehop"].User, "NoteErr": summaries["notehop"].Err,
 		"RoleOptions": []string{"owner", "admin", "moderator", "support"},
 	})
 }
+
+// canNote says whether the session may add a note to a hub user: every
+// hub-wide role except the read-only support role.
+func canNote(s *db.Session) bool { return isAdmin(s) || contains(s.Roles, "moderator") }
 
 func str(v any) string { s, _ := v.(string); return s }
 
@@ -255,6 +259,12 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "note":
+		// support is read-only (docs/01-FITUR.md); a note is a write.
+		if !canNote(s) {
+			a.flashError(w, a.T("err.forbidden"))
+			http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
+			return
+		}
 	default:
 		http.Error(w, "unknown action", 400)
 		return
