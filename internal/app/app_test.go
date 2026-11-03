@@ -37,7 +37,9 @@ type fakeHop struct {
 	protectedUser  bool
 	contentQueries []string
 	nonces         hopproto.Nonces
-	pxReports      string // overrides PixelHop's /hop/reports answer when set
+	pxReports      string                         // overrides PixelHop's /hop/reports answer when set
+	member         func(sub string) (int, string) // HOP ID's answer for GET /api/hop/users/{sub}; nil means 404 not_found
+	memberCalls    []string                       // the subs Imperium asked about
 }
 
 func newFakeHop(t *testing.T) *fakeHop {
@@ -132,6 +134,16 @@ func newFakeHop(t *testing.T) *fakeHop {
 	}))
 	mux.HandleFunc("GET /api/hop/users/27", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
 		_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"27","username":"budi","name":"Budi","email":"b@x","status":"active","verified":true},"counts":{},"sessions":{"count":0},"logins":[],"activity":[],"roles":[],"notes":[],"recent_links":[]}}`))
+	}))
+	mux.HandleFunc("GET /api/hop/users/{sub}", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		sub := r.PathValue("sub")
+		f.memberCalls = append(f.memberCalls, sub)
+		code, out := 404, `{"ok":false,"error":"not_found"}`
+		if f.member != nil {
+			code, out = f.member(sub)
+		}
+		w.WriteHeader(code)
+		_, _ = w.Write([]byte(out))
 	}))
 	mux.HandleFunc("POST /api/hop/users/26/actions", api(func(w http.ResponseWriter, r *http.Request, body []byte) {
 		var m map[string]any
