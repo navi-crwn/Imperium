@@ -1,0 +1,22 @@
+# Role matrix (OP-06/OP-20), replaces a2/bukti/s5/D/imperium-role-matrix.tsv, where every column read 200 and
+# admin:<app> acted on any app. Columns are the sessions; the fake hub knows two apps, pixelhop and linkhop.
+# GET rows hold the HTTP status. POST rows hold how many actions reached HOP ID or the app (1 = allowed, 0 = refused).
+endpoint	owner	admin	moderator	support	admin:pixelhop	admin:linkhop
+GET /users	200	200	200	200	403	403
+GET /users/26	200	200	200	200	403	403
+GET /search?q=rani	200	200	200	200	403	403
+GET /audit	200	200	200	200	403	403
+GET /apps	200	200	200	200	200	200
+GET /apps/pixelhop	200	200	200	200	200	403
+GET /apps/pixelhop/content	200	200	200	200	200	403
+GET /apps/pixelhop/content/image/img1	200	200	200	200	200	403
+GET /apps/pixelhop/reports	200	200	200	200	200	403
+GET /apps/pixelhop/settings	200	200	200	200	200	403
+GET /apps/pixelhop/x/ip	200	200	200	200	200	403
+GET /apps/hub	200	200	200	200	403	403
+GET /apps/nosuchapp	200	200	200	200	403	403
+GET /notifications	200	200	200	200	200	200
+POST /users/26/actions note	1	1	1	0	0	0
+POST /users/26/actions suspend	1	1	0	0	0	0
+POST /users/26/actions revoke_sessions	1	1	0	0	0	0
+POST /apps/pixelhop/reports/r1/actions resolve	1	1	1	0	1	0

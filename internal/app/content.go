@@ -214,6 +214,10 @@ func canActIn(s *db.Session, app string) bool {
 }
 
 func (a *App) withSource(w http.ResponseWriter, r *http.Request) (*db.App, *Manifest, bool) {
+	if !canSee(current(r), r.PathValue("app")) { // before the lookup, so an unknown slug answers like a forbidden one
+		a.forbidden(w, r)
+		return nil, nil, false
+	}
 	ap, ok := a.source(r.Context(), r.PathValue("app"))
 	if !ok {
 		a.render(w, r, "error.html", "App", map[string]any{"Err": "unknown app or no admin API", "Back": "/apps"})

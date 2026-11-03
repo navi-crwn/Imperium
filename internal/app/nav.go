@@ -99,7 +99,8 @@ func (a *App) appItems(slug string, m *Manifest, path, typ string) []navItem {
 func (a *App) nav(r *http.Request) navData {
 	path := r.URL.Path
 	typ := r.URL.Query().Get("type")
-	global := globalRole(current(r))
+	sess := current(r)
+	global := globalRole(sess)
 	n := navData{Pages: []navItem{{Label: a.T("nav.home"), Href: "/", Kind: "home", On: path == "/"}}}
 	if global {
 		n.Pages = append(n.Pages, navItem{Label: a.T("nav.users"), Href: "/users", Kind: "users", On: path == "/users" || strings.HasPrefix(path, "/users/")})
@@ -129,10 +130,11 @@ func (a *App) nav(r *http.Request) navData {
 		}
 		n.Apps = append(n.Apps, na)
 	}
-	lh, _ := a.source(r.Context(), "hub")
-	add(*lh, "")
+	if lh, _ := a.source(r.Context(), "hub"); canSee(sess, "hub") {
+		add(*lh, "")
+	}
 	apps, _ := a.db.Apps(r.Context())
-	for _, ap := range apps {
+	for _, ap := range visibleApps(sess, apps) {
 		if ap.Status == "off" || ap.Slug == "hub" {
 			continue
 		}

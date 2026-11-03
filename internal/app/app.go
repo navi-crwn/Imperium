@@ -275,12 +275,34 @@ func globalRole(s *db.Session) bool {
 	return s != nil && (isAdmin(s) || contains(s.Roles, "moderator") || contains(s.Roles, "support"))
 }
 
+// canSee says whether the session may open an app's pages. A hub-wide role sees every app;
+// admin:<app> sees that app and no other.
+func canSee(s *db.Session, app string) bool {
+	return globalRole(s) || (s != nil && contains(s.Roles, "admin:"+app))
+}
+
+// visibleApps keeps the apps the session may open.
+func visibleApps(s *db.Session, apps []db.App) []db.App {
+	var out []db.App
+	for _, ap := range apps {
+		if canSee(s, ap.Slug) {
+			out = append(out, ap)
+		}
+	}
+	return out
+}
+
+// forbidden answers 403 with the standard page.
+func (a *App) forbidden(w http.ResponseWriter, r *http.Request) {
+	a.renderStatus(w, r, http.StatusForbidden, "error.html", a.T("err.forbidden"), map[string]any{"Err": a.T("err.forbidden"), "Back": "/"})
+}
+
 // requireGlobal answers 403 and returns false for sessions without a hub-wide role.
 func (a *App) requireGlobal(w http.ResponseWriter, r *http.Request) bool {
 	if globalRole(current(r)) {
 		return true
 	}
-	a.renderStatus(w, r, http.StatusForbidden, "error.html", a.T("err.forbidden"), map[string]any{"Err": a.T("err.forbidden"), "Back": "/"})
+	a.forbidden(w, r)
 	return false
 }
 
