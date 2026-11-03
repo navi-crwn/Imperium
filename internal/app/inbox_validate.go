@@ -74,6 +74,9 @@ var (
 	bearerRe   = regexp.MustCompile(`(?i)\b(bearer|basic)\s+\S+`)
 	hexTokenRe = regexp.MustCompile(`[0-9a-fA-F]{20,}`)
 	wordRunRe  = regexp.MustCompile(`[A-Za-z0-9_+=-]{24,}`)
+	// The key (k=) and owner token (a=) of an encrypted NoteHop link, wherever they sit: a fragment cut loose from
+	// its address ("#k=…"), an escaped one ("%23k=…") or one that is all letters, which wordRunRe lets through.
+	noteKeyRe = regexp.MustCompile(`(?i)((?:#|%23|&|;)\s*(?:k|a))=[A-Za-z0-9_%-]{8,}`)
 )
 
 var notifyMethods = map[string]bool{"GET": true, "POST": true, "PUT": true, "PATCH": true, "DELETE": true, "HEAD": true, "OPTIONS": true}
@@ -90,6 +93,7 @@ func scrubMessage(s string) string {
 		}
 		return r
 	}, s)
+	s = noteKeyRe.ReplaceAllString(s, "${1}="+redacted)
 	s = userinfoRe.ReplaceAllString(s, redacted)
 	s = queryURLRe.ReplaceAllString(s, "${1}?"+redacted)
 	s = emailRe.ReplaceAllString(s, redacted)
