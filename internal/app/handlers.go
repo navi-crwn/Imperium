@@ -89,6 +89,9 @@ type hit struct {
 }
 
 func (a *App) search(w http.ResponseWriter, r *http.Request) {
+	if !a.requireGlobal(w, r) {
+		return
+	}
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	var hits []hit
 	var errMsg string
@@ -122,6 +125,9 @@ type userRow struct {
 }
 
 func (a *App) users(w http.ResponseWriter, r *http.Request) {
+	if !a.requireGlobal(w, r) {
+		return
+	}
 	q := r.URL.Query()
 	path := "/users?" + url.Values{"q": {q.Get("q")}, "status": {q.Get("status")}, "role": {q.Get("role")}, "cursor": {q.Get("cursor")}, "limit": {"50"}}.Encode()
 	var rows []userRow
@@ -172,6 +178,9 @@ func (u user360) protected() bool {
 }
 
 func (a *App) user(w http.ResponseWriter, r *http.Request) {
+	if !a.requireGlobal(w, r) {
+		return
+	}
 	id := r.PathValue("id")
 	var u user360
 	var raw json.RawMessage
@@ -225,6 +234,11 @@ func str(v any) string { s, _ := v.(string); return s }
 // userAction forwards an action to HOP ID and records it locally too.
 func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 	s := current(r)
+	if !globalRole(s) {
+		a.flashError(w, a.T("err.forbidden"))
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
 	id := r.PathValue("id")
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", 400)
@@ -314,6 +328,9 @@ func (a *App) appsSync(w http.ResponseWriter, r *http.Request) {
 // ---- audit ----
 
 func (a *App) audit(w http.ResponseWriter, r *http.Request) {
+	if !a.requireGlobal(w, r) {
+		return
+	}
 	local, _ := a.db.Audits(r.Context(), 0, 100)
 	var remote []map[string]any
 	var errMsg string

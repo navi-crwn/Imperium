@@ -252,6 +252,21 @@ func isAdmin(s *db.Session) bool {
 	return contains(s.Roles, "owner") || contains(s.Roles, "admin")
 }
 
+// globalRole is one of the hub-wide roles. Only these may see HOP ID's user
+// accounts and audit log; admin:<app> is scoped to its own app.
+func globalRole(s *db.Session) bool {
+	return s != nil && (isAdmin(s) || contains(s.Roles, "moderator") || contains(s.Roles, "support"))
+}
+
+// requireGlobal answers 403 and returns false for sessions without a hub-wide role.
+func (a *App) requireGlobal(w http.ResponseWriter, r *http.Request) bool {
+	if globalRole(current(r)) {
+		return true
+	}
+	a.renderStatus(w, r, http.StatusForbidden, "error.html", a.T("err.forbidden"), map[string]any{"Err": a.T("err.forbidden"), "Back": "/"})
+	return false
+}
+
 func allowedIn(roles []string) bool {
 	for _, r := range roles {
 		switch r {
