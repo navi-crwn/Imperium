@@ -57,8 +57,9 @@ func (m *Manifest) HasSettings() bool { return m.Has("settings") || len(m.Settin
 // ReportActions are the buttons a report row gets, by kind: LinkHop's abuse
 // flags (confirm/restore) and visitor reports (investigate/close), else what the
 // manifest lists, else dismiss/resolve.
-func (m *Manifest) ReportActions(kind string) []string {
-	switch kind {
+func (m *Manifest) ReportActions(kind any) []string {
+	k, _ := kind.(string) // an app that sends no "kind" (or a number) must not break the whole page
+	switch k {
 	case "flag":
 		return []string{"confirm", "restore"}
 	case "report":

@@ -3,6 +3,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -337,13 +338,18 @@ func (a *App) renderStatus(w http.ResponseWriter, r *http.Request, status int, n
 		}
 		http.SetCookie(w, &http.Cookie{Name: "imp_error", Path: "/", MaxAge: -1, HttpOnly: true, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode})
 	}
+	// Render to memory first: a template error halfway must not send half a page with a 200.
+	var buf bytes.Buffer
+	if err := a.tpl.ExecuteTemplate(&buf, name, p); err != nil {
+		log.Printf("render %s: %v", name, err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if status != http.StatusOK {
 		w.WriteHeader(status)
 	}
-	if err := a.tpl.ExecuteTemplate(w, name, p); err != nil {
-		log.Printf("render %s: %v", name, err)
-	}
+	_, _ = buf.WriteTo(w)
 }
 
 func (a *App) flash(w http.ResponseWriter, msg string) {
