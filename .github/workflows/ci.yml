@@ -19,3 +19,17 @@ jobs:
       - name: Check backup script syntax
         run: bash -n scripts/hop-backup.sh
       - run: make build GO=go && ./bin/imperium version
+      - name: A mistyped command must not start the server
+        run: scripts/check-cli-unknown-arg.sh ./bin/imperium IMPERIUM_ADDR 8791 IMPERIUM_DB
+      - name: Test the commit message check
+        run: bash tests/test_check_commit_messages.sh
+  commit-messages:
+    # Only the commits of the pull request, never the older history.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: No attribution trailer or agent name in the new commits
+        run: scripts/check-commit-messages.sh ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}
