@@ -56,7 +56,7 @@ tr:hover td { background:var(--panel2); }
 .btn.primary { background:var(--ink); color:var(--bg); border-color:var(--ink); } .btn.danger { background:#5a1f1f; color:#ffd0d0; border-color:#7a2a2a; } .btn.big { padding:12px 18px; font-size:16px; width:100%; }
 .btn:hover { filter:brightness(1.1); }
 input[type=text], input[type=search], textarea, select { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:var(--bg); color:var(--ink); font:inherit; }
-label { display:block; font-size:13px; color:var(--muted); margin:8px 0 4px; }
+label, .lbl { display:block; font-size:13px; color:var(--muted); margin:8px 0 4px; }
 .flash { padding:10px 14px; border-radius:10px; margin-bottom:14px; background:#1f4d3b; color:#bff0d6; } .flash.err { background:#5a1f1f; color:#ffd0d0; }
 .bars { display:flex; align-items:flex-end; gap:4px; height:90px; margin:12px 0 22px; } .bars div { flex:1; background:var(--accent); opacity:.85; border-radius:3px 3px 0 0; min-height:2px; position:relative; }
 .bars .h0{height:0} .bars .h5{height:5%} .bars .h10{height:10%} .bars .h15{height:15%} .bars .h20{height:20%} .bars .h25{height:25%} .bars .h30{height:30%} .bars .h35{height:35%} .bars .h40{height:40%} .bars .h45{height:45%} .bars .h50{height:50%}

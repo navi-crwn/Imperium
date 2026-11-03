@@ -8,14 +8,14 @@
 {{if .Data.IsAdmin}}
 <div class="card actions mt14"><h2 class="card-title">{{t "ext.action"}}</h2>
   <form method="post" action="/apps/{{.Data.App.Slug}}/x/{{.Data.Ext}}/actions" class="grid g-form">
-    <div><label>action</label>{{if .Data.Actions}}<select name="action">{{range .Data.Actions}}<option value="{{.}}">{{.}}</option>{{end}}</select>{{else}}<input type="text" name="action" placeholder="ban, add, release…" required>{{end}}</div>
-    <div><label>ip</label><input type="text" name="p_ip"></div>
-    <div><label>domain</label><input type="text" name="p_domain"></div>
-    <div><label>slug / id</label><input type="text" name="p_slug"></div>
-    <div><label>category</label><input type="text" name="p_category"></div>
-    <div><label>expires_at</label><input type="text" name="p_expires_at"></div>
-    <div><label>{{t "ext.sub"}}</label><input type="text" name="path" placeholder="holds/slug"></div>
-    <div><label>{{t "action.reason"}}</label><input type="text" name="reason"></div>
+    <div><label for="f-extension-action-1">action</label>{{if .Data.Actions}}<select id="f-extension-action-1" name="action">{{range .Data.Actions}}<option value="{{.}}">{{.}}</option>{{end}}</select>{{else}}<input id="f-extension-action-1" type="text" name="action" placeholder="ban, add, release…" required>{{end}}</div>
+    <div><label for="f-extension-p-ip-2">ip</label><input id="f-extension-p-ip-2" type="text" name="p_ip"></div>
+    <div><label for="f-extension-p-domain-3">domain</label><input id="f-extension-p-domain-3" type="text" name="p_domain"></div>
+    <div><label for="f-extension-p-slug-4">slug / id</label><input id="f-extension-p-slug-4" type="text" name="p_slug"></div>
+    <div><label for="f-extension-p-category-5">category</label><input id="f-extension-p-category-5" type="text" name="p_category"></div>
+    <div><label for="f-extension-p-expires-at-6">expires_at</label><input id="f-extension-p-expires-at-6" type="text" name="p_expires_at"></div>
+    <div><label for="f-extension-path-7">{{t "ext.sub"}}</label><input id="f-extension-path-7" type="text" name="path" placeholder="holds/slug"></div>
+    <div><label for="f-extension-reason-8">{{t "action.reason"}}</label><input id="f-extension-reason-8" type="text" name="reason"></div>
     <div><label>&nbsp;</label><button class="btn primary" type="submit">{{t "ext.action"}}</button></div>
   </form>
   <p class="small muted">{{t "ext.hint"}}</p>
