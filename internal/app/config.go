@@ -87,9 +87,9 @@ func LoadConfig(version string) Config {
 	if coolMin <= 0 {
 		coolMin = 60
 	}
-	hours, _ := strconv.Atoi(env("IMPERIUM_SESSION_HOURS", "8"))
+	hours, _ := strconv.Atoi(env("IMPERIUM_SESSION_HOURS", "2"))
 	if hours <= 0 {
-		hours = 8
+		hours = 2
 	}
 	c := Config{
 		Addr:           env("IMPERIUM_ADDR", "127.0.0.1:8100"),

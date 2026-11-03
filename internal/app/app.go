@@ -37,11 +37,14 @@ type App struct {
 
 	manifests manifestCache
 	inbox     *notifyInbox
+
+	checkMu sync.Mutex
+	checked map[string]time.Time // session token hash -> when HOP ID is asked about it next
 }
 
 // New wires the app. templates and static come from the embedded web/ folder.
 func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
-	a := &App{cfg: cfg, db: d, health: map[string]Health{}, start: time.Now(), manifests: manifestCache{m: map[string]*Manifest{}}, inbox: newNotifyInbox()}
+	a := &App{cfg: cfg, db: d, health: map[string]Health{}, start: time.Now(), manifests: manifestCache{m: map[string]*Manifest{}}, inbox: newNotifyInbox(), checked: map[string]time.Time{}}
 	a.hop = &hopproto.Client{As: cfg.HopClient, HTTP: a.httpClient()}
 	funcs := template.FuncMap{
 		"t":             a.T,
@@ -217,10 +220,17 @@ func (a *App) withSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {
 			if s, err := a.db.Session(r.Context(), hashToken(c.Value)); err == nil {
-				if time.Since(s.LastSeen) > time.Minute {
-					a.db.TouchSession(r.Context(), s.TokenHash)
+				if !strings.HasPrefix(r.URL.Path, "/static/") && !a.hubStillTrusts(r.Context(), s) {
+					// Suspended, deleted or demoted at HOP ID since sign-in: the cookie is worth nothing now.
+					a.db.DeleteSession(r.Context(), s.TokenHash)
+					a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), Action: "session.revoked", Detail: map[string]any{"reason": "hub"}})
+					http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: "/", MaxAge: -1, HttpOnly: true, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode})
+				} else {
+					if time.Since(s.LastSeen) > time.Minute {
+						a.db.TouchSession(r.Context(), s.TokenHash)
+					}
+					r = r.WithContext(context.WithValue(r.Context(), ctxSession, s))
 				}
-				r = r.WithContext(context.WithValue(r.Context(), ctxSession, s))
 			}
 		}
 		next.ServeHTTP(w, r)
@@ -375,6 +385,7 @@ func (a *App) Sweep(ctx context.Context) {
 			return
 		case <-t.C:
 			a.db.Sweep(ctx)
+			a.forgetChecks()
 			a.pruneNotifications(ctx)
 			// Keep the registry fresh so a newly registered app shows up without a sign-in.
 			if a.cfg.SSOEnabled() {
