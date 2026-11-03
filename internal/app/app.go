@@ -14,6 +14,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -351,7 +352,7 @@ func (a *App) flashError(w http.ResponseWriter, msg string) {
 
 func (a *App) healthz(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write([]byte(`{"ok":true,"app":"imperium","version":"` + a.cfg.Version + `","uptime_s":` + humanInt(int64(time.Since(a.start).Seconds())) + `}`))
+	_, _ = w.Write([]byte(`{"ok":true,"app":"imperium","version":"` + a.cfg.Version + `","uptime_s":` + strconv.FormatInt(int64(time.Since(a.start).Seconds()), 10) + `}`))
 }
 
 // Sweep runs housekeeping (expired sessions) every few minutes.
