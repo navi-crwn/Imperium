@@ -174,6 +174,11 @@ func (a *App) probeAll(ctx context.Context, s *db.Session, apps []db.App) []Heal
 			all = append(all, ap)
 		}
 	}
+	return a.probeApps(ctx, s, all)
+}
+
+// probeApps checks the given apps concurrently.
+func (a *App) probeApps(ctx context.Context, s *db.Session, all []db.App) []Health {
 	out := make([]Health, len(all))
 	var wg sync.WaitGroup
 	for i, ap := range all {

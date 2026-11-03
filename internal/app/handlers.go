@@ -26,7 +26,12 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 		_ = a.syncApps(s)
 		apps, _ = a.db.Apps(r.Context())
 	}
-	health := a.probeAll(r.Context(), s, apps)
+	var health []Health
+	if globalRole(s) {
+		health = a.probeAll(r.Context(), s, apps)
+	} else { // admin:<app>: the cards of the apps it may open
+		health = a.probeApps(r.Context(), s, visibleApps(s, apps))
+	}
 	var st stats
 	var statsErr string
 	if _, err := a.callHop(r.Context(), s, "GET", "/stats", nil, &st); err != nil {
@@ -315,13 +320,14 @@ func errString(err error) string {
 
 func (a *App) apps(w http.ResponseWriter, r *http.Request) {
 	apps, _ := a.db.Apps(r.Context())
+	apps = visibleApps(current(r), apps)
 	a.mu.Lock()
 	health := map[string]Health{}
 	for k, v := range a.health {
 		health[k] = v
 	}
 	a.mu.Unlock()
-	a.render(w, r, "apps.html", a.T("apps.title"), map[string]any{"Apps": apps, "Health": health, "HopURL": a.cfg.HopURL})
+	a.render(w, r, "apps.html", a.T("apps.title"), map[string]any{"Apps": apps, "Health": health, "HopURL": a.cfg.HopURL, "Global": globalRole(current(r))})
 }
 
 func (a *App) appsSync(w http.ResponseWriter, r *http.Request) {
