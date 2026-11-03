@@ -108,9 +108,21 @@ func (a *App) search(w http.ResponseWriter, r *http.Request) {
 	for i := range hits {
 		if hits[i].Kind == "user" {
 			hits[i].URL = "/users/" + url.PathEscape(hits[i].ID)
+			if alias := a.cfg.Alias(hitIdentity(hits[i].Label)); alias != "" {
+				hits[i].Label, hits[i].Sub = alias, ""
+			}
 		}
 	}
 	a.render(w, r, "search.html", "Search", map[string]any{"Q": q, "Hits": hits, "Err": errMsg})
+}
+
+// hitIdentity splits the label HOP ID gives a person, "@username name <email>", into username and email.
+func hitIdentity(label string) (username, email string) {
+	username, _, _ = strings.Cut(strings.TrimPrefix(label, "@"), " ")
+	if i, j := strings.LastIndex(label, "<"), strings.LastIndex(label, ">"); i >= 0 && j > i {
+		email = label[i+1 : j]
+	}
+	return username, email
 }
 
 // ---- users ----

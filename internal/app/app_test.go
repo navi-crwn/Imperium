@@ -39,6 +39,7 @@ type fakeHop struct {
 	nonces         hopproto.Nonces
 	pxReports      string                         // overrides PixelHop's /hop/reports answer when set
 	member         func(sub string) (int, string) // HOP ID's answer for GET /api/hop/users/{sub}; nil means 404 not_found
+	searchLabel    string                         // overrides the label of the user hit in /api/hop/search
 	memberCalls    []string                       // the subs Imperium asked about
 }
 
@@ -120,7 +121,11 @@ func newFakeHop(t *testing.T) *fakeHop {
 		_, _ = w.Write([]byte(`{"ok":true,"data":{"app":"linkhop","version":"abc123","db":"ok"}}`))
 	}))
 	mux.HandleFunc("GET /api/hop/search", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
-		_, _ = w.Write([]byte(`{"ok":true,"data":[{"kind":"user","id":"26","label":"@rani"}]}`))
+		label := "@rani"
+		if f.searchLabel != "" {
+			label = f.searchLabel
+		}
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"kind":"user","id":"26","label":"` + label + `"}]}`))
 	}))
 	mux.HandleFunc("GET /api/hop/users", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
 		_, _ = w.Write([]byte(`{"ok":true,"data":[{"sub":"26","username":"rani","name":"Rani","email":"r@x","status":"active","roles":[],"verified":true,"links":3}],"page":{"next":"26"}}`))
