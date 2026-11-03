@@ -26,6 +26,10 @@ func main() {
 	}
 	addr := flag.String("addr", "", "listen address (default IMPERIUM_ADDR or 127.0.0.1:8100)")
 	flag.Parse()
+	if flag.NArg() > 0 { // a mistyped subcommand must not start the server
+		fmt.Fprintf(os.Stderr, "imperium: unknown command %q (use: imperium [-addr host:port] | imperium version)\n", flag.Arg(0))
+		os.Exit(2)
+	}
 	cfg := app.LoadConfig(version)
 	if *addr != "" {
 		cfg.Addr = *addr
