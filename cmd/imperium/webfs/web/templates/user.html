@@ -34,14 +34,14 @@
     {{else}}
     {{if .Data.CanNote}}
     <form method="post" action="/users/{{.Data.ID}}/actions">
-      <label>{{t "user.notes"}}</label><textarea name="text" rows="2" required></textarea>
+      <label for="f-user-text-1">{{t "user.notes"}}</label><textarea id="f-user-text-1" name="text" rows="2" required></textarea>
       <input type="hidden" name="action" value="note"><button class="btn mt6" type="submit">{{t "action.note"}}</button>
     </form>
     {{end}}
     <ul class="small">{{range $u.Notes}}<li><span class="muted">{{index . "created_at"}} · {{index . "author"}}:</span> {{index . "text"}}</li>{{end}}</ul>
     {{if .Data.IsAdmin}}
     <form method="post" action="/users/{{.Data.ID}}/actions">
-      <label>{{t "action.reason"}}</label><input type="text" name="reason" placeholder="…">
+      <label for="f-user-reason-2">{{t "action.reason"}}</label><input id="f-user-reason-2" type="text" name="reason" placeholder="…">
       <div class="row mt8">
         {{if eq $p.status "suspended"}}<button class="btn" name="action" value="activate">{{t "action.activate"}}</button>{{else}}<button class="btn danger" name="action" value="suspend">{{t "action.suspend"}}</button>{{end}}
         <button class="btn danger" name="action" value="revoke_sessions">{{t "action.revoke_sessions"}}</button>
@@ -49,12 +49,12 @@
       </div>
     </form>
     <form method="post" action="/users/{{.Data.ID}}/actions">
-      <label>{{t "user.roles"}}</label>
-      {{range .Data.RoleOptions}}<label class="inline"><input type="checkbox" name="roles" value="{{.}}" {{if has $u.Roles .}}checked{{end}}> {{.}}</label>{{end}}
+      <div role="group" aria-labelledby="f-user-roles-4"><span class="lbl" id="f-user-roles-4">{{t "user.roles"}}</span>
+      {{range .Data.RoleOptions}}<label class="inline"><input type="checkbox" name="roles" value="{{.}}" {{if has $u.Roles .}}checked{{end}}> {{.}}</label>{{end}}</div>
       <input type="hidden" name="action" value="set_roles"><div><button class="btn danger mt6" type="submit">{{t "action.set_roles"}}</button></div>
     </form>
     <form method="post" action="/users/{{.Data.ID}}/actions">
-      <label>{{t "action.delete"}} · {{t "action.confirm_delete"}}</label><input type="text" name="confirm" placeholder="@{{$p.username}}">
+      <label for="f-user-confirm-3">{{t "action.delete"}} · {{t "action.confirm_delete"}}</label><input id="f-user-confirm-3" type="text" name="confirm" placeholder="@{{$p.username}}">
       <input type="hidden" name="action" value="delete"><input type="hidden" name="reason" value="deleted via Imperium">
       <button class="btn danger mt6" type="submit">{{t "action.delete"}}</button>
     </form>

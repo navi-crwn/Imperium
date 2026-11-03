@@ -3,13 +3,13 @@
 <h1>{{if .Data.CT}}{{.Data.CT.Label}}{{else}}{{.Data.Type}}{{end}} <span class="muted small">{{if .Data.Total}}{{n .Data.Total}}{{end}}</span></h1>
 <form method="get" action="/apps/{{.Data.App.Slug}}/content" class="filters">
   <input type="hidden" name="type" value="{{.Data.Type}}">
-  <div class="grow"><label>q</label><input type="search" name="q" value="{{.Data.Q}}"></div>
-  <div><label>status</label><input type="text" name="status" value="{{.Data.Status}}" placeholder="live, disabled, hidden…"></div>
-  <div><label>{{t "table.owner"}} (HOP ID / {{t "table.guest"}})</label><input type="text" name="owner" value="{{.Data.Owner}}"></div>
+  <div class="grow"><label for="f-content-q-1">q</label><input id="f-content-q-1" type="search" name="q" value="{{.Data.Q}}"></div>
+  <div><label for="f-content-status-2">status</label><input id="f-content-status-2" type="text" name="status" value="{{.Data.Status}}" placeholder="live, disabled, hidden…"></div>
+  <div><label for="f-content-owner-3">{{t "table.owner"}} (HOP ID / {{t "table.guest"}})</label><input id="f-content-owner-3" type="text" name="owner" value="{{.Data.Owner}}"></div>
   <button class="btn" type="submit">{{t "content.filter"}}</button>
 </form>
 {{if .Data.Err}}<p class="flash err mt14">{{.Data.Err}}</p>{{end}}
-<table class="mt14"><tr><th></th><th>{{t "table.item"}}</th><th>{{t "table.owner"}}</th><th>{{t "table.status"}}</th><th>{{t "table.flags"}}</th><th>#</th><th>{{t "chart.date"}}</th></tr>
+<div class="scroll-x"><table class="mt14"><tr><th></th><th>{{t "table.item"}}</th><th>{{t "table.owner"}}</th><th>{{t "table.status"}}</th><th>{{t "table.flags"}}</th><th>#</th><th>{{t "chart.date"}}</th></tr>
 {{range .Data.Rows}}<tr>
   <td>{{if .Preview}}<img class="thumb" src="{{.Preview}}" alt="">{{end}}</td>
   <td><a href="/apps/{{$.Data.App.Slug}}/content/{{.Type}}/{{.ID}}">{{if .Title}}{{.Title}}{{else}}{{.ID}}{{end}}</a><div class="muted small mono">{{.ID}}{{if .URL}} · <a href="{{.URL}}" target="_blank" rel="noopener">↗</a>{{end}}</div></td>
@@ -19,6 +19,6 @@
   <td class="small">{{if .Clicks}}{{n .Clicks}} clicks{{else if .Views}}{{n .Views}} views{{else if .Size}}{{bytes .Size}}{{end}}</td>
   <td class="small muted">{{.Created}}</td>
 </tr>{{else}}<tr><td colspan="7" class="muted">{{t "content.none"}}</td></tr>{{end}}
-</table>
+</table></div>
 {{if .Data.Next}}<p class="mt12"><a class="btn" href="/apps/{{.Data.App.Slug}}/content?type={{.Data.Type}}&q={{.Data.Q}}&status={{.Data.Status}}&owner={{.Data.Owner}}&cursor={{.Data.Next}}">{{t "more"}}</a></p>{{end}}
 {{template "foot" .}}

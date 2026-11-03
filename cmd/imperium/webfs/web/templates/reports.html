@@ -3,7 +3,7 @@
 <h1>{{t "mod.reports"}} · {{.Data.App.Name}}</h1>
 <p><a class="chip {{if eq .Data.Status "open"}}active{{end}}" href="/apps/{{.Data.App.Slug}}/reports?status=open">{{t "reports.open"}}</a> <a class="chip {{if eq .Data.Status "closed"}}active{{end}}" href="/apps/{{.Data.App.Slug}}/reports?status=closed">{{t "reports.closed"}}</a></p>
 {{if .Data.Err}}<p class="flash err">{{.Data.Err}}</p>{{end}}
-<table><tr><th>When</th><th>Kind</th><th>Subject</th><th>Reason / summary</th><th>Status</th><th></th></tr>
+<div class="scroll-x"><table><tr><th>When</th><th>Kind</th><th>Subject</th><th>Reason / summary</th><th>Status</th><th></th></tr>
 {{range .Data.Rows}}<tr>
   <td class="small">{{index . "created_at"}}{{index . "created"}}</td>
   <td><span class="chip">{{index . "kind"}}</span>{{with index . "score"}} <span class="chip locked">{{.}}</span>{{end}}</td>
@@ -13,5 +13,5 @@
   <td>{{if $.Data.CanAct}}<form method="post" action="/apps/{{$.Data.App.Slug}}/reports/{{index . "id"}}/actions" class="row"><input type="hidden" name="kind" value="{{index . "kind"}}">
     {{range $.Data.M.ReportActions (index . "kind")}}<button class="btn sm {{if confirmAction .}}danger{{end}}" name="action" value="{{.}}">{{actionLabel .}}</button>{{end}}</form>{{end}}</td>
 </tr>{{else}}<tr><td colspan="6" class="muted">{{t "content.none"}}</td></tr>{{end}}
-</table>
+</table></div>
 {{template "foot" .}}

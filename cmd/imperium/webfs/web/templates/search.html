@@ -1,7 +1,7 @@
 {{template "head" .}}{{template "top" .}}
 <h1>"{{.Data.Q}}"</h1>
 {{if .Data.Err}}<p class="flash err">{{t "err.hop"}}: {{.Data.Err}}</p>{{end}}
-<table><tr><th>Kind</th><th>Label</th><th>ID</th><th></th></tr>
+<div class="scroll-x"><table><tr><th>Kind</th><th>Label</th><th>ID</th><th></th></tr>
 {{range .Data.Hits}}<tr><td><span class="chip">{{.Kind}}</span></td><td>{{.Label}}{{if .Sub}} <span class="muted small">{{.Sub}}</span>{{end}}</td><td class="mono">{{.ID}}</td><td>{{if .URL}}<a href="{{.URL}}">{{t "apps.open"}}</a>{{end}}</td></tr>{{else}}<tr><td colspan="4" class="muted">{{t "users.none"}}</td></tr>{{end}}
-</table>
+</table></div>
 {{template "foot" .}}
