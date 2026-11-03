@@ -177,6 +177,7 @@ func clientIP(r *http.Request) string { ip, _ := r.Context().Value(ctxIP).(strin
 func (a *App) securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
+		h.Set("Cache-Control", "no-store") // static files override this in cacheStatic
 		h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self' https: data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'; form-action 'self' "+a.cfg.HopURL+"; base-uri 'self'")
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
