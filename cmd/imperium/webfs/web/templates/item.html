@@ -18,9 +18,9 @@
     <h2 class="card-title">{{t "user.actions"}}</h2>
     {{if and .Data.CanAct .Data.CT}}
     <form method="post" action="/apps/{{.Data.App.Slug}}/content/{{.Data.Type}}/{{.Data.ID}}/actions">
-      <label>{{t "action.reason"}}</label><input type="text" name="reason">
-      <label>params (transfer: to = HOP id; expiry: expires)</label>
-      <div class="grid g2cols"><input type="text" name="p_to" placeholder="to"><input type="text" name="p_expires" placeholder="expires (ISO)"></div>
+      <label for="f-item-reason-1">{{t "action.reason"}}</label><input id="f-item-reason-1" type="text" name="reason">
+      <span class="lbl" id="f-item-params-2">params (transfer: to = HOP id; expiry: expires)</span>
+      <div class="grid g2cols" role="group" aria-labelledby="f-item-params-2"><input type="text" name="p_to" placeholder="to" aria-label="to"><input type="text" name="p_expires" placeholder="expires (ISO)" aria-label="expires"></div>
       <div class="row mt10">
         {{range .Data.CT.Actions}}<button class="btn {{if confirmAction .}}danger{{end}}" name="action" value="{{.}}">{{actionLabel .}}</button>{{end}}
       </div>

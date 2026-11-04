@@ -37,6 +37,10 @@ type fakeHop struct {
 	protectedUser  bool
 	contentQueries []string
 	nonces         hopproto.Nonces
+	pxReports      string                         // overrides PixelHop's /hop/reports answer when set
+	member         func(sub string) (int, string) // HOP ID's answer for GET /api/hop/users/{sub}; nil means 404 not_found
+	searchLabel    string                         // overrides the label of the user hit in /api/hop/search
+	memberCalls    []string                       // the subs Imperium asked about
 }
 
 func newFakeHop(t *testing.T) *fakeHop {
@@ -98,6 +102,10 @@ func newFakeHop(t *testing.T) *fakeHop {
 		_, _ = w.Write([]byte(`{"ok":true,"data":[{"id":"img1","type":"image","title":"cat.jpg","owner":{"sub":"26","username":"rani"},"status":"live","size":20480,"views":7,"created_at":"2026-10-21T10:00:00Z","url":"` + f.px.URL + `/i/img1","preview":"` + f.px.URL + `/t/img1"}],"page":{"next":"","total":1}}`))
 	}))
 	pxmux.HandleFunc("GET /hop/reports", px(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		if f.pxReports != "" {
+			_, _ = w.Write([]byte(f.pxReports))
+			return
+		}
 		_, _ = w.Write([]byte(`{"ok":true,"data":[{"id":"r1","kind":"image","image":{"id":"img1","url":"` + f.px.URL + `/i/img1"},"reason":"nudity","status":"open","created":"2026-10-21T11:00:00Z"}],"page":{"next":"","total":1}}`))
 	}))
 	pxmux.HandleFunc("POST /hop/reports/r1/actions", px(func(w http.ResponseWriter, r *http.Request, body []byte) {
@@ -113,7 +121,11 @@ func newFakeHop(t *testing.T) *fakeHop {
 		_, _ = w.Write([]byte(`{"ok":true,"data":{"app":"linkhop","version":"abc123","db":"ok"}}`))
 	}))
 	mux.HandleFunc("GET /api/hop/search", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
-		_, _ = w.Write([]byte(`{"ok":true,"data":[{"kind":"user","id":"26","label":"@rani"}]}`))
+		label := "@rani"
+		if f.searchLabel != "" {
+			label = f.searchLabel
+		}
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"kind":"user","id":"26","label":"` + label + `"}]}`))
 	}))
 	mux.HandleFunc("GET /api/hop/users", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
 		_, _ = w.Write([]byte(`{"ok":true,"data":[{"sub":"26","username":"rani","name":"Rani","email":"r@x","status":"active","roles":[],"verified":true,"links":3}],"page":{"next":"26"}}`))
@@ -127,6 +139,16 @@ func newFakeHop(t *testing.T) *fakeHop {
 	}))
 	mux.HandleFunc("GET /api/hop/users/27", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
 		_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"27","username":"budi","name":"Budi","email":"b@x","status":"active","verified":true},"counts":{},"sessions":{"count":0},"logins":[],"activity":[],"roles":[],"notes":[],"recent_links":[]}}`))
+	}))
+	mux.HandleFunc("GET /api/hop/users/{sub}", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		sub := r.PathValue("sub")
+		f.memberCalls = append(f.memberCalls, sub)
+		code, out := 404, `{"ok":false,"error":"not_found"}`
+		if f.member != nil {
+			code, out = f.member(sub)
+		}
+		w.WriteHeader(code)
+		_, _ = w.Write([]byte(out))
 	}))
 	mux.HandleFunc("POST /api/hop/users/26/actions", api(func(w http.ResponseWriter, r *http.Request, body []byte) {
 		var m map[string]any

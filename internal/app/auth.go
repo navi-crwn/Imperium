@@ -92,6 +92,9 @@ func (a *App) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		fail("session: " + err.Error())
 		return
 	}
+	a.checkMu.Lock()
+	a.checked[s.TokenHash] = now.Add(sessionRecheck) // HOP ID has just vouched for this person
+	a.checkMu.Unlock()
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Value: tok, Path: "/", HttpOnly: true, Secure: a.cfg.Secure,
 		SameSite: http.SameSiteLaxMode, MaxAge: int(a.cfg.SessionTTL.Seconds())})
 	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: t.Sub, ActorName: t.Username, IP: clientIP(r), Action: "login"})

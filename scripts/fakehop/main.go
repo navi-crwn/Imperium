@@ -131,8 +131,12 @@ func laravelApp(hub bool) http.Handler {
 		}, 74)
 	})
 	s("GET /api/hop/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		roles := []string{}
+		if r.PathValue("id") == "1" {
+			roles = []string{"owner"} // the demo sign-in below; Imperium asks the hub about it every few minutes
+		}
 		ok(w, map[string]any{"profile": map[string]any{"sub": r.PathValue("id"), "username": "rani", "name": "Rani Dewi", "email": "rani@example.test", "status": "active", "verified": true},
-			"counts": map[string]any{"links": 38, "bio_pages": 1, "clicks_30d": 912}, "sessions": map[string]any{"count": 2}, "logins": []any{}, "activity": []any{}, "roles": []string{}, "notes": []any{}, "recent_links": []any{}})
+			"counts": map[string]any{"links": 38, "bio_pages": 1, "clicks_30d": 912}, "sessions": map[string]any{"count": 2}, "logins": []any{}, "activity": []any{}, "roles": roles, "notes": []any{}, "recent_links": []any{}})
 	})
 	s("GET /api/hop/audit", func(w http.ResponseWriter, r *http.Request) {
 		ok(w, []map[string]any{{"created_at": day(0) + "T08:12:00Z", "actor": "1:superadmin", "app_slug": "imperium", "action": "link.disable", "target_type": "link", "target_id": "9", "reason": "phishing"}})

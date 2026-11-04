@@ -56,7 +56,10 @@ func TestAccountHubAndLinkServiceHaveIndependentTargets(t *testing.T) {
 	if accounts.KPI["users"] != 74 || content.KPI["links"] != 19 || content.KPI["users"] != 0 {
 		t.Fatalf("mixed statistics: %+v %+v", accounts, content)
 	}
-	nav := a.nav(httptest.NewRequest("GET", "/apps/linkhop", nil))
+	// the sidebar is only built for a signed-in admin, and lists the apps that admin may open
+	req := httptest.NewRequest("GET", "/apps/linkhop", nil)
+	req = req.WithContext(context.WithValue(req.Context(), ctxSession, &db.Session{Sub: "1", Roles: []string{"owner"}}))
+	nav := a.nav(req)
 	if len(nav.Apps) != 2 || nav.Apps[0].Name != "HOP ID" || nav.Apps[1].Name != "LinkHop" || nav.Apps[1].Tag != "" {
 		t.Fatalf("mixed navigation: %+v", nav.Apps)
 	}
