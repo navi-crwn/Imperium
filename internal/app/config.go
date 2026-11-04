@@ -38,7 +38,7 @@ type Config struct {
 	Lang           string // UI language: id or en (default en)
 	AllowedCIDR    []string
 	// Aliases hide the owner's real identity on every screen, audit row and
-	// alert: "ivan_smb787=superadmin,ivan@x=superadmin" (key = username or email).
+	// alert: "your_username=superadmin,you@example.com=superadmin" (key = username or email).
 	Aliases map[string]string
 	Version string
 }
