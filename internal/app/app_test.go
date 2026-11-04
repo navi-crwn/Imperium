@@ -846,3 +846,25 @@ func TestUser360AppSummaries(t *testing.T) {
 		t.Fatalf("a failing notehop must not look like an unlinked account: %s", b)
 	}
 }
+
+// The example file is public-facing documentation: its alias line shows the format with placeholders only.
+func TestEnvExampleAliasesArePlaceholders(t *testing.T) {
+	b, err := os.ReadFile("../../deploy/imperium.env.example")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, line := range strings.Split(string(b), "\n") {
+		if _, v, ok := strings.Cut(line, "IMPERIUM_ALIASES="); ok {
+			found = true
+			for k := range envAliasesFrom(v) {
+				if k != "your_username" && k != "you@example.com" {
+					t.Error("the alias example names a real-looking account instead of your_username or you@example.com")
+				}
+			}
+		}
+	}
+	if !found {
+		t.Error("the example no longer shows IMPERIUM_ALIASES")
+	}
+}
