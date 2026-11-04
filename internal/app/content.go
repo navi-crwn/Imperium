@@ -57,8 +57,9 @@ func (m *Manifest) HasSettings() bool { return m.Has("settings") || len(m.Settin
 // ReportActions are the buttons a report row gets, by kind: LinkHop's abuse
 // flags (confirm/restore) and visitor reports (investigate/close), else what the
 // manifest lists, else dismiss/resolve.
-func (m *Manifest) ReportActions(kind string) []string {
-	switch kind {
+func (m *Manifest) ReportActions(kind any) []string {
+	k, _ := kind.(string) // an app that sends no "kind" (or a number) must not break the whole page
+	switch k {
 	case "flag":
 		return []string{"confirm", "restore"}
 	case "report":
@@ -205,21 +206,18 @@ func (r row) OwnerSub() string {
 	return str(r.Owner["sub"])
 }
 
-// canAct says whether the session may run a content/report action.
-func canAct(s *db.Session) bool {
-	return isAdmin(s) || contains(s.Roles, "moderator") || hasPrefix(s.Roles, "admin:")
-}
-
-func hasPrefix(list []string, p string) bool {
-	for _, v := range list {
-		if strings.HasPrefix(v, p) {
-			return true
-		}
-	}
-	return false
+// canActIn says whether the session may run a content/report action on one
+// app. admin:<app> is an admin of that app only (hub contract, HEL.ink
+// User.php roleNames); owner, admin and moderator act everywhere.
+func canActIn(s *db.Session, app string) bool {
+	return isAdmin(s) || contains(s.Roles, "moderator") || contains(s.Roles, "admin:"+app)
 }
 
 func (a *App) withSource(w http.ResponseWriter, r *http.Request) (*db.App, *Manifest, bool) {
+	if !canSee(current(r), r.PathValue("app")) { // before the lookup, so an unknown slug answers like a forbidden one
+		a.forbidden(w, r)
+		return nil, nil, false
+	}
 	ap, ok := a.source(r.Context(), r.PathValue("app"))
 	if !ok {
 		a.render(w, r, "error.html", "App", map[string]any{"Err": "unknown app or no admin API", "Back": "/apps"})
@@ -259,7 +257,7 @@ func (a *App) content(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.render(w, r, "content.html", ap.Name+" · "+typ, map[string]any{"App": ap, "M": m, "Type": typ, "CT": ct, "Rows": rows, "Err": errMsg, "Next": next, "Total": total,
-		"Q": q.Get("q"), "Status": q.Get("status"), "Owner": q.Get("owner"), "CanAct": canAct(current(r))})
+		"Q": q.Get("q"), "Status": q.Get("status"), "Owner": q.Get("owner"), "CanAct": canActIn(current(r), ap.Slug)})
 }
 
 // GET /apps/{app}/content/{type}/{id}
@@ -278,7 +276,7 @@ func (a *App) item(w http.ResponseWriter, r *http.Request) {
 	_ = json.Unmarshal(env.Data, &it)
 	var pretty any
 	_ = json.Unmarshal(env.Data, &pretty)
-	a.render(w, r, "item.html", ap.Name+" · "+typ+" "+id, map[string]any{"App": ap, "M": m, "Type": typ, "ID": id, "CT": m.ContentType(typ), "It": it, "Raw": jsonPretty(pretty), "CanAct": canAct(current(r))})
+	a.render(w, r, "item.html", ap.Name+" · "+typ+" "+id, map[string]any{"App": ap, "M": m, "Type": typ, "ID": id, "CT": m.ContentType(typ), "It": it, "Raw": jsonPretty(pretty), "CanAct": canActIn(current(r), ap.Slug)})
 }
 
 // POST /apps/{app}/content/{type}/{id}/actions
@@ -293,7 +291,7 @@ func (a *App) itemAction(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	action := r.FormValue("action")
 	ct := m.ContentType(typ)
-	if !canAct(s) || ct == nil || !contains(ct.Actions, action) {
+	if !canActIn(s, ap.Slug) || ct == nil || !contains(ct.Actions, action) {
 		a.flashError(w, a.T("err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
@@ -334,7 +332,7 @@ func (a *App) reports(w http.ResponseWriter, r *http.Request) {
 	if err := a.call(r.Context(), current(r), ap, "GET", "/reports?status="+url.QueryEscape(status)+"&limit=100", nil, &rows); err != nil {
 		errMsg = err.Error()
 	}
-	a.render(w, r, "reports.html", ap.Name+" · reports", map[string]any{"App": ap, "M": m, "Rows": rows, "Err": errMsg, "Status": status, "CanAct": canAct(current(r))})
+	a.render(w, r, "reports.html", ap.Name+" · reports", map[string]any{"App": ap, "M": m, "Rows": rows, "Err": errMsg, "Status": status, "CanAct": canActIn(current(r), ap.Slug)})
 }
 
 // POST /apps/{app}/reports/{id}/actions  (form field kind = report|flag|"" picks the upstream path)
@@ -347,7 +345,7 @@ func (a *App) reportAction(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	id, kind, action := r.PathValue("id"), r.FormValue("kind"), r.FormValue("action")
 	back := "/apps/" + ap.Slug + "/reports"
-	if !canAct(s) || action == "" {
+	if !canActIn(s, ap.Slug) || action == "" {
 		a.flashError(w, a.T("err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return

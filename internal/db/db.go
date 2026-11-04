@@ -128,6 +128,12 @@ func (d *DB) TouchSession(ctx context.Context, tokenHash string) {
 	_, _ = d.ExecContext(ctx, `UPDATE sessions SET last_seen=? WHERE token_hash=?`, time.Now().Unix(), tokenHash)
 }
 
+// SetSessionRoles replaces the roles a live session carries.
+func (d *DB) SetSessionRoles(ctx context.Context, tokenHash string, roles []string) {
+	js, _ := json.Marshal(roles)
+	_, _ = d.ExecContext(ctx, `UPDATE sessions SET roles=? WHERE token_hash=?`, string(js), tokenHash)
+}
+
 func (d *DB) DeleteSession(ctx context.Context, tokenHash string) {
 	_, _ = d.ExecContext(ctx, `DELETE FROM sessions WHERE token_hash=?`, tokenHash)
 }

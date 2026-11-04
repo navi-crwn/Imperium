@@ -3,6 +3,7 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -13,6 +14,8 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,16 +37,19 @@ type App struct {
 
 	manifests manifestCache
 	inbox     *notifyInbox
+
+	checkMu sync.Mutex
+	checked map[string]time.Time // session token hash -> when HOP ID is asked about it next
 }
 
 // New wires the app. templates and static come from the embedded web/ folder.
 func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
-	a := &App{cfg: cfg, db: d, health: map[string]Health{}, start: time.Now(), manifests: manifestCache{m: map[string]*Manifest{}}, inbox: newNotifyInbox()}
+	a := &App{cfg: cfg, db: d, health: map[string]Health{}, start: time.Now(), manifests: manifestCache{m: map[string]*Manifest{}}, inbox: newNotifyInbox(), checked: map[string]time.Time{}}
 	a.hop = &hopproto.Client{As: cfg.HopClient, HTTP: a.httpClient()}
 	funcs := template.FuncMap{
 		"t":             a.T,
 		"lang":          a.lang,
-		"since":         humanSince,
+		"since":         a.since,
 		"date":          func(t time.Time) string { return t.Local().Format("2006-01-02 15:04") },
 		"n":             humanAny,
 		"has":           func(list []string, x string) bool { return contains(list, x) },
@@ -156,8 +162,14 @@ func (a *App) withIP(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 		if a.cfg.TrustProxy {
-			if xf := r.Header.Get("X-Forwarded-For"); xf != "" {
-				ip = strings.TrimSpace(strings.Split(xf, ",")[0])
+			// The trusted door (nginx) overwrites X-Forwarded-For with the
+			// address it saw, so the last entry is the connecting one; any
+			// earlier entry was typed by the client.
+			if xf := strings.Join(r.Header.Values("X-Forwarded-For"), ","); xf != "" {
+				parts := strings.Split(xf, ",")
+				if last := strings.TrimSpace(parts[len(parts)-1]); net.ParseIP(last) != nil {
+					ip = last
+				}
 			}
 		}
 		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxIP, ip)))
@@ -169,6 +181,7 @@ func clientIP(r *http.Request) string { ip, _ := r.Context().Value(ctxIP).(strin
 func (a *App) securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
+		h.Set("Cache-Control", "no-store") // static files override this in cacheStatic
 		h.Set("Content-Security-Policy", "default-src 'self'; img-src 'self' https: data:; style-src 'self'; script-src 'self'; frame-ancestors 'none'; form-action 'self' "+a.cfg.HopURL+"; base-uri 'self'")
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
@@ -207,10 +220,17 @@ func (a *App) withSession(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if c, err := r.Cookie(sessionCookie); err == nil && c.Value != "" {
 			if s, err := a.db.Session(r.Context(), hashToken(c.Value)); err == nil {
-				if time.Since(s.LastSeen) > time.Minute {
-					a.db.TouchSession(r.Context(), s.TokenHash)
+				if !strings.HasPrefix(r.URL.Path, "/static/") && !a.hubStillTrusts(r.Context(), s) {
+					// Suspended, deleted or demoted at HOP ID since sign-in: the cookie is worth nothing now.
+					a.db.DeleteSession(r.Context(), s.TokenHash)
+					a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), Action: "session.revoked", Detail: map[string]any{"reason": "hub"}})
+					http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: "/", MaxAge: -1, HttpOnly: true, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode})
+				} else {
+					if time.Since(s.LastSeen) > time.Minute {
+						a.db.TouchSession(r.Context(), s.TokenHash)
+					}
+					r = r.WithContext(context.WithValue(r.Context(), ctxSession, s))
 				}
-				r = r.WithContext(context.WithValue(r.Context(), ctxSession, s))
 			}
 		}
 		next.ServeHTTP(w, r)
@@ -226,7 +246,7 @@ func current(r *http.Request) *db.Session {
 func (a *App) member(h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if current(r) == nil {
-			http.Redirect(w, r, "/login?next="+safeNext(r.URL.RequestURI()), http.StatusFound)
+			http.Redirect(w, r, "/login?next="+url.QueryEscape(safeNext(r.URL.RequestURI())), http.StatusFound)
 			return
 		}
 		h(w, r)
@@ -234,7 +254,10 @@ func (a *App) member(h http.HandlerFunc) http.HandlerFunc {
 }
 
 func safeNext(next string) string {
-	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.HasPrefix(next, "/\\") {
+	// Browsers drop tab, CR and LF inside a URL, so "/<TAB>/host" would be read as "//host".
+	if !strings.HasPrefix(next, "/") || strings.HasPrefix(next, "//") || strings.ContainsFunc(next, func(r rune) bool {
+		return r < ' ' || r == 0x7f || r == '\\'
+	}) {
 		return "/"
 	}
 	return next
@@ -244,6 +267,43 @@ func safeNext(next string) string {
 // content and read users, support may only read.
 func isAdmin(s *db.Session) bool {
 	return contains(s.Roles, "owner") || contains(s.Roles, "admin")
+}
+
+// globalRole is one of the hub-wide roles. Only these may see HOP ID's user
+// accounts and audit log; admin:<app> is scoped to its own app.
+func globalRole(s *db.Session) bool {
+	return s != nil && (isAdmin(s) || contains(s.Roles, "moderator") || contains(s.Roles, "support"))
+}
+
+// canSee says whether the session may open an app's pages. A hub-wide role sees every app;
+// admin:<app> sees that app and no other.
+func canSee(s *db.Session, app string) bool {
+	return globalRole(s) || (s != nil && contains(s.Roles, "admin:"+app))
+}
+
+// visibleApps keeps the apps the session may open.
+func visibleApps(s *db.Session, apps []db.App) []db.App {
+	var out []db.App
+	for _, ap := range apps {
+		if canSee(s, ap.Slug) {
+			out = append(out, ap)
+		}
+	}
+	return out
+}
+
+// forbidden answers 403 with the standard page.
+func (a *App) forbidden(w http.ResponseWriter, r *http.Request) {
+	a.renderStatus(w, r, http.StatusForbidden, "error.html", a.T("err.forbidden"), map[string]any{"Err": a.T("err.forbidden"), "Back": "/"})
+}
+
+// requireGlobal answers 403 and returns false for sessions without a hub-wide role.
+func (a *App) requireGlobal(w http.ResponseWriter, r *http.Request) bool {
+	if globalRole(current(r)) {
+		return true
+	}
+	a.forbidden(w, r)
+	return false
 }
 
 func allowedIn(roles []string) bool {
@@ -310,13 +370,18 @@ func (a *App) renderStatus(w http.ResponseWriter, r *http.Request, status int, n
 		}
 		http.SetCookie(w, &http.Cookie{Name: "imp_error", Path: "/", MaxAge: -1, HttpOnly: true, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode})
 	}
+	// Render to memory first: a template error halfway must not send half a page with a 200.
+	var buf bytes.Buffer
+	if err := a.tpl.ExecuteTemplate(&buf, name, p); err != nil {
+		log.Printf("render %s: %v", name, err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if status != http.StatusOK {
 		w.WriteHeader(status)
 	}
-	if err := a.tpl.ExecuteTemplate(w, name, p); err != nil {
-		log.Printf("render %s: %v", name, err)
-	}
+	_, _ = buf.WriteTo(w)
 }
 
 func (a *App) flash(w http.ResponseWriter, msg string) {
@@ -329,7 +394,7 @@ func (a *App) flashError(w http.ResponseWriter, msg string) {
 
 func (a *App) healthz(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	_, _ = w.Write([]byte(`{"ok":true,"app":"imperium","version":"` + a.cfg.Version + `","uptime_s":` + humanInt(int64(time.Since(a.start).Seconds())) + `}`))
+	_, _ = w.Write([]byte(`{"ok":true,"app":"imperium","version":"` + a.cfg.Version + `","uptime_s":` + strconv.FormatInt(int64(time.Since(a.start).Seconds()), 10) + `}`))
 }
 
 // Sweep runs housekeeping (expired sessions) every few minutes.
@@ -342,6 +407,7 @@ func (a *App) Sweep(ctx context.Context) {
 			return
 		case <-t.C:
 			a.db.Sweep(ctx)
+			a.forgetChecks()
 			a.pruneNotifications(ctx)
 			// Keep the registry fresh so a newly registered app shows up without a sign-in.
 			if a.cfg.SSOEnabled() {

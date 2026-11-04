@@ -26,7 +26,12 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 		_ = a.syncApps(s)
 		apps, _ = a.db.Apps(r.Context())
 	}
-	health := a.probeAll(r.Context(), s, apps)
+	var health []Health
+	if globalRole(s) {
+		health = a.probeAll(r.Context(), s, apps)
+	} else { // admin:<app>: the cards of the apps it may open
+		health = a.probeApps(r.Context(), s, visibleApps(s, apps))
+	}
 	var st stats
 	var statsErr string
 	if _, err := a.callHop(r.Context(), s, "GET", "/stats", nil, &st); err != nil {
@@ -89,6 +94,9 @@ type hit struct {
 }
 
 func (a *App) search(w http.ResponseWriter, r *http.Request) {
+	if !a.requireGlobal(w, r) {
+		return
+	}
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	var hits []hit
 	var errMsg string
@@ -100,9 +108,21 @@ func (a *App) search(w http.ResponseWriter, r *http.Request) {
 	for i := range hits {
 		if hits[i].Kind == "user" {
 			hits[i].URL = "/users/" + url.PathEscape(hits[i].ID)
+			if alias := a.cfg.Alias(hitIdentity(hits[i].Label)); alias != "" {
+				hits[i].Label, hits[i].Sub = alias, ""
+			}
 		}
 	}
 	a.render(w, r, "search.html", "Search", map[string]any{"Q": q, "Hits": hits, "Err": errMsg})
+}
+
+// hitIdentity splits the label HOP ID gives a person, "@username name <email>", into username and email.
+func hitIdentity(label string) (username, email string) {
+	username, _, _ = strings.Cut(strings.TrimPrefix(label, "@"), " ")
+	if i, j := strings.LastIndex(label, "<"), strings.LastIndex(label, ">"); i >= 0 && j > i {
+		email = label[i+1 : j]
+	}
+	return username, email
 }
 
 // ---- users ----
@@ -122,6 +142,9 @@ type userRow struct {
 }
 
 func (a *App) users(w http.ResponseWriter, r *http.Request) {
+	if !a.requireGlobal(w, r) {
+		return
+	}
 	q := r.URL.Query()
 	path := "/users?" + url.Values{"q": {q.Get("q")}, "status": {q.Get("status")}, "role": {q.Get("role")}, "cursor": {q.Get("cursor")}, "limit": {"50"}}.Encode()
 	var rows []userRow
@@ -172,6 +195,9 @@ func (u user360) protected() bool {
 }
 
 func (a *App) user(w http.ResponseWriter, r *http.Request) {
+	if !a.requireGlobal(w, r) {
+		return
+	}
 	id := r.PathValue("id")
 	var u user360
 	var raw json.RawMessage
@@ -212,7 +238,7 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 
 	a.render(w, r, "user.html", "@"+str(u.Profile["username"]), map[string]any{
-		"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)),
+		"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)), "CanNote": canNote(current(r)),
 		"Protected": u.protected(),
 		"PixelUser": summaries["pixelhop"].User, "PixelErr": summaries["pixelhop"].Err,
 		"NoteUser": summaries["notehop"].User, "NoteErr": summaries["notehop"].Err,
@@ -220,11 +246,20 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// canNote says whether the session may add a note to a hub user: every
+// hub-wide role except the read-only support role.
+func canNote(s *db.Session) bool { return isAdmin(s) || contains(s.Roles, "moderator") }
+
 func str(v any) string { s, _ := v.(string); return s }
 
 // userAction forwards an action to HOP ID and records it locally too.
 func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 	s := current(r)
+	if !globalRole(s) {
+		a.flashError(w, a.T("err.forbidden"))
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
 	id := r.PathValue("id")
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "bad form", 400)
@@ -241,6 +276,12 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "note":
+		// support is read-only (docs/01-FITUR.md); a note is a write.
+		if !canNote(s) {
+			a.flashError(w, a.T("err.forbidden"))
+			http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
+			return
+		}
 	default:
 		http.Error(w, "unknown action", 400)
 		return
@@ -291,13 +332,14 @@ func errString(err error) string {
 
 func (a *App) apps(w http.ResponseWriter, r *http.Request) {
 	apps, _ := a.db.Apps(r.Context())
+	apps = visibleApps(current(r), apps)
 	a.mu.Lock()
 	health := map[string]Health{}
 	for k, v := range a.health {
 		health[k] = v
 	}
 	a.mu.Unlock()
-	a.render(w, r, "apps.html", a.T("apps.title"), map[string]any{"Apps": apps, "Health": health, "HopURL": a.cfg.HopURL})
+	a.render(w, r, "apps.html", a.T("apps.title"), map[string]any{"Apps": apps, "Health": health, "HopURL": a.cfg.HopURL, "Global": globalRole(current(r))})
 }
 
 func (a *App) appsSync(w http.ResponseWriter, r *http.Request) {
@@ -314,6 +356,9 @@ func (a *App) appsSync(w http.ResponseWriter, r *http.Request) {
 // ---- audit ----
 
 func (a *App) audit(w http.ResponseWriter, r *http.Request) {
+	if !a.requireGlobal(w, r) {
+		return
+	}
 	local, _ := a.db.Audits(r.Context(), 0, 100)
 	var remote []map[string]any
 	var errMsg string
