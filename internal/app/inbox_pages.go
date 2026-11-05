@@ -174,7 +174,43 @@ func (a *App) notification(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	a.render(w, r, "notification.html", n.Title, map[string]any{"N": n, "Events": events, "Actions": actions, "CanAct": canActNotif(s, n.App)})
+	d := map[string]any{"N": n, "Events": events, "Actions": actions, "CanAct": canActNotif(s, n.App)}
+	title := n.Title
+	if dg := n.Sample.Digest; dg != nil {
+		title = a.T("notif.digest.title")
+		d["Digest"] = dg
+		d["DigestRows"], d["OtherSpikes"] = digestRows(dg)
+	}
+	a.render(w, r, "notification.html", title, d)
+}
+
+// digestRow is one line of the digest's domain table.
+type digestRow struct {
+	Domain string
+	Count  int64
+	Spike  bool
+}
+
+// digestRows marks the spiking domains in the top list and returns the spikes
+// that are not in it (a domain can spike without being among the top ten).
+func digestRows(dg *db.Digest) (rows []digestRow, other []string) {
+	for _, dc := range dg.TopDomains {
+		rows = append(rows, digestRow{Domain: dc.Domain, Count: dc.Count, Spike: contains(dg.Spikes, dc.Domain)})
+	}
+	for _, s := range dg.Spikes {
+		if !contains(rows2domains(rows), s) {
+			other = append(other, s)
+		}
+	}
+	return rows, other
+}
+
+func rows2domains(rows []digestRow) []string {
+	out := make([]string, len(rows))
+	for i, r := range rows {
+		out[i] = r.Domain
+	}
+	return out
 }
 
 // POST /notifications/{id}/actions  (form: action = ack|resolve|mute|reopen, reason)
