@@ -165,7 +165,7 @@ type seriesView struct {
 // else the app reports follows alphabetically.
 var kpiOrder = map[string][]string{
 	"hub":      {"users", "users_new_7d", "users_suspended"},
-	"linkhop":  {"users", "users_new_7d", "users_suspended", "links", "links_live", "bio_pages", "clicks_today", "clicks_30d", "open_reports", "open_flags"},
+	"linkhop":  {"users", "users_new_7d", "users_suspended", "links", "links_live", "bio_pages", "clicks_today", "clicks_30d", "open_reports", "open_flags", "guest_links_24h", "guest_links_pending"},
 	"biohop":   {"pages", "pages_published", "pages_draft", "pages_adult", "blocks", "views_total", "clicks_total", "reports_open"},
 	"pixelhop": {"users", "content", "images", "videos", "pdfs", "albums", "bytes", "views", "uploads_today", "open_reports", "bans", "guest_uploads"},
 	"notehop":  {"users", "users_sso", "notes", "notes_encrypted", "notes_public", "notes_owned", "notes_burn", "files", "files_bytes", "files_budget_bytes", "live_rooms", "slug_holds", "reports_open", "takedowns"},
@@ -175,8 +175,42 @@ var kpiOrder = map[string][]string{
 var attentionKeys = []string{"open_reports", "open_flags", "reports_open", "takedowns", "users_suspended", "failed"}
 
 // dashExtensions are the extensions whose data belongs on the dashboard itself
-// (the old control panels showed the queue worker and the realtime rooms there).
-var dashExtensions = map[string]string{"linkhop": "queue", "notehop": "realtime"}
+// (the old control panels showed the queue worker and the realtime rooms there;
+// LinkHop's daily digest of guest links by domain sits next to its queue).
+var dashExtensions = map[string][]string{"linkhop": {"queue", "guest_digest"}, "notehop": {"realtime"}}
+
+// extPaths names the extensions an app serves under a path that differs from
+// the manifest name (LinkHop lists guest_digest and serves /x/guest-digest).
+var extPaths = map[string]string{"guest_digest": "guest-digest"}
+
+// extPath is the path segment of an extension in the app's API.
+func extPath(ext string) string {
+	if p, ok := extPaths[ext]; ok {
+		return p
+	}
+	return url.PathEscape(ext)
+}
+
+// dashRows caps a table on the dashboard; the extension page has it all.
+const dashRows = 10
+
+// opsCard is one extension's answer as the dashboard shows it: the scalars
+// as key/value rows, the lists as small tables.
+type opsCard struct {
+	Ext, Label, Err string
+	KV              []kvRow
+	Tables          []table
+}
+
+func (a *App) opsCard(ext string, data any, err string) opsCard {
+	c := opsCard{Ext: ext, Label: a.extLabel(ext), Err: err, KV: kvRows(data), Tables: tables(data)}
+	for i := range c.Tables {
+		if len(c.Tables[i].Rows) > dashRows {
+			c.Tables[i].Rows = c.Tables[i].Rows[:dashRows]
+		}
+	}
+	return c
+}
 
 func isBytesKey(k string) bool { return k == "bytes" || strings.HasSuffix(k, "_bytes") }
 
@@ -292,8 +326,6 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 		latestErr  string
 		reports    []map[string]any
 		reportsErr string
-		ops        any
-		opsErr     string
 	)
 	var firstCT *ContentType
 	if len(m.ContentTypes) > 0 {
@@ -325,18 +357,25 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 			}
 		})
 	}
-	ext := dashExtensions[ap.Slug]
-	if ext != "" && !contains(m.Extensions, ext) {
-		ext = ""
+	var exts []string
+	for _, ext := range dashExtensions[ap.Slug] {
+		if contains(m.Extensions, ext) {
+			exts = append(exts, ext)
+		}
 	}
-	if ext != "" {
+	opsData, opsErr := make([]any, len(exts)), make([]string, len(exts))
+	for i, ext := range exts {
 		run(func() {
-			if err := a.call(ctx, s, ap, "GET", "/x/"+ext, nil, &ops); err != nil {
-				opsErr = err.Error()
+			if err := a.call(ctx, s, ap, "GET", "/x/"+extPath(ext), nil, &opsData[i]); err != nil {
+				opsErr[i] = err.Error()
 			}
 		})
 	}
 	wg.Wait()
+	var ops []opsCard
+	for i, ext := range exts {
+		ops = append(ops, a.opsCard(ext, opsData[i], opsErr[i]))
+	}
 	kpiMap := st.KPI
 	if len(kpiMap) == 0 {
 		kpiMap = st.Totals
@@ -347,7 +386,6 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 		"KPIs": all, "Attention": attention, "Series": a.seriesViews(st.Series), "StatsErr": statsErr,
 		"CT": firstCT, "Latest": latest, "LatestErr": latestErr,
 		"Reports": reports, "ReportsErr": reportsErr, "HasReports": m.HasReports(),
-		"Ext": ext, "ExtLabel": a.extLabel(ext), "Ops": kvRows(ops), "OpsErr": opsErr,
-		"CanAct": canActIn(s, ap.Slug),
+		"Ops": ops, "CanAct": canActIn(s, ap.Slug),
 	})
 }

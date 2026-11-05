@@ -443,7 +443,7 @@ func (a *App) extension(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query().Get("q")
 	var data any
 	var errMsg string
-	if err := a.call(r.Context(), current(r), ap, "GET", "/x/"+url.PathEscape(ext)+"?q="+url.QueryEscape(q), nil, &data); err != nil {
+	if err := a.call(r.Context(), current(r), ap, "GET", "/x/"+extPath(ext)+"?q="+url.QueryEscape(q), nil, &data); err != nil {
 		errMsg = err.Error()
 	}
 	a.render(w, r, "extension.html", ap.Name+" · "+a.extLabel(ext), map[string]any{"App": ap, "M": m, "Ext": ext, "Data": data, "Tables": tables(data), "Raw": jsonPretty(data), "Err": errMsg, "Q": q,
@@ -480,9 +480,9 @@ func (a *App) extensionAction(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
-	path := "/x/" + url.PathEscape(ext) + "/actions"
+	path := "/x/" + extPath(ext) + "/actions"
 	if sub != "" {
-		path = "/x/" + url.PathEscape(ext) + "/" + sub + "/actions"
+		path = "/x/" + extPath(ext) + "/" + sub + "/actions"
 	}
 	err := a.call(r.Context(), s, ap, "POST", path, map[string]any{"action": action, "reason": reason, "params": params}, nil)
 	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: ap.Slug, Action: ext + "." + action, Target: sub + str(params["ip"]) + str(params["domain"]) + str(params["slug"]) + str(params["id"]),
@@ -541,16 +541,23 @@ func tables(data any) []table {
 		}
 		sortStrings(cols)
 		t := table{Name: name, Cols: cols}
+		if len(cols) == 0 { // a list of scalars (the digest's spiking domains): one column
+			t.Cols = []string{name}
+		}
 		for _, it := range list {
-			m, _ := it.(map[string]any)
 			var r []string
-			for _, c := range cols {
-				r = append(r, cell(m[c]))
+			if m, ok := it.(map[string]any); ok {
+				for _, c := range cols {
+					r = append(r, cell(m[c]))
+				}
+			} else {
+				r = append(r, cell(it))
 			}
 			t.Rows = append(t.Rows, r)
 		}
 		out = append(out, t)
 	}
+
 	switch v := data.(type) {
 	case []any:
 		add("", v)

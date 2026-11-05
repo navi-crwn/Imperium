@@ -81,7 +81,7 @@ func TestNotificationPagesRenderInEveryLanguage(t *testing.T) {
 	}
 	// A language with no catalog falls back to English.
 	a.cfg.Lang = "xx"
-	if _, b := get(t, c, srv.URL+"/notifications"); !strings.Contains(b, "Server errors (HTTP 500) reported") {
+	if _, b := get(t, c, srv.URL+"/notifications"); !strings.Contains(b, "Server errors (HTTP 500) and daily guest link digests reported") {
 		t.Error("fallback to English")
 	}
 }
