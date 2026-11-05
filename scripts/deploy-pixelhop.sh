@@ -8,7 +8,8 @@ LOG=/home/carawin/imperium/backups/sudo-log.txt; S() { printf '%s  %s\n' "$(date
 sudo -n true 2>/dev/null || sudo -v || { echo "Gagal mengautentikasi sudo"; exit 1; }
 cd "$SRC" && git fetch -q origin && git checkout -q "$REF" && { git pull -q --ff-only origin "$REF" 2>/dev/null || true; }
 echo "build $(git log --oneline -1)"
-CGO_ENABLED=0 $GO build -trimpath -ldflags "-s -w -X github.com/navi-crwn/pixelhop/internal/app.Version=$(git describe --tags --always)" -o /tmp/pixelhop.new ./cmd/pixelhop
+VERSION=$(git describe --tags --always); VERSION=${VERSION#v} # tanpa awalan v, sama seperti rilis PixelHop
+CGO_ENABLED=0 $GO build -trimpath -ldflags "-s -w -X github.com/navi-crwn/pixelhop/internal/app.Version=$VERSION" -o /tmp/pixelhop.new ./cmd/pixelhop
 STAMP=$(date +%Y%m%d-%H%M%S)
 python3 -I -c "import sqlite3,sys; sqlite3.connect(sys.argv[1]).backup(sqlite3.connect(sys.argv[2]))" "$APP/data/pixelhop.db" "$APP/backups/pixelhop-before-$STAMP.db"
 cp -p "$APP/pixelhop" "$APP/backups/pixelhop.bin-$STAMP"

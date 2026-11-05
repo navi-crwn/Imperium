@@ -23,6 +23,8 @@ jobs:
         run: scripts/check-cli-unknown-arg.sh ./bin/imperium IMPERIUM_ADDR 8791 IMPERIUM_DB
       - name: Test the commit message check
         run: bash tests/test_check_commit_messages.sh
+      - name: Test the PixelHop deploy version
+        run: bash tests/test_deploy_pixelhop_version.sh
   commit-messages:
     # Only the commits of the pull request, never the older history.
     if: github.event_name == 'pull_request'
