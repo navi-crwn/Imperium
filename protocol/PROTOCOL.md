@@ -65,7 +65,8 @@ Semua waktu ISO-8601 UTC. Id user selalu **HOP ID** (string `sub` dari tiket), b
 
 ## 5. Ekstensi opsional
 
-Dideklarasikan di `manifest.capabilities`, dengan endpoint di bawah `/hop/x/<nama>/…`. Contoh: `storage` (PixelHop), `ai_tools` (PixelHop), `names` (NoteHop: reserved, blocked, slug holds), `files` (NoteHop), `realtime`, `integrations`, `queue` (LinkHop), `abuse_rules` (LinkHop), `kill_switch` (semua: `guest_create`, `registration`, `explore`, `captcha_force`).
+Dideklarasikan di `manifest.capabilities`, dengan endpoint di bawah `/hop/x/<nama>/…`. Contoh: `storage` (PixelHop), `ai_tools` (PixelHop), `names` (NoteHop: reserved, blocked, slug holds), `files` (NoteHop), `realtime`, `integrations`, `queue` (LinkHop), `guest_digest` (LinkHop: ringkasan harian link tamu per domain, disajikan di `/hop/x/guest-digest`; Imperium memetakan nama manifest ke path itu dan menampilkannya di dashboard LinkHop di samping `queue`), `abuse_rules` (LinkHop), `kill_switch` (semua: `guest_create`, `registration`, `explore`, `captcha_force`).
+
 
 ## 6. Webhook dari HOP ID ke aplikasi
 
@@ -87,7 +88,7 @@ Endpoint konten hanya mengembalikan metadata; `preview` kosong untuk konten tere
 
 ## 10. Aplikasi → Imperium: `POST /hop/notify`
 
-Satu-satunya panggilan yang arahnya dari aplikasi ke Imperium. Dipakai aplikasi untuk melaporkan HTTP 500 yang baru saja ia sajikan; Imperium mengelompokkan laporan yang sama dan menampilkannya di halaman **Notifications** (badge jumlah kelompok baru). Tipe lain (backup gagal, disk penuh) memakai amplop yang sama nanti; saat ini hanya `error.500` yang diterima.
+Satu-satunya panggilan yang arahnya dari aplikasi ke Imperium. Dipakai aplikasi untuk melaporkan HTTP 500 yang baru saja ia sajikan, dan oleh LinkHop untuk mengirim ringkasan harian link tamu; Imperium mengelompokkan laporan yang sama dan menampilkannya di halaman **Notifications** (badge jumlah kelompok baru). Tipe lain (backup gagal, disk penuh) memakai amplop yang sama nanti; saat ini yang diterima adalah `error.500` dan `guest.digest`.
 
 ### Alamat dan pembatasan
 
@@ -110,7 +111,7 @@ X-HOP-Signature: base64url( HMAC-SHA256( secret, "hop1|<slug>|<ts>|<nonce>|POST|
 - Secret `hub` adalah secret baris `imperium` di registry (secret Imperium sendiri); aplikasi lain memakai secret miliknya. Imperium menyimpan secret milik aplikasi itu di kolom `apps.own_secret` saat sinkron registry (tiap 5 menit dan tiap login). Aplikasi yang belum tersinkron, atau secret-nya kurang dari 32 karakter, ditolak `401`.
 - Kesalahan tanda tangan: `401 {"ok":false,"error":"bad_signature"|"stale_request"|"replay"}`. Cache nonce ada di memori; sesudah restart, idempotensi dijaga oleh `id` laporan.
 
-### Isi (hanya field ini, field lain ditolak `422`)
+### Isi `error.500` (hanya field ini, field lain ditolak `422`)
 
 ```json
 {
@@ -134,7 +135,7 @@ X-HOP-Signature: base64url( HMAC-SHA256( secret, "hop1|<slug>|<ts>|<nonce>|POST|
 | Field | Aturan |
 |---|---|
 | `id` | wajib, 8-64 karakter `A-Za-z0-9_-`, acak per laporan. Kunci idempotensi per aplikasi: kirim ulang `id` yang sama tidak menambah hitungan. |
-| `type` | wajib, harus `error.500` |
+| `type` | wajib, `error.500` (bagian ini) atau `guest.digest` (bagian berikutnya); `data` mengikuti tipenya |
 | `at` | wajib, RFC 3339 **UTC berakhiran `Z`**, tidak lebih dari 24 jam lalu dan tidak lebih dari 5 menit ke depan |
 | `app` | wajib, harus sama dengan `X-HOP-App` |
 | `env` | wajib, 1-24 karakter `a-z0-9_-` |
@@ -150,6 +151,43 @@ X-HOP-Signature: base64url( HMAC-SHA256( secret, "hop1|<slug>|<ts>|<nonce>|POST|
 
 Scrub `message` di sisi aplikasi: untuk `QueryException`/`PDOException` kirim hanya kode `SQLSTATE` (SQL berisi nilai ikatan, mis. email dan token); untuk pesan lain: ganti email, URL berquery, `Bearer ...`, alamat IP dan deretan 20+ karakter hex/base64 dengan `[redacted]`.
 
+### Isi `guest.digest` (ringkasan harian link tamu, LinkHop)
+
+Dikirim sekali sehari oleh `links:guest-digest` (06:00) bila `HOP_NOTIFY_URL` diisi; amplop (`id`, `at`, `app`, `env`) dan tanda tangannya sama seperti di atas. Isinya hanya angka dan domain terdaftar (registrable domain) tujuan link: **tanpa alamat, tanpa URL, tanpa slug, tanpa IP, tanpa pembuat**. Field lain di `data` ditolak `422`.
+
+```json
+{
+  "id": "01JC8Z3K5Q9X7M2N4P6R8T0V1W",
+  "type": "guest.digest",
+  "at": "2026-11-06T06:00:00Z",
+  "app": "linkhop",
+  "env": "production",
+  "data": {
+    "guest_links": 42,
+    "pending": 7,
+    "disabled": 3,
+    "flags": 2,
+    "creators": 19,
+    "spikes": ["evil-kit.icu"],
+    "top_domains": [["evil-kit.icu", 15], ["example.com", 9], ["?", 1]]
+  }
+}
+```
+
+| Field | Aturan |
+|---|---|
+| `data.guest_links` | wajib, bilangan bulat ≥ 0: link yang dibuat tamu dalam 24 jam |
+| `data.pending` | wajib, bilangan bulat ≥ 0: yang masih menunggu pemeriksaan (halaman peringatan) |
+| `data.disabled` | wajib, bilangan bulat ≥ 0: yang dinonaktifkan pemindaian atau sweep |
+| `data.flags` | wajib, bilangan bulat ≥ 0: temuan abuse pada link tamu |
+| `data.creators` | wajib, bilangan bulat ≥ 0: jumlah pembuat berbeda (hash IP, hanya angkanya) |
+| `data.spikes` | wajib (boleh kosong), maksimum **50** domain yang melonjak |
+| `data.top_domains` | wajib (boleh kosong), maksimum **10** pasangan `[domain, jumlah]`, jumlah bilangan bulat ≥ 0 |
+
+Domain: huruf kecil `a-z`, angka, titik dan tanda hubung saja, minimal satu titik, label maksimum 63 karakter, seluruhnya maksimum 253 (`xn--` boleh). Skema, path, port, `@`, huruf besar dan alamat IP ditolak. Nilai khusus `?` diterima: placeholder LinkHop untuk link yang alamatnya tidak punya host; di halaman tampil sebagai "tanpa domain". Angka pecahan atau string di field angka ditolak (`422 bad_payload`, pesan menyebut nama field, tidak pernah nilainya).
+
+Pengelompokan: sidik jari = `sha256(app | env | type | tanggal)` dengan tanggal = hari UTC dari `at`. Jadi satu kelompok per aplikasi per hari: kirim ulang `id` yang sama = `duplicate:true`; `id` baru di hari yang sama menambah hitungan kelompok dan menggantikan sampelnya; hari baru = kelompok baru (`new`). Digest **tidak** memicu Telegram (bukan kegagalan); ia tampil di badge Notifications, lalu di-ack/resolve/mute seperti kelompok lain. Halaman detail menampilkan angka-angkanya dan tabel domain dengan jumlah, lonjakan ditandai.
+
 ### Jawaban
 
 - `202 {"ok":true,"data":{"group":"12","duplicate":false}}`: tersimpan (`duplicate:true` bila `id` sudah pernah diterima).
@@ -159,7 +197,8 @@ Scrub `message` di sisi aplikasi: untuk `QueryException`/`PDOException` kirim ha
 
 ### Pengelompokan, penyimpanan, retensi
 
-- Sidik jari = `sha256(app | env | class | origin | route)`; sidik jari sama = satu kelompok dengan jumlah, `first_seen`, `last_seen`, dan **20 kejadian terbaru** (`ref`, waktu, versi).
+- Sidik jari `error.500` = `sha256(app | env | class | origin | route)` (digest: lihat di atas); sidik jari sama = satu kelompok dengan jumlah, `first_seen`, `last_seen`, dan **20 kejadian terbaru** (`ref`, waktu, versi).
+
 - Status kelompok: `new` → `seen` (ack) → `resolved` / `muted`. Laporan baru pada kelompok `resolved` membuka lagi kelompok itu (`new`, ditandai regresi). Kelompok `muted` dan `seen` tetap dihitung tetapi tidak memicu Telegram.
 - Retensi: kejadian dihapus setelah 30 hari; kelompok dihapus bila `last_seen` lebih dari 90 hari (kelompok `resolved`: 30 hari). Dijalankan tiap 5 menit di `Sweep`. Batas ukuran: 5.000 kelompok, 1.000 per aplikasi; bila penuh, kelompok non-`new` paling lama dibuang, jika tidak ada maka `429 inbox_full`.
 - Telegram (bila dikonfigurasi): satu pesan per kelompok per cooldown (`IMPERIUM_NOTIFY_COOLDOWN_MINUTES`, bawaan 60) untuk kelompok baru, regresi, atau hitungan melewati 10/100/1000. Isinya hanya aplikasi, kelas, template route dan hitungan.

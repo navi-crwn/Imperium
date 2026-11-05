@@ -337,7 +337,7 @@ func TestHomeShowsNewErrors(t *testing.T) {
 	seed(t, a, "linkhop", "GET /l/{code}", nil)
 	c := signedIn(t, hop, srv, "boss", "owner")
 	_, b := get(t, c, srv.URL+"/")
-	if !strings.Contains(b, "New server errors") || !strings.Contains(b, `href="/notifications?status=new"`) {
+	if !strings.Contains(b, "New notifications") || !strings.Contains(b, `href="/notifications?status=new"`) {
 		t.Error("home page lacks the new-errors card")
 	}
 }

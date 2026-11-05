@@ -16,15 +16,20 @@ import (
 )
 
 // Validation of what an app reports to POST /hop/notify. The payload is a
-// closed list of fields; anything else (bodies, cookies, query strings, IP
-// addresses, user ids …) is refused rather than stored.
+// closed list of fields per type; anything else (bodies, cookies, query
+// strings, IP addresses, user ids, URLs …) is refused rather than stored.
 
 const (
-	notifyMaxBody    = 8 << 10
-	notifyMaxMessage = 200
-	notifyTypeError  = "error.500"
-	notifyMaxAge     = 24 * time.Hour
-	notifyMaxFuture  = 5 * time.Minute
+	notifyMaxBody     = 8 << 10
+	notifyMaxMessage  = 200
+	notifyTypeError   = db.KindError
+	notifyTypeDigest  = db.KindDigest
+	notifyMaxAge      = 24 * time.Hour
+	notifyMaxFuture   = 5 * time.Minute
+	digestMaxSpikes   = 50
+	digestMaxTop      = 10
+	digestMaxDomain   = 253
+	digestUnknownHost = "?" // LinkHop's placeholder for a link whose address has no host
 )
 
 type notifyData struct {
@@ -37,13 +42,27 @@ type notifyData struct {
 	Version string `json:"version"`
 }
 
+// digestData is the data of a guest.digest report (LinkHop's daily digest of
+// guest links by destination domain). Counts are pointers so that a missing
+// one is refused rather than read as zero.
+type digestData struct {
+	GuestLinks *int64              `json:"guest_links"`
+	Pending    *int64              `json:"pending"`
+	Disabled   *int64              `json:"disabled"`
+	Flags      *int64              `json:"flags"`
+	Creators   *int64              `json:"creators"`
+	Spikes     []string            `json:"spikes"`
+	TopDomains [][]json.RawMessage `json:"top_domains"`
+}
+
+// notifyPayload is the envelope; data is decoded once the type is known.
 type notifyPayload struct {
-	ID   string     `json:"id"`
-	Type string     `json:"type"`
-	At   string     `json:"at"`
-	App  string     `json:"app"`
-	Env  string     `json:"env"`
-	Data notifyData `json:"data"`
+	ID   string          `json:"id"`
+	Type string          `json:"type"`
+	At   string          `json:"at"`
+	App  string          `json:"app"`
+	Env  string          `json:"env"`
+	Data json.RawMessage `json:"data"`
 }
 
 // fieldError names the field that failed, never its value.
@@ -66,6 +85,9 @@ var (
 	hexRunRe  = regexp.MustCompile(`^[0-9a-fA-F]{16,}$`)
 	ipv4Re    = regexp.MustCompile(`\b[0-9]{1,3}(?:\.[0-9]{1,3}){3}\b`)
 	ipv6Re    = regexp.MustCompile(`(?i)\b(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{1,4}\b`)
+	// A registrable domain as a digest names it: lower-case labels of letters, digits and
+	// hyphens, at least one dot. No scheme, path, port, userinfo, upper case or IP address.
+	domainRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$`)
 
 	// Scrubbing of free text (the app scrubs first; this is the second net).
 	emailRe    = regexp.MustCompile(`[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}`)
@@ -195,6 +217,20 @@ func validateOrigin(origin string) error {
 	return nil
 }
 
+// decodeData reads the type's data object with no unknown fields. A missing
+// or null data decodes to the zero value, which the field checks then refuse.
+func decodeData(raw json.RawMessage, into any, field string) error {
+	if len(raw) == 0 {
+		return nil
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(into); err != nil {
+		return bad(field, "not accepted: "+trimStr(err.Error(), 120))
+	}
+	return nil
+}
+
 // validateNotify checks a decoded payload against the sender and the clock
 // and returns the report to store, with the message scrubbed.
 func validateNotify(p *notifyPayload, sender string, now time.Time) (db.Report, error) {
@@ -202,8 +238,8 @@ func validateNotify(p *notifyPayload, sender string, now time.Time) (db.Report, 
 	if !reportRe.MatchString(p.ID) {
 		return rep, bad("id", "8 to 64 characters of A-Z a-z 0-9 _ -")
 	}
-	if p.Type != notifyTypeError {
-		return rep, bad("type", "only "+notifyTypeError+" is accepted")
+	if p.Type != notifyTypeError && p.Type != notifyTypeDigest {
+		return rep, bad("type", "only "+notifyTypeError+" and "+notifyTypeDigest+" are accepted")
 	}
 	if p.App != sender {
 		return rep, bad("app", "must equal X-HOP-App")
@@ -221,7 +257,14 @@ func validateNotify(p *notifyPayload, sender string, now time.Time) (db.Report, 
 	if at.After(now.Add(notifyMaxFuture)) || at.Before(now.Add(-notifyMaxAge)) {
 		return rep, bad("at", "must be within the last 24 hours")
 	}
-	d := p.Data
+	rep = db.Report{ID: p.ID, Kind: p.Type, App: sender, Env: p.Env, At: at.UTC()}
+	if p.Type == notifyTypeDigest {
+		return validateDigest(rep, p.Data)
+	}
+	var d notifyData
+	if err := decodeData(p.Data, &d, "body"); err != nil {
+		return db.Report{}, err
+	}
 	if !classRe.MatchString(d.Class) {
 		return rep, bad("data.class", "1 to 160 characters of A-Z a-z 0-9 _ . \\ $ / -")
 	}
@@ -246,6 +289,75 @@ func validateNotify(p *notifyPayload, sender string, now time.Time) (db.Report, 
 	if utf8.RuneCountInString(d.Message) > notifyMaxMessage {
 		return rep, bad("data.message", fmt.Sprintf("at most %d characters", notifyMaxMessage))
 	}
-	return db.Report{ID: p.ID, Kind: p.Type, App: sender, Env: p.Env, At: at.UTC(), Class: d.Class, Message: scrubMessage(d.Message),
-		Origin: d.Origin, Route: d.Route, Method: d.Method, Ref: d.Ref, Version: d.Version}, nil
+	rep.Class, rep.Message, rep.Origin, rep.Route, rep.Method, rep.Ref, rep.Version = d.Class, scrubMessage(d.Message), d.Origin, d.Route, d.Method, d.Ref, d.Version
+	return rep, nil
+}
+
+// validateDomain accepts a registrable domain, or LinkHop's "?" for links
+// whose address has no host. The error never repeats the value.
+func validateDomain(field, s string) error {
+	if s == digestUnknownHost {
+		return nil
+	}
+	if len(s) > digestMaxDomain || !domainRe.MatchString(s) {
+		return bad(field, "must be a lower-case registrable domain (letters, digits, dots, hyphens)")
+	}
+	if ipv4Re.MatchString(s) {
+		return bad(field, "must be a domain, not an IP address")
+	}
+	return nil
+}
+
+// validateDigest checks the data of a guest.digest report: five counts, up to
+// 50 spiking domains and up to 10 [domain, count] pairs. The digest is grouped
+// by the UTC day of "at", one group per app and day.
+func validateDigest(rep db.Report, raw json.RawMessage) (db.Report, error) {
+	var d digestData
+	if err := decodeData(raw, &d, "data"); err != nil {
+		return db.Report{}, err
+	}
+	dg := &db.Digest{Date: rep.At.Format("2006-01-02")}
+	for _, c := range []struct {
+		name string
+		v    *int64
+		into *int64
+	}{
+		{"guest_links", d.GuestLinks, &dg.GuestLinks}, {"pending", d.Pending, &dg.Pending}, {"disabled", d.Disabled, &dg.Disabled},
+		{"flags", d.Flags, &dg.Flags}, {"creators", d.Creators, &dg.Creators},
+	} {
+		if c.v == nil || *c.v < 0 {
+			return db.Report{}, bad("data."+c.name, "required, an integer of 0 or more")
+		}
+		*c.into = *c.v
+	}
+	if len(d.Spikes) > digestMaxSpikes {
+		return db.Report{}, bad("data.spikes", fmt.Sprintf("at most %d domains", digestMaxSpikes))
+	}
+	for _, s := range d.Spikes {
+		if err := validateDomain("data.spikes", s); err != nil {
+			return db.Report{}, err
+		}
+	}
+	dg.Spikes = d.Spikes
+	if len(d.TopDomains) > digestMaxTop {
+		return db.Report{}, bad("data.top_domains", fmt.Sprintf("at most %d pairs", digestMaxTop))
+	}
+	for _, pair := range d.TopDomains {
+		if len(pair) != 2 {
+			return db.Report{}, bad("data.top_domains", "each entry must be a [domain, count] pair")
+		}
+		var dc db.DomainCount
+		if err := json.Unmarshal(pair[0], &dc.Domain); err != nil {
+			return db.Report{}, bad("data.top_domains", "the domain must be a string")
+		}
+		if err := validateDomain("data.top_domains", dc.Domain); err != nil {
+			return db.Report{}, err
+		}
+		if err := json.Unmarshal(pair[1], &dc.Count); err != nil || dc.Count < 0 {
+			return db.Report{}, bad("data.top_domains", "the count must be an integer of 0 or more")
+		}
+		dg.TopDomains = append(dg.TopDomains, dc)
+	}
+	rep.Class, rep.Digest = notifyTypeDigest, dg
+	return rep, nil
 }

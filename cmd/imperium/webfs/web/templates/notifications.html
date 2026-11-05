@@ -14,8 +14,11 @@
 {{range .Data.Rows}}<tr>
   <td class="small mono">{{utc .LastSeen}}</td>
   <td><b>{{.App}}</b>{{if .Env}} <span class="muted small">{{.Env}}</span>{{end}}</td>
-  <td class="mono nwrap">{{.Title}}</td>
-  <td class="mono small nwrap">{{.Sample.Route}}</td>
+  {{if .Sample.Digest}}<td class="nwrap">{{t "notif.digest.title"}} <span class="muted small mono">{{.Sample.Digest.Date}}</span></td>
+  <td class="small nwrap">{{t "notif.digest.guest_links"}}: <span class="mono">{{n .Sample.Digest.GuestLinks}}</span> · {{t "notif.digest.spikes"}}: <span class="mono">{{len .Sample.Digest.Spikes}}</span></td>
+  {{else}}<td class="mono nwrap">{{.Title}}</td>
+  <td class="mono small nwrap">{{.Sample.Route}}</td>{{end}}
+
   <td class="mono">{{n .Count}}{{if .Suppressed}} <span class="muted" title="{{t "notif.suppressed"}}">+{{n .Suppressed}}</span>{{end}}</td>
   <td><span class="chip {{.Status}}">{{t (printf "notif.status.%s" .Status)}}</span>{{if .Regression}}<span class="chip regression">{{t "notif.regression"}}</span>{{end}}</td>
   <td><a href="/notifications/{{.ID}}">{{t "notif.open"}}</a></td>

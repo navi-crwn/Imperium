@@ -13,9 +13,15 @@ import (
 	"time"
 )
 
-// The notification inbox: apps report failures (HTTP 500) to Imperium, which
-// groups identical ones by fingerprint. A group keeps counts and the newest
-// occurrences; the admin acknowledges, resolves or mutes it.
+// The notification inbox: apps report failures (HTTP 500) and daily digests to
+// Imperium, which groups identical ones by fingerprint. A group keeps counts
+// and the newest occurrences; the admin acknowledges, resolves or mutes it.
+
+// Kinds of report (the payload's "type").
+const (
+	KindError  = "error.500"
+	KindDigest = "guest.digest"
+)
 
 // Statuses of a group.
 const (
@@ -48,6 +54,8 @@ var (
 )
 
 // Report is one validated occurrence, as the inbound endpoint hands it over.
+// An error report fills Class, Origin, Route, Method and Ref; a digest fills
+// Digest and uses Class as its title.
 type Report struct {
 	ID      string // unique per app; the idempotency key
 	Kind    string
@@ -61,6 +69,26 @@ type Report struct {
 	Method  string
 	Ref     string
 	Version string
+	Digest  *Digest
+}
+
+// DomainCount is one destination domain of a digest with its number of links.
+type DomainCount struct {
+	Domain string `json:"domain"`
+	Count  int64  `json:"count"`
+}
+
+// Digest is a daily summary an app sends (LinkHop: links created by guests, by
+// destination domain). It holds registrable domains and counts, nothing else.
+type Digest struct {
+	Date       string        `json:"date"` // the UTC day the digest covers, YYYY-MM-DD
+	GuestLinks int64         `json:"guest_links"`
+	Pending    int64         `json:"pending"`
+	Disabled   int64         `json:"disabled"`
+	Flags      int64         `json:"flags"`
+	Creators   int64         `json:"creators"`
+	Spikes     []string      `json:"spikes,omitempty"`
+	TopDomains []DomainCount `json:"top_domains,omitempty"`
 }
 
 // Fingerprint groups identical failures: sha256(app | env | class | origin | route).
@@ -69,16 +97,29 @@ func Fingerprint(app, env, class, origin, route string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func (r Report) fingerprint() string { return Fingerprint(r.App, r.Env, r.Class, r.Origin, r.Route) }
+// DigestFingerprint groups digests one per app and day: sha256(app | env | kind | date).
+func DigestFingerprint(app, env, kind, date string) string {
+	sum := sha256.Sum256([]byte(strings.Join([]string{app, env, kind, date}, "|")))
+	return hex.EncodeToString(sum[:])
+}
+
+// Fingerprint is the group key of the report.
+func (r Report) Fingerprint() string {
+	if r.Digest != nil {
+		return DigestFingerprint(r.App, r.Env, r.Kind, r.Digest.Date)
+	}
+	return Fingerprint(r.App, r.Env, r.Class, r.Origin, r.Route)
+}
 
 // Sample is the latest occurrence's detail kept on the group.
 type Sample struct {
-	Message string `json:"message,omitempty"`
-	Origin  string `json:"origin,omitempty"`
-	Route   string `json:"route,omitempty"`
-	Method  string `json:"method,omitempty"`
-	Version string `json:"version,omitempty"`
-	Ref     string `json:"ref,omitempty"`
+	Message string  `json:"message,omitempty"`
+	Origin  string  `json:"origin,omitempty"`
+	Route   string  `json:"route,omitempty"`
+	Method  string  `json:"method,omitempty"`
+	Version string  `json:"version,omitempty"`
+	Ref     string  `json:"ref,omitempty"`
+	Digest  *Digest `json:"digest,omitempty"`
 }
 
 // Notification is one group.
@@ -138,9 +179,10 @@ func (d *DB) RecordNotification(ctx context.Context, rep Report) (RecordResult, 
 	case !errors.Is(err, sql.ErrNoRows):
 		return res, err
 	}
-	sample, _ := json.Marshal(Sample{Message: rep.Message, Origin: rep.Origin, Route: rep.Route, Method: rep.Method, Version: rep.Version, Ref: rep.Ref})
+	sample, _ := json.Marshal(Sample{Message: rep.Message, Origin: rep.Origin, Route: rep.Route, Method: rep.Method, Version: rep.Version, Ref: rep.Ref, Digest: rep.Digest})
 	at := rep.At.Unix()
-	fp := rep.fingerprint()
+	fp := rep.Fingerprint()
+
 	var status string
 	var count int64
 	var regression bool
