@@ -19,9 +19,10 @@ import (
 	"github.com/navi-crwn/imperium/internal/hopproto"
 )
 
-// POST /hop/notify: an app reports a failure (an HTTP 500 it served). It is a
-// normal signed HOP request made by the sending app with its own registry
-// secret, and it only works for direct callers on this machine.
+// POST /hop/notify: an app reports a failure (an HTTP 500 it served) or sends
+// its daily guest-link digest. It is a normal signed HOP request made by the
+// sending app with its own registry secret, and it only works for direct
+// callers on this machine.
 
 // Per-app and global limits on accepted reports.
 const (
@@ -228,7 +229,7 @@ func (a *App) hopNotify(w http.ResponseWriter, r *http.Request) {
 		key string
 	}{{a.inbox.perApp, slug}, {a.inbox.global, "*"}} {
 		if ok, wait := l.lim.allow(l.key); !ok {
-			if err := a.db.BumpSuppressed(ctx, db.Fingerprint(rep.App, rep.Env, rep.Class, rep.Origin, rep.Route)); err != nil {
+			if err := a.db.BumpSuppressed(ctx, rep.Fingerprint()); err != nil {
 				log.Printf("notify: suppressed counter: %v", err)
 			}
 			w.Header().Set("Retry-After", strconv.Itoa(int(math.Ceil(wait.Seconds()))))
@@ -254,12 +255,14 @@ func (a *App) hopNotify(w http.ResponseWriter, r *http.Request) {
 
 // alertGroup sends the one Telegram message a group may cause per cooldown:
 // for a new group, a regression, or a count crossing 10, 100 or 1000. Muted
-// and acknowledged groups never alert. The text holds the app, class, route
-// template and count, nothing a visitor typed.
+// and acknowledged groups never alert, and a digest never does: it is a daily
+// summary, not a failure, and the Notifications badge shows it. The text holds
+// the app, class, route template and count, nothing a visitor typed.
 func (a *App) alertGroup(rep db.Report, res db.RecordResult) {
-	if res.Duplicate || res.Status != db.NotifNew || a.cfg.TelegramToken == "" || a.cfg.TelegramChat == "" {
+	if rep.Digest != nil || res.Duplicate || res.Status != db.NotifNew || a.cfg.TelegramToken == "" || a.cfg.TelegramChat == "" {
 		return
 	}
+
 	crossed := false
 	for _, t := range []int64{10, 100, 1000} {
 		crossed = crossed || (res.OldCount < t && res.Count >= t)

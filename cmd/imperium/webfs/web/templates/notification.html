@@ -1,10 +1,26 @@
 {{template "head" .}}{{template "top" .}}
 {{$n := .Data.N}}
 <p><a href="/notifications">← {{t "notif.back"}}</a></p>
-<h1 class="notif-title"><span class="mono">{{$n.Title}}</span> <span class="chip {{$n.Status}}">{{t (printf "notif.status.%s" $n.Status)}}</span>{{if $n.Regression}}<span class="chip regression">{{t "notif.regression"}}</span>{{end}}</h1>
+{{$dg := .Data.Digest}}
+<h1 class="notif-title">{{if $dg}}{{t "notif.digest.title"}} <span class="mono">{{$dg.Date}}</span>{{else}}<span class="mono">{{$n.Title}}</span>{{end}} <span class="chip {{$n.Status}}">{{t (printf "notif.status.%s" $n.Status)}}</span>{{if $n.Regression}}<span class="chip regression">{{t "notif.regression"}}</span>{{end}}</h1>
 <div class="grid g2">
   <div class="card">
     <h2 class="card-title">{{t "notif.details"}}</h2>
+    {{if $dg}}
+    <p class="muted small">{{t "notif.digest.hint"}}</p>
+    <table>
+      <tr><th class="w30">{{t "notif.app"}}</th><td><b>{{$n.App}}</b>{{if $n.Env}} <span class="muted small">{{$n.Env}}</span>{{end}}</td></tr>
+      <tr><th>{{t "notif.digest.date"}}</th><td class="mono small">{{$dg.Date}}</td></tr>
+      <tr><th>{{t "notif.digest.guest_links"}}</th><td class="mono">{{n $dg.GuestLinks}}</td></tr>
+      <tr><th>{{t "notif.digest.pending"}}</th><td class="mono">{{n $dg.Pending}}</td></tr>
+      <tr><th>{{t "notif.digest.disabled"}}</th><td class="mono">{{n $dg.Disabled}}</td></tr>
+      <tr><th>{{t "notif.digest.flags"}}</th><td class="mono">{{n $dg.Flags}}</td></tr>
+      <tr><th>{{t "notif.digest.creators"}}</th><td class="mono">{{n $dg.Creators}}</td></tr>
+      <tr><th>{{t "notif.count"}}</th><td class="mono">{{n $n.Count}}{{if $n.Suppressed}} <span class="muted small">· {{t "notif.suppressed"}}: {{n $n.Suppressed}}</span>{{end}}</td></tr>
+      <tr><th>{{t "notif.first_seen"}}</th><td class="mono small">{{utc $n.FirstSeen}} UTC</td></tr>
+      <tr><th>{{t "notif.last_seen"}}</th><td class="mono small">{{utc $n.LastSeen}} UTC</td></tr>
+    </table>
+    {{else}}
     <table>
       <tr><th class="w30">{{t "notif.app"}}</th><td><b>{{$n.App}}</b>{{if $n.Env}} <span class="muted small">{{$n.Env}}</span>{{end}}</td></tr>
       <tr><th>{{t "notif.route"}}</th><td class="mono small nwrap">{{$n.Sample.Route}}</td></tr>
@@ -16,6 +32,7 @@
       <tr><th>{{t "notif.first_seen"}}</th><td class="mono small">{{utc $n.FirstSeen}} UTC</td></tr>
       <tr><th>{{t "notif.last_seen"}}</th><td class="mono small">{{utc $n.LastSeen}} UTC</td></tr>
     </table>
+    {{end}}
   </div>
   <div class="card actions">
     <h2 class="card-title">{{t "notif.actions"}}</h2>
@@ -32,6 +49,16 @@
     {{else}}<p class="muted small">{{t "notif.readonly"}}</p>{{end}}
   </div>
 </div>
+{{if $dg}}
+<h2>{{t "notif.digest.domains"}}</h2>
+<div class="scroll-x">
+<table>
+<tr><th>{{t "notif.digest.domain"}}</th><th>{{t "notif.digest.links"}}</th><th></th></tr>
+{{range .Data.DigestRows}}<tr><td class="mono">{{if eq .Domain "?"}}<span class="muted">{{t "notif.digest.unknown"}}</span>{{else}}{{.Domain}}{{end}}</td><td class="mono">{{n .Count}}</td><td>{{if .Spike}}<span class="chip spike">{{t "notif.digest.spike"}}</span>{{end}}</td></tr>{{else}}<tr><td colspan="3" class="muted">{{t "notif.digest.none"}}</td></tr>{{end}}
+</table>
+</div>
+{{if .Data.OtherSpikes}}<p class="small"><b>{{t "notif.digest.other_spikes"}}:</b> {{range $i, $s := .Data.OtherSpikes}}{{if $i}}, {{end}}<span class="mono">{{$s}}</span>{{end}}</p>{{end}}
+{{else}}
 <h2>{{t "notif.occurrences"}}</h2>
 <p class="muted small">{{t "notif.occurrences_hint"}}</p>
 <div class="scroll-x">
@@ -40,4 +67,6 @@
 {{range .Data.Events}}<tr><td class="mono small">{{utc .At}}</td><td class="mono">{{.Ref}}</td><td class="mono small">{{.Version}}</td></tr>{{else}}<tr><td colspan="3" class="muted">{{t "notif.none"}}</td></tr>{{end}}
 </table>
 </div>
+{{end}}
+
 {{template "foot" .}}
