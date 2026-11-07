@@ -120,6 +120,7 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("POST /apps/{app}/content/{type}/{id}/actions", a.member(a.itemAction))
 	m.HandleFunc("GET /apps/{app}/reports", a.member(a.reports))
 	m.HandleFunc("POST /apps/{app}/reports/{id}/actions", a.member(a.reportAction))
+	m.HandleFunc("POST /apps/{app}/reports/actions", a.member(a.reportsBulkAction))
 	m.HandleFunc("GET /apps/{app}/settings", a.member(a.settings))
 	m.HandleFunc("POST /apps/{app}/settings", a.member(a.saveSettings))
 	m.HandleFunc("GET /apps/{app}/x/{ext}", a.member(a.extension))
