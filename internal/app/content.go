@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
@@ -73,6 +74,9 @@ func (m *Manifest) ReportActions(kind any) []string {
 
 // extActions are the actions an extension understands, when Imperium knows
 // them; the form offers a free action field otherwise.
+// maxBulk bounds one bulk request, so a mis-click cannot walk thousands of rows.
+const maxBulk = 200
+
 var extActions = map[string][]string{
 	"ip":      {"ban", "unban", "unwatch"},
 	"domains": {"add", "remove"},
@@ -332,7 +336,7 @@ func (a *App) reports(w http.ResponseWriter, r *http.Request) {
 	if err := a.call(r.Context(), current(r), ap, "GET", "/reports?status="+url.QueryEscape(status)+"&limit=100", nil, &rows); err != nil {
 		errMsg = err.Error()
 	}
-	a.render(w, r, "reports.html", ap.Name+" · reports", map[string]any{"App": ap, "M": m, "Rows": rows, "Err": errMsg, "Status": status, "CanAct": canActIn(current(r), ap.Slug)})
+	a.render(w, r, "reports.html", ap.Name+" · reports", map[string]any{"App": ap, "M": m, "Rows": rows, "Err": errMsg, "Status": status, "CanAct": canActIn(current(r), ap.Slug), "Actions": reportActionChoices(m, rows)})
 }
 
 // POST /apps/{app}/reports/{id}/actions  (form field kind = report|flag|"" picks the upstream path)
@@ -363,6 +367,111 @@ func (a *App) reportAction(w http.ResponseWriter, r *http.Request) {
 		a.flashError(w, a.T("action.failed")+": "+err.Error())
 	} else {
 		a.flash(w, a.T("action.done"))
+	}
+	http.Redirect(w, r, back, http.StatusFound)
+}
+
+// reportActionChoices lists the actions the seen rows allow, so the bulk select
+// never offers an action the manifest would refuse on every row.
+func reportActionChoices(m *Manifest, rows []map[string]any) []string {
+	var out []string
+	seen := map[string]bool{}
+	kinds := []any{nil}
+	for _, row := range rows {
+		if k, ok := row["kind"]; ok {
+			kinds = append(kinds, k)
+		}
+	}
+	for _, k := range kinds {
+		for _, action := range m.ReportActions(k) {
+			if !seen[action] {
+				seen[action] = true
+				out = append(out, action)
+			}
+		}
+	}
+	return out
+}
+
+// POST /apps/{app}/reports/actions: one action over many rows (bulk). Each row
+// keeps its own upstream call and its own audit line; the response is a summary.
+func (a *App) reportsBulkAction(w http.ResponseWriter, r *http.Request) {
+	s := current(r)
+	ap, m, ok := a.withSource(w, r)
+	if !ok {
+		return
+	}
+	_ = r.ParseForm()
+	back := "/apps/" + ap.Slug + "/reports"
+	// Keep the tab the operator was on (open/closed), but only as a relative path.
+	if st := strings.TrimSpace(r.FormValue("status")); st == "open" || st == "closed" {
+		back += "?status=" + st
+	}
+	action := strings.TrimSpace(r.FormValue("action"))
+	if !canActIn(s, ap.Slug) || action == "" {
+		a.flashError(w, a.T("err.forbidden"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	if r.FormValue("confirm") != "yes" && confirmAction(action) {
+		a.flashError(w, a.T("bulk.need_confirm"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	// Each ticked row sends "id|kind", so a row's queue can never drift away
+	// from its id. Plain id=/kind= pairs stay accepted for scripts and tests.
+	picks := r.Form["pick"]
+	legacyIDs, legacyKinds := r.Form["id"], r.Form["kind"]
+	if len(picks) == 0 && len(legacyIDs) > 0 {
+		for i, id := range legacyIDs {
+			kind := ""
+			if i < len(legacyKinds) {
+				kind = legacyKinds[i]
+			}
+			picks = append(picks, id+"|"+kind)
+		}
+	}
+	if len(picks) == 0 {
+		a.flashError(w, a.T("bulk.none"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	if len(picks) > maxBulk {
+		a.flashError(w, a.T("bulk.too_many"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	reason := strings.TrimSpace(r.FormValue("reason"))
+	done, skipped, failed := 0, 0, 0
+	for _, pick := range picks {
+		id, kind, _ := strings.Cut(pick, "|")
+		id = strings.TrimSpace(id)
+		kind = strings.TrimSpace(kind)
+		// An id the selected action does not cover is skipped, not sent upstream:
+		// LinkHop keeps separate flag/report queues with different actions.
+		if id == "" || !contains(m.ReportActions(kind), action) {
+			skipped++
+			a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: ap.Slug, Action: "report." + action, Target: kind + ":" + id,
+				Detail: map[string]any{"reason": reason, "bulk": true, "skipped": true}, OK: false})
+			continue
+		}
+		path := "/reports/" + url.PathEscape(id) + "/actions"
+		if kind == "flag" || kind == "report" {
+			path = "/reports/" + url.PathEscape(kind) + "/" + url.PathEscape(id) + "/actions"
+		}
+		err := a.call(r.Context(), s, ap, "POST", path, map[string]any{"action": action, "reason": reason}, nil)
+		a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: ap.Slug, Action: "report." + action, Target: kind + ":" + id,
+			Detail: map[string]any{"reason": reason, "bulk": true, "error": errString(err)}, OK: err == nil})
+		if err != nil {
+			failed++
+		} else {
+			done++
+		}
+	}
+	if failed > 0 {
+		a.flashError(w, fmt.Sprintf(a.T("bulk.summary_failed"), done, failed, skipped))
+	} else {
+		a.flash(w, fmt.Sprintf(a.T("bulk.summary"), done, skipped))
 	}
 	http.Redirect(w, r, back, http.StatusFound)
 }
