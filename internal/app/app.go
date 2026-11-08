@@ -66,7 +66,7 @@ func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
 			switch slug {
 			case "hub":
 				return "/static/hop/apps/hub/rabbit-mark.png"
-			case "linkhop", "biohop", "pixelhop", "notehop":
+			case "linkhop", "biohop", "pixelhop", "notehop", "filehop":
 				return "/static/hop/apps/" + slug + "/mark.svg"
 			}
 			return "/static/imperium.svg"
