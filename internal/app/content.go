@@ -261,7 +261,7 @@ func (a *App) content(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.render(w, r, "content.html", ap.Name+" · "+typ, map[string]any{"App": ap, "M": m, "Type": typ, "CT": ct, "Rows": rows, "Err": errMsg, "Next": next, "Total": total,
-		"Q": q.Get("q"), "Status": q.Get("status"), "Owner": q.Get("owner"), "CanAct": canActIn(current(r), ap.Slug)})
+		"Q": q.Get("q"), "Status": q.Get("status"), "Owner": q.Get("owner"), "CanAct": canActIn(current(r), ap.Slug), "BulkActions": bulkContentActions(ct)})
 }
 
 // GET /apps/{app}/content/{type}/{id}
@@ -472,6 +472,94 @@ func (a *App) reportsBulkAction(w http.ResponseWriter, r *http.Request) {
 		a.flashError(w, fmt.Sprintf(a.T("bulk.summary_failed"), done, failed, skipped))
 	} else {
 		a.flash(w, fmt.Sprintf(a.T("bulk.summary"), done, skipped))
+	}
+	http.Redirect(w, r, back, http.StatusFound)
+}
+
+// paramActions need a value per object (a new owner, a date), which a bulk form
+// cannot give; they stay on the item page.
+var paramActions = map[string]bool{"transfer": true, "set_expiry": true}
+
+// bulkContentActions are the content type's actions that make sense for many
+// rows at once, in the manifest's order.
+func bulkContentActions(ct *ContentType) []string {
+	if ct == nil {
+		return nil
+	}
+	var out []string
+	for _, action := range ct.Actions {
+		if !paramActions[action] {
+			out = append(out, action)
+		}
+	}
+	return out
+}
+
+// uniquePicks trims the ticked ids and drops blanks and repeats, so a row ticked
+// twice (or a crafted form) never sends the same call twice.
+func uniquePicks(values []string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, v := range values {
+		v = strings.TrimSpace(v)
+		if v != "" && !seen[v] {
+			seen[v] = true
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// POST /apps/{app}/content/actions: one action over many items of one content
+// type. Each item keeps its own upstream call and its own audit line.
+func (a *App) contentBulkAction(w http.ResponseWriter, r *http.Request) {
+	s := current(r)
+	ap, m, ok := a.withSource(w, r)
+	if !ok {
+		return
+	}
+	_ = r.ParseForm()
+	typ := strings.TrimSpace(r.FormValue("type"))
+	// Back to the same list: type and filters, as a relative path only.
+	back := "/apps/" + ap.Slug + "/content?" + url.Values{"type": {typ}, "q": {r.FormValue("q")}, "status": {r.FormValue("status")}, "owner": {r.FormValue("owner")}}.Encode()
+	action := strings.TrimSpace(r.FormValue("action"))
+	if !canActIn(s, ap.Slug) || action == "" || !contains(bulkContentActions(m.ContentType(typ)), action) {
+		a.flashError(w, a.T("err.forbidden"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	if r.FormValue("confirm") != "yes" && confirmAction(action) {
+		a.flashError(w, a.T("bulk.need_confirm"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	ids := uniquePicks(r.Form["pick"])
+	if len(ids) == 0 {
+		a.flashError(w, a.T("bulk.none"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	if len(ids) > maxBulk {
+		a.flashError(w, a.T("bulk.too_many"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	reason := strings.TrimSpace(r.FormValue("reason"))
+	done, failed := 0, 0
+	for _, id := range ids {
+		err := a.call(r.Context(), s, ap, "POST", "/content/"+url.PathEscape(typ)+"/"+url.PathEscape(id)+"/actions", map[string]any{"action": action, "reason": reason, "params": map[string]any{}}, nil)
+		a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: ap.Slug, Action: typ + "." + action, Target: id,
+			Detail: map[string]any{"reason": reason, "bulk": true, "error": errString(err)}, OK: err == nil})
+		if err != nil {
+			failed++
+		} else {
+			done++
+		}
+	}
+	if failed > 0 {
+		a.flashError(w, fmt.Sprintf(a.T("bulk.summary_failed"), done, failed, 0))
+	} else {
+		a.flash(w, fmt.Sprintf(a.T("bulk.summary"), done, 0))
 	}
 	http.Redirect(w, r, back, http.StatusFound)
 }

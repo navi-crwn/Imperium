@@ -19,6 +19,8 @@ func (a *App) actionLabel(action string) string {
 		"investigate":      {"Investigate", "Selidiki"}, "close": {"Close report", "Tutup laporan"},
 		"rescan": {"Scan again", "Pindai ulang"}, "freeze": {"Freeze", "Bekukan"},
 		"set_expiry": {"Set expiry", "Atur kedaluwarsa"}, "release_slug": {"Release slug", "Lepaskan slug"},
+		"suspend": {"Suspend", "Tangguhkan"}, "activate": {"Activate", "Aktifkan akun"},
+		"revoke_sessions": {"Sign out everywhere", "Keluarkan dari semua sesi"}, "revoke_tokens": {"Revoke API tokens", "Cabut token API"},
 	}
 	if label, ok := labels[action]; ok {
 		if a.lang() == "id" {
