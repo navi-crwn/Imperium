@@ -116,6 +116,15 @@ if [ -f "$SRC/notehop/notehop.db" ]; then
   [ -f "$SRC/system/notehop.unit" ] && sed -n '/^# \/etc\/systemd/,$p' "$SRC/system/notehop.unit" | sed 1d > /etc/systemd/system/notehop.service
 fi
 
+if [ -f "$TMP/secrets/filehop.env" ]; then
+  say "FileHop: env dan unit (database mulai kosong: hanya sesi)"
+  id filehop >/dev/null 2>&1 || useradd -r -s /usr/sbin/nologin -d /var/lib/filehop filehop
+  mkdir -p /etc/filehop
+  install -o root -g filehop -m 640 "$TMP/secrets/filehop.env" /etc/filehop/filehop.env
+  [ -f "$SRC/system/filehop.unit" ] && sed -n '/^# \/etc\/systemd/,$p' "$SRC/system/filehop.unit" | sed 1d > /etc/systemd/system/filehop.service
+  [ -x /usr/local/bin/filehop ] || say "  FileHop: biner /usr/local/bin/filehop belum ada; bangun dari repo (deploy/install.sh)"
+fi
+
 say "nginx + cron"
 cp -n "$SRC"/system/nginx-sites-enabled/* /etc/nginx/sites-available/ 2>/dev/null || true
 for f in "$SRC"/system/nginx-sites-enabled/*; do ln -sf "/etc/nginx/sites-available/$(basename "$f")" /etc/nginx/sites-enabled/; done
@@ -123,7 +132,7 @@ nginx -t && systemctl reload nginx
 [ -f "$SRC/system/crontab-carawin.txt" ] && crontab -u carawin "$SRC/system/crontab-carawin.txt"
 
 systemctl daemon-reload
-systemctl start pixelhop notehop linkhop-queue hub-queue biohop-queue queue-worker 2>/dev/null || true
+systemctl start pixelhop notehop filehop linkhop-queue hub-queue biohop-queue queue-worker 2>/dev/null || true
 say "Healthcheck"
 for u in "https://hel.ink/health/queue" "http://127.0.0.1:8080/api/v1/stats" "http://127.0.0.1:8090/healthz"; do
   printf '  %s -> ' "$u"; curl -s -o /dev/null -w '%{http_code}\n' -m 10 "$u" || echo "gagal"

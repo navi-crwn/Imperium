@@ -215,7 +215,7 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	// Each app's own view of the person, fetched side by side. An app that has
 	// no account for this HOP id answers not_found; any other error is shown as
 	// such, so a broken app never reads as "not linked".
-	summaries := map[string]*appSummary{"pixelhop": {}, "notehop": {}}
+	summaries := map[string]*appSummary{"pixelhop": {}, "notehop": {}, "filehop": {}}
 	var wg sync.WaitGroup
 	for slug, sum := range summaries {
 		ap, err := a.db.App(r.Context(), slug)
@@ -242,6 +242,7 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 		"Protected": u.protected(),
 		"PixelUser": summaries["pixelhop"].User, "PixelErr": summaries["pixelhop"].Err,
 		"NoteUser": summaries["notehop"].User, "NoteErr": summaries["notehop"].Err,
+		"FileUser": summaries["filehop"].User, "FileErr": summaries["filehop"].Err,
 		"RoleOptions": []string{"owner", "admin", "moderator", "support"},
 	})
 }

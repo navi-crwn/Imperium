@@ -1,8 +1,8 @@
-// fakehop plays HOP ID, LinkHop, PixelHop and NoteHop on localhost so Imperium's UI can
+// fakehop plays HOP ID, LinkHop, PixelHop, NoteHop and FileHop on localhost so Imperium's UI can
 // be developed and screenshotted without the real servers. Sign-in always
 // succeeds as an owner with 2FA. Not for production.
 //
-//	go run ./scripts/fakehop -addr 127.0.0.1:9101 -px 127.0.0.1:9102 -nh 127.0.0.1:9103
+//	go run ./scripts/fakehop -addr 127.0.0.1:9101 -px 127.0.0.1:9102 -nh 127.0.0.1:9103 -fh 127.0.0.1:9105
 //	HOP_URL=http://127.0.0.1:9101 HOP_SSO_SECRET=<secret> ... bin/imperium -addr 127.0.0.1:9100
 package main
 
@@ -25,9 +25,11 @@ var (
 	lhAddr   = flag.String("lh", "127.0.0.1:9104", "LinkHop address")
 	pxAddr   = flag.String("px", "127.0.0.1:9102", "PixelHop address")
 	nhAddr   = flag.String("nh", "127.0.0.1:9103", "NoteHop address")
+	fhAddr   = flag.String("fh", "127.0.0.1:9105", "FileHop address")
 	secret   = flag.String("secret", "imperium-dev-secret-that-is-long-enough-1234", "Imperium's secret in the registry")
 	pxSecret = flag.String("px-secret", "pixelhop-dev-secret-that-is-long-enough-12", "PixelHop's secret")
 	nhSecret = flag.String("nh-secret", "notehop-dev-secret-that-is-long-enough-123", "NoteHop's secret")
+	fhSecret = flag.String("fh-secret", "filehop-dev-secret-that-is-long-enough-123", "FileHop's secret")
 	nonces   hopproto.Nonces
 )
 
@@ -69,8 +71,9 @@ func main() {
 	flag.Parse()
 	go func() { log.Fatal(http.ListenAndServe(*pxAddr, pixelhop())) }()
 	go func() { log.Fatal(http.ListenAndServe(*nhAddr, notehop())) }()
+	go func() { log.Fatal(http.ListenAndServe(*fhAddr, filehop())) }()
 	go func() { log.Fatal(http.ListenAndServe(*lhAddr, laravelApp(false))) }()
-	log.Printf("fakehop: HOP ID %s, LinkHop %s, PixelHop %s, NoteHop %s", *addr, *lhAddr, *pxAddr, *nhAddr)
+	log.Printf("fakehop: HOP ID %s, LinkHop %s, PixelHop %s, NoteHop %s, FileHop %s", *addr, *lhAddr, *pxAddr, *nhAddr, *fhAddr)
 	log.Fatal(http.ListenAndServe(*addr, laravelApp(true)))
 }
 
@@ -92,6 +95,7 @@ func laravelApp(hub bool) http.Handler {
 			{"slug": "linkhop", "name": "LinkHop", "url": "http://" + *lhAddr, "status": "active", "icon": "link", "capabilities": []string{"admin_api", "metrics"}, "secret": *secret, "sort_order": 5},
 			{"slug": "pixelhop", "name": "PixelHop", "url": "http://" + *pxAddr, "status": "active", "icon": "image", "capabilities": []string{"account_api", "admin_api", "events", "metrics"}, "secret": *pxSecret, "sort_order": 10},
 			{"slug": "notehop", "name": "NoteHop", "url": "http://" + *nhAddr, "status": "active", "icon": "note", "capabilities": []string{"admin_api", "events", "metrics", "zero_knowledge"}, "secret": *nhSecret, "sort_order": 20},
+			{"slug": "filehop", "name": "FileHop", "url": "http://" + *fhAddr, "status": "active", "icon": "file", "capabilities": []string{"admin_api", "events", "zero_knowledge"}, "secret": *fhSecret, "sort_order": 25},
 			{"slug": "remotehop", "name": "RemoteHop", "url": "http://127.0.0.1:9", "status": "active", "capabilities": []string{"account_api"}, "sort_order": 30},
 			{"slug": "imperium", "name": "Imperium", "url": "x", "status": "active", "hidden": true},
 		})
@@ -282,5 +286,27 @@ func notehop() http.Handler {
 	})
 	m.HandleFunc("POST /hop/", signed(*nhSecret, func(w http.ResponseWriter, r *http.Request) { ok(w, map[string]any{}) }))
 	m.HandleFunc("PUT /hop/", signed(*nhSecret, func(w http.ResponseWriter, r *http.Request) { ok(w, map[string]any{}) }))
+	return m
+}
+
+// filehop answers like FileHop: no content to moderate (files never reach the
+// server), so only health, manifest, stats and users.
+func filehop() http.Handler {
+	m := http.NewServeMux()
+	s := func(p string, h http.HandlerFunc) { m.HandleFunc(p, signed(*fhSecret, h)) }
+	s("GET /hop/health", func(w http.ResponseWriter, r *http.Request) {
+		ok(w, map[string]any{"app": "filehop", "version": "0.2.0", "db": "ok", "storage": "none", "sso": "ok"})
+	})
+	s("GET /hop/manifest", func(w http.ResponseWriter, r *http.Request) {
+		ok(w, map[string]any{"app": "filehop", "name": "FileHop", "icon": "file", "capabilities": []string{"admin_api", "events", "zero_knowledge"},
+			"content_types": []any{}, "actions": map[string]any{"user": []string{"revoke_sessions"}}})
+	})
+	s("GET /hop/stats", func(w http.ResponseWriter, r *http.Request) {
+		ok(w, map[string]any{"app": "filehop", "totals": map[string]any{"users": 12, "users_suspended": 0, "sessions_live": 9, "users_active_30d": 11}, "files_stored": 0})
+	})
+	s("GET /hop/users/{sub}", func(w http.ResponseWriter, r *http.Request) {
+		ok(w, map[string]any{"sub": r.PathValue("sub"), "id": 1, "name": "Superadmin", "status": "active", "created_at": day(3) + "T09:00:00Z", "last_seen_at": day(0) + "T08:00:00Z", "content": map[string]int{}})
+	})
+	m.HandleFunc("POST /hop/", signed(*fhSecret, func(w http.ResponseWriter, r *http.Request) { ok(w, map[string]any{}) }))
 	return m
 }

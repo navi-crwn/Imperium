@@ -168,6 +168,7 @@ var kpiOrder = map[string][]string{
 	"linkhop":  {"users", "users_new_7d", "users_suspended", "links", "links_live", "bio_pages", "clicks_today", "clicks_30d", "open_reports", "open_flags", "guest_links_24h", "guest_links_pending"},
 	"biohop":   {"pages", "pages_published", "pages_draft", "pages_adult", "blocks", "views_total", "clicks_total", "reports_open"},
 	"pixelhop": {"users", "content", "images", "videos", "pdfs", "albums", "bytes", "views", "uploads_today", "open_reports", "bans", "guest_uploads"},
+	"filehop":  {"users", "users_active_30d", "sessions_live", "users_suspended"},
 	"notehop":  {"users", "users_sso", "notes", "notes_encrypted", "notes_public", "notes_owned", "notes_burn", "files", "files_bytes", "files_budget_bytes", "live_rooms", "slug_holds", "reports_open", "takedowns"},
 }
 

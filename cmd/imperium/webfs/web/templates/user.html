@@ -93,6 +93,20 @@
       <p class="muted small">{{t "user.app_not_linked"}}</p>
     {{end}}
   </div>
+  <div class="card"><h2 class="card-title">FileHop</h2>
+    {{if .Data.FileUser}}
+      {{$fh := .Data.FileUser}}
+      <table>
+        <tr><th>Status</th><td><span class="chip {{$fh.status}}">{{$fh.status}}</span></td></tr>
+        <tr><th>First sign-in</th><td class="small">{{$fh.created_at}}</td></tr>
+        <tr><th>Last seen</th><td class="small">{{$fh.last_seen_at}}</td></tr>
+      </table>
+    {{else if .Data.FileErr}}
+      <p class="flash err small">{{t "user.app_unreachable"}}: {{.Data.FileErr}}</p>
+    {{else}}
+      <p class="muted small">{{t "user.app_not_linked"}}</p>
+    {{end}}
+  </div>
 </div>
 <div class="card mt14"><h2 class="card-title">{{t "user.activity"}}</h2>
   <table>{{range $u.Activity}}<tr><td class="small">{{index . "at"}}</td><td><span class="chip">{{index . "action"}}</span> {{index . "model"}}</td><td class="small">{{index . "description"}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>
