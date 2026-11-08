@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -160,7 +161,8 @@ func (a *App) users(w http.ResponseWriter, r *http.Request) {
 			rows[i].Name, rows[i].Email = alias, ""
 		}
 	}
-	a.render(w, r, "users.html", a.T("users.title"), map[string]any{"Rows": rows, "Err": errMsg, "Next": next, "Q": q.Get("q"), "Status": q.Get("status"), "Role": q.Get("role")})
+	a.render(w, r, "users.html", a.T("users.title"), map[string]any{"Rows": rows, "Err": errMsg, "Next": next, "Q": q.Get("q"), "Status": q.Get("status"), "Role": q.Get("role"),
+		"IsAdmin": isAdmin(current(r)), "Me": current(r).Sub, "BulkActions": userBulkActions})
 }
 
 // user360 mirrors HOP ID's /api/hop/users/{id} answer; unknown fields stay as raw JSON for the debug panel.
@@ -319,6 +321,78 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
+}
+
+// userBulkActions are the account actions offered for many users at once. Delete
+// (typed confirmation per account), roles and notes stay on the user page.
+var userBulkActions = []string{"suspend", "activate", "revoke_sessions", "revoke_tokens"}
+
+// POST /users/actions: one account action over many HOP ID users (admins only).
+// Superadmin accounts and the operator's own account are skipped, never sent.
+func (a *App) usersBulkAction(w http.ResponseWriter, r *http.Request) {
+	s := current(r)
+	_ = r.ParseForm()
+	back := "/users?" + url.Values{"q": {r.FormValue("q")}, "status": {r.FormValue("status")}, "role": {r.FormValue("role")}}.Encode()
+	action := strings.TrimSpace(r.FormValue("action"))
+	if !isAdmin(s) || !contains(userBulkActions, action) {
+		a.flashError(w, a.T("err.forbidden"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	if r.FormValue("confirm") != "yes" && (confirmAction(action) || action == "revoke_sessions" || action == "revoke_tokens") {
+		a.flashError(w, a.T("bulk.need_confirm"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	ids := uniquePicks(r.Form["pick"])
+	if len(ids) == 0 {
+		a.flashError(w, a.T("bulk.none"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	if len(ids) > maxBulk {
+		a.flashError(w, a.T("bulk.too_many"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	reason := strings.TrimSpace(r.FormValue("reason"))
+	done, skipped, failed := 0, 0, 0
+	for _, id := range ids {
+		audit := func(err error, detail map[string]any) {
+			detail["reason"], detail["bulk"], detail["error"] = reason, true, errString(err)
+			a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: "hub", Action: "user." + action, Target: id,
+				Detail: detail, OK: err == nil && detail["skipped"] == nil})
+		}
+		if id == s.Sub {
+			skipped++
+			audit(nil, map[string]any{"skipped": "self"})
+			continue
+		}
+		var target user360
+		if _, err := a.callHop(r.Context(), s, "GET", "/users/"+url.PathEscape(id), nil, &target); err != nil {
+			failed++
+			audit(err, map[string]any{})
+			continue
+		}
+		if target.protected() {
+			skipped++
+			audit(nil, map[string]any{"skipped": "protected"})
+			continue
+		}
+		_, err := a.callHop(r.Context(), s, "POST", "/users/"+url.PathEscape(id)+"/actions", map[string]any{"action": action, "reason": reason, "params": map[string]any{}}, nil)
+		audit(err, map[string]any{})
+		if err != nil {
+			failed++
+		} else {
+			done++
+		}
+	}
+	if failed > 0 {
+		a.flashError(w, fmt.Sprintf(a.T("bulk.summary_failed"), done, failed, skipped))
+	} else {
+		a.flash(w, fmt.Sprintf(a.T("bulk.summary"), done, skipped))
+	}
+	http.Redirect(w, r, back, http.StatusFound)
 }
 
 func errString(err error) string {
