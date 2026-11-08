@@ -26,5 +26,12 @@ else
   for f in "${files[@]}"; do cp "$src/$f" "$dest.new/$f"; done
   cp "$src"/fonts/*.woff2 "$dest.new/fonts/"
 fi
+# FileHop joined after v1 was frozen: its mark lives in v2 (a new file there, nothing in v2 changed).
+mkdir -p "$dest.new/apps/filehop"
+if [[ "${1:-}" == "--remote" ]]; then
+  curl -fsS https://hel.ink/hop-assets/v2/apps/filehop/mark.svg -o "$dest.new/apps/filehop/mark.svg"
+else
+  cp "$src/../v2/apps/filehop/mark.svg" "$dest.new/apps/filehop/mark.svg"
+fi
 rm -rf "$dest" && mv "$dest.new" "$dest"
 git --no-pager diff --stat -- "$dest" || true
