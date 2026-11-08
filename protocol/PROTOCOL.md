@@ -1,6 +1,6 @@
 # HOP App Protocol v1 (draft Tahap 0)
 
-Kontrak antara **Imperium** (pusat kendali) dan setiap aplikasi keluarga HOP (LinkHop, PixelHop, NoteHop, RemoteHop, …). Aplikasi yang memenuhi kontrak ini otomatis muncul di Imperium tanpa kode khusus di sisi Imperium. Akun tetap dimiliki **HOP ID** (hel.ink); Imperium tidak pernah membuka database aplikasi lain.
+Kontrak antara **Imperium** (pusat kendali) dan setiap aplikasi keluarga HOP (LinkHop, PixelHop, NoteHop, FileHop, RemoteHop, …). Aplikasi yang memenuhi kontrak ini otomatis muncul di Imperium tanpa kode khusus di sisi Imperium. Akun tetap dimiliki **HOP ID** (hel.ink); Imperium tidak pernah membuka database aplikasi lain.
 
 Status: draft, sisi HOP ID (hel.ink) sudah diimplementasikan di branch `hop-id` (Tahap 1). Berubah sampai Tahap 3 selesai; setelah itu versi dibekukan dan perubahan hanya lewat `X-HOP-Version` baru.
 
@@ -101,7 +101,7 @@ Satu-satunya panggilan yang arahnya dari aplikasi ke Imperium. Dipakai aplikasi 
 Tanda tangan `hop1` biasa (bagian 2), dibuat oleh **aplikasi pengirim** dengan **secret-nya sendiri di registry HOP ID** (secret yang sama dengan secret SSO-nya):
 
 ```
-X-HOP-App:       <slug pengirim>        biohop | linkhop | pixelhop | notehop | hub
+X-HOP-App:       <slug pengirim>        biohop | linkhop | pixelhop | notehop | filehop | hub
 X-HOP-Timestamp: <unix detik>           selisih maksimum 120 detik
 X-HOP-Nonce:     <16-128 karakter acak, sekali pakai>
 X-HOP-Actor:     system                 (tidak ikut ditandatangani, tidak dipakai)

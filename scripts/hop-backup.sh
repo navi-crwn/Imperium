@@ -2,7 +2,7 @@
 # hop-backup v0: satu arsip untuk seluruh keluarga HOP di VPS ini.
 #
 # Isi: dump MariaDB LinkHop, salinan SQLite PixelHop + gambar, salinan SQLite
-# NoteHop (butuh sudo), semua .env (dienkripsi), vhost nginx, unit systemd,
+# NoteHop (butuh sudo), env dan versi FileHop (butuh sudo), semua .env (dienkripsi), vhost nginx, unit systemd,
 # crontab, daftar paket, dan MANIFEST.json (versi, commit, checksum).
 # Opsional: snapshot restic ke R2 (memakai ~/.config/hop/backup.env).
 #
@@ -36,13 +36,14 @@ fi
 PIXELHOP=/home/carawin/apps/pixelhop
 NOTEHOP_DB=/var/lib/notehop/notehop.db
 NOTEHOP_ENV=/etc/notehop/notehop.env
+FILEHOP_ENV=/etc/filehop/filehop.env
 PASS_FILE="$HOME/.config/hop/backup-passphrase"
 KEEP_DAYS="${HOP_BACKUP_KEEP_DAYS:-14}"
 
 STAMP=$(date +%Y%m%d-%H%M%S)
 DEST="$OUT_ROOT/hop-$STAMP"
 umask 077
-mkdir -p "$DEST"/{linkhop,pixelhop,notehop,system,secrets}
+mkdir -p "$DEST"/{linkhop,pixelhop,notehop,filehop,system,secrets}
 LOG="$DEST/backup.log"
 say() { printf '%s %s\n' "$(date +%H:%M:%S)" "$*" | tee -a "$LOG"; }
 warn() { say "PERINGATAN: $*"; WARNINGS=$((WARNINGS+1)); }
@@ -96,10 +97,19 @@ else
   warn "NoteHop dilewati: sudoers belum terpasang (jalankan scripts/tahap0-sudo.sh langkah 1)"
 fi
 
+# ---------- FileHop: hanya env (rahasia SSO) dan versi ----------
+# Database FileHop hanya berisi akun HOP ID yang pernah masuk dan sesi; file tidak pernah sampai
+# ke server. Setelah restore, sesi lama memang sebaiknya hilang, jadi DB tidak dicadangkan.
+if [ -f /usr/local/bin/filehop ]; then
+  sudo -n /usr/bin/cat "$FILEHOP_ENV" > "$DEST/secrets/filehop.env" 2>/dev/null || { rm -f "$DEST/secrets/filehop.env"; warn "FileHop env tidak terbaca (jalankan scripts/tahap0-sudo.sh langkah 1)"; }
+  /usr/local/bin/filehop -version > "$DEST/filehop/version.txt" 2>&1 || true
+  say "FileHop: env dan versi"
+fi
+
 # ---------- Sistem ----------
 say "Sistem: nginx, systemd, cron, paket"
 cp -r /etc/nginx/sites-enabled "$DEST/system/nginx-sites-enabled" 2>/dev/null || warn "nginx sites tidak terbaca"
-for u in notehop pixelhop pixelhop-ai pixelhop-rembg linkhop-queue hub-queue biohop-queue imperium hop-agent notehop-backup.timer notehop-backup.service; do
+for u in notehop filehop pixelhop pixelhop-ai pixelhop-rembg linkhop-queue hub-queue biohop-queue imperium hop-agent notehop-backup.timer notehop-backup.service; do
   systemctl cat "$u" > "$DEST/system/$u.unit" 2>/dev/null || rm -f "$DEST/system/$u.unit"
 done
 crontab -l > "$DEST/system/crontab-$USER.txt" 2>/dev/null || true
@@ -137,7 +147,8 @@ m = {"format": "hop-backup/v0", "created": datetime.datetime.now(datetime.UTC).i
      "host": os.uname().nodename,
      "apps": {"linkhop": {"commit": read("linkhop/git-commit.txt")},
               "pixelhop": {"version": read("pixelhop/version.txt")},
-              "notehop": {"version": read("notehop/version.txt")}},
+              "notehop": {"version": read("notehop/version.txt")},
+              "filehop": {"version": read("filehop/version.txt")}},
      "files": files}
 json.dump(m, open(os.path.join(d, "MANIFEST.json"), "w"), indent=1)
 EOF

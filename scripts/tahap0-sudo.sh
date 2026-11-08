@@ -16,13 +16,14 @@ ask() { read -r -p "$1 (y/t) " a; [ "${a:-t}" = y ]; }
 say() { printf '\n== %s\n' "$*"; }
 
 # ---------- 1. sudoers untuk backup NoteHop ----------
-if ask "1) Pasang sudoers agar carawin boleh menjalankan 'notehop backup' sebagai notehop dan membaca env NoteHop?"; then
+if ask "1) Pasang sudoers agar carawin boleh menjalankan 'notehop backup' sebagai notehop dan membaca env NoteHop dan FileHop?"; then
   cat > /etc/sudoers.d/hop-backup <<'EOF'
 # hop-backup: hanya perintah ini, tanpa password
 carawin ALL=(notehop) NOPASSWD: /usr/local/bin/notehop backup -db /var/lib/notehop/notehop.db /tmp/hop-notehop-*.db
 carawin ALL=(root) NOPASSWD: /usr/bin/mv /tmp/hop-notehop-*.db /home/carawin/backups/hop/*/notehop/notehop.db
 carawin ALL=(root) NOPASSWD: /usr/bin/chown carawin /home/carawin/backups/hop/*/notehop/notehop.db
 carawin ALL=(root) NOPASSWD: /usr/bin/cat /etc/notehop/notehop.env
+carawin ALL=(root) NOPASSWD: /usr/bin/cat /etc/filehop/filehop.env
 EOF
   chmod 440 /etc/sudoers.d/hop-backup && visudo -cf /etc/sudoers.d/hop-backup && echo "   sudoers OK"
 fi
