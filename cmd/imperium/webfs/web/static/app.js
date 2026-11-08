@@ -85,3 +85,31 @@ document.querySelectorAll('.dash-tabs').forEach(nav => {
         } else action.button.focus();
     });
 })();
+// Bulk selection on the reports queue: one checkbox for the page, and a count on
+// the submit button so a destructive action names how many rows it will touch.
+(function installBulkSelection() {
+    const form = document.getElementById('bulk-form');
+    const all = document.querySelector('[data-bulk-all]');
+    const apply = document.querySelector('[data-bulk-apply]');
+    if (!form) return;
+    const picks = () => [...form.querySelectorAll('input.bulk-pick')];
+    const sync = () => {
+        const boxes = picks();
+        const on = boxes.filter(b => b.checked);
+        picks().forEach(b => { b.closest('tr').classList.toggle('picked', b.checked); });
+        if (all) {
+            all.checked = boxes.length > 0 && on.length === boxes.length;
+            all.indeterminate = on.length > 0 && on.length < boxes.length;
+        }
+        if (apply) apply.textContent = on.length ? `${apply.dataset.label} (${on.length})` : apply.dataset.label;
+    };
+    if (apply && !apply.dataset.label) apply.dataset.label = apply.textContent.trim();
+    if (all) all.addEventListener('change', () => {
+        picks().forEach(b => { b.checked = all.checked; });
+        sync();
+    });
+    form.addEventListener('change', event => {
+        if (event.target.classList.contains('bulk-pick')) sync();
+    });
+    sync();
+})();

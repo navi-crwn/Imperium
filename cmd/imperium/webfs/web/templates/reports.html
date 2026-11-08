@@ -3,15 +3,39 @@
 <h1>{{t "mod.reports"}} · {{.Data.App.Name}}</h1>
 <p><a class="chip {{if eq .Data.Status "open"}}active{{end}}" href="/apps/{{.Data.App.Slug}}/reports?status=open">{{t "reports.open"}}</a> <a class="chip {{if eq .Data.Status "closed"}}active{{end}}" href="/apps/{{.Data.App.Slug}}/reports?status=closed">{{t "reports.closed"}}</a></p>
 {{if .Data.Err}}<p class="flash err">{{.Data.Err}}</p>{{end}}
-<div class="scroll-x"><table><tr><th>When</th><th>Kind</th><th>Subject</th><th>Reason / summary</th><th>Status</th><th></th></tr>
-{{range .Data.Rows}}<tr>
-  <td class="small">{{index . "created_at"}}{{index . "created"}}</td>
-  <td><span class="chip">{{index . "kind"}}</span>{{with index . "score"}} <span class="chip locked">{{.}}</span>{{end}}</td>
-  <td class="small">{{with index . "subject"}}{{json .}}{{end}}{{with index . "content"}}{{with index . "url"}}<a href="{{.}}" target="_blank" rel="noopener">{{.}}</a>{{end}}{{end}}{{with index . "image"}}{{with index . "url"}}<a href="{{.}}" target="_blank" rel="noopener">{{.}}</a>{{end}}{{end}}</td>
-  <td class="small">{{index . "reason"}} {{index . "summary"}} {{index . "note"}}</td>
-  <td><span class="chip {{index . "status"}}">{{index . "status"}}</span></td>
-  <td>{{if $.Data.CanAct}}<form method="post" action="/apps/{{$.Data.App.Slug}}/reports/{{index . "id"}}/actions" class="row"><input type="hidden" name="kind" value="{{index . "kind"}}">
-    {{range $.Data.M.ReportActions (index . "kind")}}<button class="btn sm {{if confirmAction .}}danger{{end}}" name="action" value="{{.}}">{{actionLabel .}}</button>{{end}}</form>{{end}}</td>
-</tr>{{else}}<tr><td colspan="6" class="muted">{{t "content.none"}}</td></tr>{{end}}
+{{if .Data.CanAct}}<form method="post" action="/apps/{{.Data.App.Slug}}/reports/actions" id="bulk-form">
+<input type="hidden" name="status" value="{{.Data.Status}}">
+<p class="row mt12"><input type="checkbox" id="bulk-all" data-bulk-all><label for="bulk-all" class="small">{{t "bulk.select_page"}}</label>
+<span class="muted small">{{t "bulk.hint"}}</span></p>{{end}}
+<div class="scroll-x"><table><tr>{{if .Data.CanAct}}<th><span class="muted small">#</span></th>{{end}}<th>When</th><th>Kind</th><th>Subject</th><th>Reason / summary</th><th>Status</th><th></th></tr>
+{{range $row := .Data.Rows}}<tr>
+  {{$id := index $row "id"}}{{$kind := index $row "kind"}}
+  {{if $.Data.CanAct}}<td><input type="checkbox" class="bulk-pick" name="pick" value="{{$id}}|{{$kind}}" form="bulk-form" aria-label="{{t "bulk.pick"}} {{$kind}} {{$id}}"></td>{{end}}
+  <td class="small">{{index $row "created_at"}}{{index $row "created"}}</td>
+  <td><span class="chip">{{$kind}}</span>{{with index $row "score"}} <span class="chip locked">{{.}}</span>{{end}}</td>
+  <td class="small">{{with index $row "subject"}}{{json .}}{{end}}{{with index $row "content"}}{{with index $row "url"}}<a href="{{.}}" target="_blank" rel="noopener">{{.}}</a>{{end}}{{end}}{{with index $row "image"}}{{with index $row "url"}}<a href="{{.}}" target="_blank" rel="noopener">{{.}}</a>{{end}}{{end}}</td>
+  <td class="small">{{index $row "reason"}} {{index $row "summary"}} {{index $row "note"}}</td>
+  <td><span class="chip {{index $row "status"}}">{{index $row "status"}}</span></td>
+  <td>{{if $.Data.CanAct}}{{range $.Data.M.ReportActions $kind}}<button class="btn sm {{if confirmAction .}}danger{{end}}" type="submit" form="row-{{$id}}" name="action" value="{{.}}">{{actionLabel .}}</button>{{end}}{{end}}</td>
+</tr>{{else}}<tr><td colspan="{{if .Data.CanAct}}7{{else}}6{{end}}" class="muted">{{t "content.none"}}</td></tr>{{end}}
 </table></div>
+{{if .Data.CanAct}}
+<div class="bulk-panel mt14">
+  <p class="small muted">{{t "bulk.title"}}</p>
+  <div class="row">
+    <label for="bulk-action" class="small">{{t "bulk.action"}}</label>
+    <select id="bulk-action" name="action" form="bulk-form">
+      {{range .Data.Actions}}<option value="{{.}}">{{actionLabel .}}</option>{{end}}
+    </select>
+    <label for="bulk-reason" class="small">{{t "bulk.reason"}}</label>
+    <input id="bulk-reason" type="text" name="reason" form="bulk-form" maxlength="255">
+    <input type="checkbox" id="bulk-confirm" name="confirm" value="yes" form="bulk-form" data-bulk-confirm>
+    <label for="bulk-confirm" class="small">{{t "bulk.confirm"}}</label>
+  </div>
+  <p class="mt12"><button class="btn danger" type="submit" form="bulk-form" data-bulk-apply>{{t "bulk.apply"}}</button>
+  <span class="muted small">{{t "bulk.limit"}}</span></p>
+</div>
+</form>
+{{range $row := .Data.Rows}}{{$id := index $row "id"}}<form method="post" id="row-{{$id}}" action="/apps/{{$.Data.App.Slug}}/reports/{{$id}}/actions"><input type="hidden" name="kind" value="{{index $row "kind"}}"></form>
+{{end}}{{end}}
 {{template "foot" .}}
