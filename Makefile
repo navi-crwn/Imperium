@@ -1,4 +1,5 @@
-GO ?= /home/carawin/sdk/go/bin/go
+# go from PATH, else the SDK in ~/sdk/go (where the hel.ink server keeps it). Override with make GO=...
+GO ?= $(firstword $(shell command -v go 2>/dev/null) $(wildcard $(HOME)/sdk/go/bin/go) go)
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 build:
 	CGO_ENABLED=0 $(GO) build -trimpath -ldflags "-s -w -X main.version=$(VERSION)" -o bin/imperium ./cmd/imperium
