@@ -95,7 +95,7 @@ func laravelApp(hub bool) http.Handler {
 			{"slug": "linkhop", "name": "LinkHop", "url": "http://" + *lhAddr, "status": "active", "icon": "link", "capabilities": []string{"admin_api", "metrics"}, "secret": *secret, "sort_order": 5},
 			{"slug": "pixelhop", "name": "PixelHop", "url": "http://" + *pxAddr, "status": "active", "icon": "image", "capabilities": []string{"account_api", "admin_api", "events", "metrics"}, "secret": *pxSecret, "sort_order": 10},
 			{"slug": "notehop", "name": "NoteHop", "url": "http://" + *nhAddr, "status": "active", "icon": "note", "capabilities": []string{"admin_api", "events", "metrics", "zero_knowledge"}, "secret": *nhSecret, "sort_order": 20},
-			{"slug": "filehop", "name": "FileHop", "url": "http://" + *fhAddr, "status": "active", "icon": "file", "capabilities": []string{"events", "zero_knowledge"}, "secret": *fhSecret, "sort_order": 25},
+			{"slug": "filehop", "name": "FileHop", "url": "http://" + *fhAddr, "status": "active", "icon": "file", "capabilities": []string{"admin_api", "events", "zero_knowledge"}, "secret": *fhSecret, "sort_order": 25},
 			{"slug": "remotehop", "name": "RemoteHop", "url": "http://127.0.0.1:9", "status": "active", "capabilities": []string{"account_api"}, "sort_order": 30},
 			{"slug": "imperium", "name": "Imperium", "url": "x", "status": "active", "hidden": true},
 		})
@@ -298,7 +298,7 @@ func filehop() http.Handler {
 		ok(w, map[string]any{"app": "filehop", "version": "0.2.0", "db": "ok", "storage": "none", "sso": "ok"})
 	})
 	s("GET /hop/manifest", func(w http.ResponseWriter, r *http.Request) {
-		ok(w, map[string]any{"app": "filehop", "name": "FileHop", "icon": "file", "capabilities": []string{"events", "zero_knowledge"},
+		ok(w, map[string]any{"app": "filehop", "name": "FileHop", "icon": "file", "capabilities": []string{"admin_api", "events", "zero_knowledge"},
 			"content_types": []any{}, "actions": map[string]any{"user": []string{"revoke_sessions"}}})
 	})
 	s("GET /hop/stats", func(w http.ResponseWriter, r *http.Request) {
