@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Tahap 3: setelah PixelHop/NoteHop versi HOP App Protocol dideploy, nyatakan kemampuannya
 # di registry HOP ID supaya Imperium memakainya dan HOP ID mengirim event.
-#   bash ~/imperium/scripts/tahap3-registry.sh pixelhop   (atau notehop)
+#   bash ~/imperium/scripts/tahap3-registry.sh pixelhop   (atau notehop, biohop, filehop)
 set -euo pipefail
-APP=${1:?pixelhop|notehop|biohop}
+APP=${1:?pixelhop|notehop|biohop|filehop}
 case "$APP" in
   pixelhop) CAPS='["account_api","admin_api","events","metrics"]';;
   notehop)  CAPS='["admin_api","events","metrics","zero_knowledge"]';;
+  filehop)  CAPS='["events","zero_knowledge"]';;
   biohop)   CAPS='["account_api","admin_api","events","reports","settings","metrics"]';;
   *) echo "aplikasi tidak dikenal: $APP"; exit 1;;
 esac
