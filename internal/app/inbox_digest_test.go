@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -290,7 +291,10 @@ func TestLinkHopDashboardShowsTheGuestDigest(t *testing.T) {
 	defer hop.srv.Close()
 	a, srv := newApp(t, hop)
 	defer srv.Close()
-	var paths []string
+	var (
+		mu    sync.Mutex // the dashboard calls several endpoints at once
+		paths []string
+	)
 	mux := hop.srv.Config.Handler.(*http.ServeMux)
 	api := func(h func(w http.ResponseWriter, r *http.Request)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -300,7 +304,9 @@ func TestLinkHopDashboardShowsTheGuestDigest(t *testing.T) {
 				_, _ = w.Write([]byte(`{"ok":false,"error":"` + err.Error() + `"}`))
 				return
 			}
+			mu.Lock()
 			paths = append(paths, r.URL.Path)
+			mu.Unlock()
 			h(w, r)
 		}
 	}
@@ -340,6 +346,8 @@ func TestLinkHopDashboardShowsTheGuestDigest(t *testing.T) {
 			t.Errorf("extension page lacks %q", want)
 		}
 	}
+	mu.Lock()
+	defer mu.Unlock()
 	if !contains(paths, "/api/hop/x/guest-digest") || contains(paths, "/api/hop/x/guest_digest") {
 		t.Errorf("imperium must call /x/guest-digest: %v", paths)
 	}
