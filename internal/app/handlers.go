@@ -166,8 +166,27 @@ func (a *App) users(w http.ResponseWriter, r *http.Request) {
 			rows[i].Username, rows[i].Name, rows[i].Email = alias, alias, "" // the username is as telling as the name
 		}
 	}
+	apps, _ := a.db.Apps(r.Context())
 	a.render(w, r, "users.html", a.T("users.title"), map[string]any{"Rows": rows, "Err": errMsg, "Next": next, "Q": q.Get("q"), "Status": q.Get("status"), "Role": q.Get("role"),
-		"IsAdmin": isAdmin(current(r)), "Me": current(r).Sub, "BulkActions": userBulkActions})
+		"IsAdmin": isAdmin(current(r)), "Me": current(r).Sub, "BulkActions": userBulkActions, "RoleFilter": roleOptions(apps, nil)})
+}
+
+// roleOptions are the roles a form offers: the hub-wide ones, admin:<app> for every registered app (HOP ID
+// accepts both, see its set_roles action), and any role the person already holds that is neither, so saving
+// the form never drops a role it does not know.
+func roleOptions(apps []db.App, held []string) []string {
+	out := []string{"owner", "admin", "moderator", "support"}
+	for _, ap := range apps {
+		if ap.Slug != "" && !contains(out, "admin:"+ap.Slug) {
+			out = append(out, "admin:"+ap.Slug)
+		}
+	}
+	for _, role := range held {
+		if role != "" && !contains(out, role) {
+			out = append(out, role)
+		}
+	}
+	return out
 }
 
 // user360 mirrors HOP ID's /api/hop/users/{id} answer; unknown fields stay as raw JSON for the debug panel.
@@ -244,13 +263,14 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	}
 	wg.Wait()
 
+	apps, _ := a.db.Apps(r.Context())
 	a.render(w, r, "user.html", "@"+str(u.Profile["username"]), map[string]any{
 		"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)), "CanNote": canNote(current(r)),
 		"Protected": u.protected(),
 		"PixelUser": summaries["pixelhop"].User, "PixelErr": summaries["pixelhop"].Err,
 		"NoteUser": summaries["notehop"].User, "NoteErr": summaries["notehop"].Err,
 		"FileUser": summaries["filehop"].User, "FileErr": summaries["filehop"].Err,
-		"RoleOptions": []string{"owner", "admin", "moderator", "support"},
+		"RoleOptions": roleOptions(apps, u.Roles),
 	})
 }
 

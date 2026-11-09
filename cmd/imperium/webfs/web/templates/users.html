@@ -3,7 +3,7 @@
 <form method="get" action="/users" class="filters">
   <div class="grow"><label for="f-users-q-1">q</label><input id="f-users-q-1" type="search" name="q" value="{{.Data.Q}}" placeholder="{{t "search.ph"}}"></div>
   <div><label for="f-users-status-2">status</label><select id="f-users-status-2" name="status"><option value="">—</option>{{range $s := list "active" "suspended"}}<option {{if eq $s $.Data.Status}}selected{{end}}>{{$s}}</option>{{end}}</select></div>
-  <div><label for="f-users-role-3">{{t "user.roles"}}</label><select id="f-users-role-3" name="role"><option value="">—</option>{{range $r := list "owner" "admin" "moderator" "support"}}<option {{if eq $r $.Data.Role}}selected{{end}}>{{$r}}</option>{{end}}</select></div>
+  <div><label for="f-users-role-3">{{t "user.roles"}}</label><select id="f-users-role-3" name="role"><option value="">—</option>{{range $r := .Data.RoleFilter}}<option {{if eq $r $.Data.Role}}selected{{end}}>{{$r}}</option>{{end}}</select></div>
   <button class="btn" type="submit">OK</button>
 </form>
 {{if .Data.Err}}<p class="flash err mt14">{{t "err.hop"}}: {{.Data.Err}}</p>{{end}}

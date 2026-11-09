@@ -51,6 +51,7 @@
     <form method="post" action="/users/{{.Data.ID}}/actions">
       <div role="group" aria-labelledby="f-user-roles-4"><span class="lbl" id="f-user-roles-4">{{t "user.roles"}}</span>
       {{range .Data.RoleOptions}}<label class="inline"><input type="checkbox" name="roles" value="{{.}}" {{if has $u.Roles .}}checked{{end}}> {{.}}</label>{{end}}</div>
+      <p class="muted small">{{t "user.roles_hint"}}</p>
       <input type="hidden" name="action" value="set_roles"><div><button class="btn danger mt6" type="submit">{{t "action.set_roles"}}</button></div>
     </form>
     <form method="post" action="/users/{{.Data.ID}}/actions">
