@@ -2,11 +2,12 @@
 {{template "appnav" .Data}}
 <h1>{{t "mod.settings"}} · {{.Data.App.Name}}</h1>
 {{if .Data.Err}}<p class="flash err">{{.Data.Err}}</p>{{end}}
+{{if not .Data.IsAdmin}}<p class="flash">{{t "settings.only_admin"}}</p>{{end}}
 <form method="post" action="/apps/{{.Data.App.Slug}}/settings" class="card">
-  <table>
+  <table class="set-table">
   {{range .Data.Rows}}<tr>
-    <th class="w30">{{.Key}}<div class="muted small normal">{{.Description}}{{if .Readonly}} · {{t "settings.readonly"}}{{end}}{{if .RestartRequired}} · {{t "settings.restart"}}{{end}}</div></th>
-    <td>{{if .Readonly}}<span class="mono">{{json .Value}}</span>{{else}}<input type="hidden" name="t_{{.Key}}" value="{{.Type}}">
+    <th><code>{{.Key}}</code><div class="muted small normal">{{.Description}}{{if .Readonly}} <span class="chip set-flag">{{t "settings.readonly"}}</span>{{end}}{{if .RestartRequired}} <span class="chip set-flag">{{t "settings.restart"}}</span>{{end}}</div></th>
+    <td{{if eq .Type "int"}} class="narrow"{{else if eq .Type "float"}} class="narrow"{{end}}>{{$editable := and $.Data.IsAdmin (not .Readonly)}}{{if not $editable}}<span class="mono">{{json .Value}}</span>{{else}}<input type="hidden" name="t_{{.Key}}" value="{{.Type}}">
       {{if eq .Type "bool"}}<input type="checkbox" name="s_{{.Key}}" value="1" {{if .Value}}checked{{end}}>{{else if eq .Type "text"}}<textarea name="s_{{.Key}}" rows="3">{{.Value}}</textarea>{{else}}<input type="text" name="s_{{.Key}}" value="{{.Value}}">{{end}}{{end}}</td>
   </tr>{{end}}
   </table>

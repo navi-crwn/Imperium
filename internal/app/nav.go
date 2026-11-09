@@ -36,8 +36,9 @@ type navApp struct {
 }
 
 type navData struct {
-	Pages []navItem
-	Apps  []navApp
+	Pages  []navItem
+	Apps   []navApp
+	Global bool
 }
 
 // extLabel names an extension in the sidebar and page titles.
@@ -101,7 +102,7 @@ func (a *App) nav(r *http.Request) navData {
 	typ := r.URL.Query().Get("type")
 	sess := current(r)
 	global := globalRole(sess)
-	n := navData{Pages: []navItem{{Label: a.T("nav.home"), Href: "/", Kind: "home", On: path == "/"}}}
+	n := navData{Global: global, Pages: []navItem{{Label: a.T("nav.home"), Href: "/", Kind: "home", On: path == "/"}}}
 	if global {
 		n.Pages = append(n.Pages, navItem{Label: a.T("nav.users"), Href: "/users", Kind: "users", On: path == "/users" || strings.HasPrefix(path, "/users/")})
 	}
@@ -373,6 +374,7 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	wg.Wait()
+	a.aliasRows(latest)
 	var ops []opsCard
 	for i, ext := range exts {
 		ops = append(ops, a.opsCard(ext, opsData[i], opsErr[i]))

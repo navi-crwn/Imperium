@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/navi-crwn/imperium/internal/db"
+	"github.com/navi-crwn/imperium/internal/hopproto"
 )
 
 // Generic modules driven by each app's /hop/manifest: content lists with
@@ -210,6 +211,31 @@ func (r row) OwnerSub() string {
 	return str(r.Owner["sub"])
 }
 
+// aliasOwner hides an aliased person in the owner object an app sent with a content row: the username and
+// the name become the alias, the email goes. It matches by the username or email the app reports.
+func (a *App) aliasOwner(o map[string]any) {
+	if o == nil {
+		return
+	}
+	alias := a.cfg.Alias(str(o["username"]), str(o["email"]))
+	if alias == "" {
+		return
+	}
+	o["username"] = alias
+	if _, ok := o["name"]; ok {
+		o["name"] = alias
+	}
+	if _, ok := o["email"]; ok {
+		o["email"] = ""
+	}
+}
+
+func (a *App) aliasRows(rows []row) {
+	for i := range rows {
+		a.aliasOwner(rows[i].Owner)
+	}
+}
+
 // canActIn says whether the session may run a content/report action on one
 // app. admin:<app> is an admin of that app only (hub contract, HEL.ink
 // User.php roleNames); owner, admin and moderator act everywhere.
@@ -235,6 +261,13 @@ func (a *App) withSource(w http.ResponseWriter, r *http.Request) (*db.App, *Mani
 	return ap, m, true
 }
 
+// PixelHop applies status predicates to images only: every album row is
+// emitted as visible regardless of the requested status. The predicates
+// overlap (a visible image may also be expiring); they are not stored states.
+// An unknown status is refused locally, not forwarded where it would be
+// silently ignored.
+var pixelHopStatuses = []string{"visible", "hidden", "private", "expiring"}
+
 // GET /apps/{app}/content?type=&q=&status=&owner=&cursor=
 func (a *App) content(w http.ResponseWriter, r *http.Request) {
 	ap, m, ok := a.withSource(w, r)
@@ -247,21 +280,36 @@ func (a *App) content(w http.ResponseWriter, r *http.Request) {
 		typ = m.ContentTypes[0].Type
 	}
 	ct := m.ContentType(typ)
-	params := url.Values{"type": {typ}, "q": {q.Get("q")}, "status": {q.Get("status")}, "owner": {q.Get("owner")}, "cursor": {q.Get("cursor")}, "limit": {"50"}}
+	status := q.Get("status")
+	var errMsg string
+	if ap.Slug == "pixelhop" {
+		if typ != "image" {
+			status = "" // albums have no status downstream; never pretend to filter them
+		} else if status != "" && !contains(pixelHopStatuses, status) {
+			errMsg = a.T("content.bad_status")
+		}
+	}
+	params := url.Values{"type": {typ}, "q": {q.Get("q")}, "status": {status}, "owner": {q.Get("owner")}, "cursor": {q.Get("cursor")}, "limit": {"50"}}
 	var rows []row
-	var errMsg, next string
+	var next string
 	var total int
-	env, err := a.hop.Call(r.Context(), a.target(*ap), actorOf(current(r)), "GET", "/content?"+params.Encode(), nil)
+	var env *hopproto.Envelope
+	var err error
+	if errMsg == "" {
+		env, err = a.hop.Call(r.Context(), a.target(*ap), actorOf(current(r)), "GET", "/content?"+params.Encode(), nil)
+	}
 	if err != nil {
 		errMsg = err.Error()
-	} else {
+	} else if env != nil {
 		_ = json.Unmarshal(env.Data, &rows)
+		a.aliasRows(rows)
 		if env.Page != nil {
 			next, total = env.Page.Next, env.Page.Total
 		}
 	}
 	a.render(w, r, "content.html", ap.Name+" · "+typ, map[string]any{"App": ap, "M": m, "Type": typ, "CT": ct, "Rows": rows, "Err": errMsg, "Next": next, "Total": total,
-		"Q": q.Get("q"), "Status": q.Get("status"), "Owner": q.Get("owner"), "CanAct": canActIn(current(r), ap.Slug), "BulkActions": bulkContentActions(ct)})
+		"Q": q.Get("q"), "Status": status, "Owner": q.Get("owner"), "Statuses": pixelHopStatuses, "Cursor": q.Get("cursor"), "Filters": q, "ListPath": "/apps/" + ap.Slug + "/content",
+		"CanAct": canActIn(current(r), ap.Slug), "BulkActions": bulkContentActions(ct)})
 }
 
 // GET /apps/{app}/content/{type}/{id}
@@ -278,8 +326,14 @@ func (a *App) item(w http.ResponseWriter, r *http.Request) {
 	}
 	var it row
 	_ = json.Unmarshal(env.Data, &it)
+	a.aliasOwner(it.Owner)
 	var pretty any
 	_ = json.Unmarshal(env.Data, &pretty)
+	if m, ok := pretty.(map[string]any); ok { // the raw JSON panel shows the same owner object
+		if o, ok := m["owner"].(map[string]any); ok {
+			a.aliasOwner(o)
+		}
+	}
 	a.render(w, r, "item.html", ap.Name+" · "+typ+" "+id, map[string]any{"App": ap, "M": m, "Type": typ, "ID": id, "CT": m.ContentType(typ), "It": it, "Raw": jsonPretty(pretty), "CanAct": canActIn(current(r), ap.Slug)})
 }
 
@@ -408,13 +462,13 @@ func (a *App) reportsBulkAction(w http.ResponseWriter, r *http.Request) {
 		back += "?status=" + st
 	}
 	action := strings.TrimSpace(r.FormValue("action"))
-	if !canActIn(s, ap.Slug) || action == "" {
+	if !canActIn(s, ap.Slug) {
 		a.flashError(w, a.T("err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
-	if r.FormValue("confirm") != "yes" && confirmAction(action) {
-		a.flashError(w, a.T("bulk.need_confirm"))
+	if action == "" {
+		a.flashError(w, a.T("bulk.no_action"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -433,6 +487,13 @@ func (a *App) reportsBulkAction(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(picks) == 0 {
 		a.flashError(w, a.T("bulk.none"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	// The rows are counted first: with nothing ticked the operator is told that,
+	// never "this changes many rows".
+	if r.FormValue("confirm") != "yes" && confirmAction(action) {
+		a.flashError(w, a.T("bulk.need_confirm"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -523,19 +584,31 @@ func (a *App) contentBulkAction(w http.ResponseWriter, r *http.Request) {
 	// Back to the same list: type and filters, as a relative path only.
 	back := "/apps/" + ap.Slug + "/content?" + url.Values{"type": {typ}, "q": {r.FormValue("q")}, "status": {r.FormValue("status")}, "owner": {r.FormValue("owner")}}.Encode()
 	action := strings.TrimSpace(r.FormValue("action"))
-	if !canActIn(s, ap.Slug) || action == "" || !contains(bulkContentActions(m.ContentType(typ)), action) {
+	if !canActIn(s, ap.Slug) {
 		a.flashError(w, a.T("err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
-	if r.FormValue("confirm") != "yes" && confirmAction(action) {
-		a.flashError(w, a.T("bulk.need_confirm"))
+	if action == "" {
+		a.flashError(w, a.T("bulk.no_action"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	if !contains(bulkContentActions(m.ContentType(typ)), action) {
+		a.flashError(w, a.T("err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	ids := uniquePicks(r.Form["pick"])
 	if len(ids) == 0 {
 		a.flashError(w, a.T("bulk.none"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	// Counted before the confirmation, so an empty submit is told "no rows", never
+	// "this changes many rows".
+	if r.FormValue("confirm") != "yes" && confirmAction(action) {
+		a.flashError(w, a.T("bulk.need_confirm"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}

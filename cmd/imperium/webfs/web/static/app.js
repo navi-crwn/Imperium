@@ -1,3 +1,36 @@
+// The times in the audit, user and report tables are written by the server in UTC.
+// Each one carries its instant in a datetime attribute, so the browser can show it in
+// the reader's own zone and say which zone it is. Without JavaScript the UTC text and
+// its "UTC" label stay as they are, which is honest either way.
+(function localiseTimes() {
+    const times = document.querySelectorAll('time[datetime]');
+    if (!times.length) return;
+    let zone = '';
+    try {
+        zone = (Intl.DateTimeFormat().resolvedOptions().timeZone || '').replace(/_/g, ' ');
+    } catch (e) { /* an old browser: the UTC label stays */ }
+    const fmt = (iso) => {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return null;
+        const p = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+    };
+    const utc = (iso) => {
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return null;
+        const p = (n) => String(n).padStart(2, '0');
+        return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
+    };
+    times.forEach((el) => {
+        const iso = el.getAttribute('datetime');
+        const local = fmt(iso);
+        const z = el.parentElement && el.parentElement.querySelector('.time-zone');
+        if (!local) return;
+        el.textContent = local;
+        el.title = `${utc(iso)} ${el.dataset.utcLabel || 'UTC'}`;
+        if (z && zone) z.textContent = zone;
+    });
+})();
 // The flat sidebar slides in on narrow screens and folds away on wide ones.
 // The wide-screen preference is remembered per browser.
 (function installSidebar() {
@@ -85,31 +118,59 @@ document.querySelectorAll('.dash-tabs').forEach(nav => {
         } else action.button.focus();
     });
 })();
-// Bulk selection on the reports queue: one checkbox for the page, and a count on
-// the submit button so a destructive action names how many rows it will touch.
+// Bulk selection on the reports queue, the content lists and the user list: one
+// checkbox for the page, and a count on the submit button so a destructive action
+// names how many rows it will touch. The button stays disabled until at least one
+// row is picked, so an empty submit cannot reach the server at all (dashboard test
+// 2026-11-08: "Apply" was live with 0 rows and the action defaulted to Suspend).
 (function installBulkSelection() {
     const form = document.getElementById('bulk-form');
     const all = document.querySelector('[data-bulk-all]');
     const apply = document.querySelector('[data-bulk-apply]');
+    const action = document.querySelector('[data-bulk-action]');
     if (!form) return;
     const picks = () => [...form.querySelectorAll('input.bulk-pick')];
+    if (apply && !apply.dataset.label) apply.dataset.label = apply.textContent.trim();
     const sync = () => {
         const boxes = picks();
         const on = boxes.filter(b => b.checked);
-        picks().forEach(b => { b.closest('tr').classList.toggle('picked', b.checked); });
+        boxes.forEach(b => { b.closest('tr').classList.toggle('picked', b.checked); });
         if (all) {
             all.checked = boxes.length > 0 && on.length === boxes.length;
             all.indeterminate = on.length > 0 && on.length < boxes.length;
         }
-        if (apply) apply.textContent = on.length ? `${apply.dataset.label} (${on.length})` : apply.dataset.label;
+        const chosen = !action || action.value !== '';
+        if (action) action.classList.toggle('need-choice', !chosen);
+        if (apply) {
+            apply.disabled = on.length === 0;
+            apply.textContent = on.length ? `${apply.dataset.label} (${on.length})` : apply.dataset.label;
+            apply.title = on.length === 0 ? apply.dataset.empty : '';
+        }
     };
-    if (apply && !apply.dataset.label) apply.dataset.label = apply.textContent.trim();
+    if (apply && !apply.dataset.empty) apply.dataset.empty = apply.getAttribute('title') || '';
     if (all) all.addEventListener('change', () => {
         picks().forEach(b => { b.checked = all.checked; });
         sync();
     });
     form.addEventListener('change', event => {
         if (event.target.classList.contains('bulk-pick')) sync();
+        if (event.target === action) sync();
+    });
+    // A form submitted with the keyboard (Enter) never clicks the button: keep the
+    // server-side refusal as the second line, this one as the first.
+    form.addEventListener('submit', event => {
+        if (picks().every(b => !b.checked)) event.preventDefault();
     });
     sync();
+})();
+
+// Interface style: a host-only cookie the server reads for the next page; applied now without a reload.
+(() => {
+    const pick = document.querySelector('[data-ui-select]');
+    if (!pick) return;
+    pick.addEventListener('change', () => {
+        const clean = pick.value === 'clean';
+        document.cookie = 'hop_ui=' + (clean ? 'clean' : 'hop') + '; path=/; max-age=31536000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
+        if (clean) document.documentElement.dataset.ui = 'clean'; else document.documentElement.removeAttribute('data-ui');
+    });
 })();

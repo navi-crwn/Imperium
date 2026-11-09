@@ -51,6 +51,12 @@ func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
 		"lang":          a.lang,
 		"since":         a.since,
 		"date":          func(t time.Time) string { return t.Local().Format("2006-01-02 15:04") },
+		"datez":         a.dateWithZone,
+		"datesz":        a.datesz,
+		"versionLabel":  a.versionLabel,
+		"pageURL":       pageURL,
+		"cursorURL":     cursorURL,
+		"utcz":          func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
 		"n":             humanAny,
 		"has":           func(list []string, x string) bool { return contains(list, x) },
 		"json":          jsonPretty,
@@ -342,6 +348,7 @@ type page struct {
 	Query   string
 	Version string
 	Nav     navData
+	UI      string // "clean" when the reader chose the optional Clean style (cookie hop_ui)
 	Data    any
 }
 
@@ -357,7 +364,7 @@ func (a *App) renderStatus(w http.ResponseWriter, r *http.Request, status int, n
 			d["Items"] = a.appItems(ap.Slug, m, r.URL.Path, r.URL.Query().Get("type"))
 		}
 	}
-	p := page{Title: title, Session: current(r), Path: r.URL.Path, Query: r.URL.Query().Get("q"), Version: a.cfg.Version, Data: data}
+	p := page{Title: title, Session: current(r), Path: r.URL.Path, Query: r.URL.Query().Get("q"), Version: a.cfg.Version, UI: uiStyle(r), Data: data}
 	if p.Session != nil {
 		p.Nav = a.nav(r)
 	}
@@ -418,4 +425,12 @@ func (a *App) Sweep(ctx context.Context) {
 			}
 		}
 	}
+}
+
+// uiStyle reads the optional interface style: only "clean" switches it on, anything else is the original HOP look.
+func uiStyle(r *http.Request) string {
+	if c, err := r.Cookie("hop_ui"); err == nil && c.Value == "clean" {
+		return "clean"
+	}
+	return ""
 }

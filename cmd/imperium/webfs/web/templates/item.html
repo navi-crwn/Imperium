@@ -7,10 +7,10 @@
   <div class="card">
     {{if $it.Preview}}<p><img class="preview" src="{{$it.Preview}}" alt=""></p>{{end}}
     <table>
-      <tr><th>ID</th><td class="mono">{{$it.ID}}</td></tr>
-      {{if $it.URL}}<tr><th>URL</th><td><a href="{{$it.URL}}" target="_blank" rel="noopener">{{$it.URL}}</a></td></tr>{{end}}
-      <tr><th>Owner</th><td>{{if $it.OwnerSub}}<a href="/users/{{$it.OwnerSub}}">{{$it.OwnerName}}</a>{{else}}<span class="muted">guest</span>{{end}}</td></tr>
-      <tr><th>Created</th><td>{{$it.Created}}</td></tr>
+      <tr><th>{{t "col.item_id"}}</th><td class="mono">{{$it.ID}}</td></tr>
+      {{if $it.URL}}<tr><th>{{t "col.url"}}</th><td><a href="{{$it.URL}}" target="_blank" rel="noopener">{{$it.URL}}</a></td></tr>{{end}}
+      <tr><th>{{t "col.owner"}}</th><td>{{if $it.OwnerSub}}<a href="/users/{{$it.OwnerSub}}">{{$it.OwnerName}}</a>{{else}}<span class="muted">{{t "table.guest"}}</span>{{end}}</td></tr>
+      <tr><th>{{t "col.created"}}</th><td>{{datesz $it.Created}}</td></tr>
       {{range $k, $v := $it.Extra}}<tr><th>{{$k}}</th><td class="small wrap">{{json $v}}</td></tr>{{end}}
     </table>
   </div>
@@ -19,8 +19,8 @@
     {{if and .Data.CanAct .Data.CT}}
     <form method="post" action="/apps/{{.Data.App.Slug}}/content/{{.Data.Type}}/{{.Data.ID}}/actions">
       <label for="f-item-reason-1">{{t "action.reason"}}</label><input id="f-item-reason-1" type="text" name="reason">
-      <span class="lbl" id="f-item-params-2">params (transfer: to = HOP id; expiry: expires)</span>
-      <div class="grid g2cols" role="group" aria-labelledby="f-item-params-2"><input type="text" name="p_to" placeholder="to" aria-label="to"><input type="text" name="p_expires" placeholder="expires (ISO)" aria-label="expires"></div>
+      <span class="lbl" id="f-item-params-2">{{t "item.params_hint"}}</span>
+      <div class="grid g2cols" role="group" aria-labelledby="f-item-params-2"><input type="text" name="p_to" placeholder="{{t "item.to"}}" aria-label="{{t "item.to"}}"><input type="text" name="p_expires" placeholder="{{t "item.expires"}}" aria-label="{{t "item.expires"}}"></div>
       <div class="row mt10">
         {{range .Data.CT.Actions}}<button class="btn {{if confirmAction .}}danger{{end}}" name="action" value="{{.}}">{{actionLabel .}}</button>{{end}}
       </div>

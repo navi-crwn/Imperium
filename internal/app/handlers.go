@@ -33,10 +33,15 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	} else { // admin:<app>: the cards of the apps it may open
 		health = a.probeApps(r.Context(), s, visibleApps(s, apps))
 	}
+	// HOP ID's own numbers (accounts, sign-ups, reports across the hub) are for the hub-wide roles. admin:<app>
+	// gets the cards of its apps, whose dashboards carry that app's numbers; HOP ID is not even asked.
+	hubWide := globalRole(s)
 	var st stats
 	var statsErr string
-	if _, err := a.callHop(r.Context(), s, "GET", "/stats", nil, &st); err != nil {
-		statsErr = err.Error()
+	if hubWide {
+		if _, err := a.callHop(r.Context(), s, "GET", "/stats", nil, &st); err != nil {
+			statsErr = err.Error()
+		}
 	}
 	kpiOrder := []string{"users", "users_new_7d", "users_suspended"}
 	attention := map[string]int64{}
@@ -47,7 +52,7 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	}
 	a.render(w, r, "home.html", a.T("nav.home"), map[string]any{
 		"Health": health, "Stats": st, "StatsErr": statsErr, "KPIOrder": kpiOrder, "Attention": attention,
-		"Series": a.seriesViews(st.Series), "NewErrors": a.newErrors(r),
+		"Series": a.seriesViews(st.Series), "NewErrors": a.newErrors(r), "HubWide": hubWide,
 	})
 }
 
@@ -158,11 +163,30 @@ func (a *App) users(w http.ResponseWriter, r *http.Request) {
 	}
 	for i := range rows {
 		if alias := a.cfg.Alias(rows[i].Username, rows[i].Email); alias != "" {
-			rows[i].Name, rows[i].Email = alias, ""
+			rows[i].Username, rows[i].Name, rows[i].Email = alias, alias, "" // the username is as telling as the name
 		}
 	}
+	apps, _ := a.db.Apps(r.Context())
 	a.render(w, r, "users.html", a.T("users.title"), map[string]any{"Rows": rows, "Err": errMsg, "Next": next, "Q": q.Get("q"), "Status": q.Get("status"), "Role": q.Get("role"),
-		"IsAdmin": isAdmin(current(r)), "Me": current(r).Sub, "BulkActions": userBulkActions})
+		"Cursor": q.Get("cursor"), "Filters": q, "IsAdmin": isAdmin(current(r)), "Me": current(r).Sub, "BulkActions": userBulkActions, "RoleFilter": roleOptions(apps, nil)})
+}
+
+// roleOptions are the roles a form offers: the hub-wide ones, admin:<app> for every registered app (HOP ID
+// accepts both, see its set_roles action), and any role the person already holds that is neither, so saving
+// the form never drops a role it does not know.
+func roleOptions(apps []db.App, held []string) []string {
+	out := []string{"owner", "admin", "moderator", "support"}
+	for _, ap := range apps {
+		if ap.Slug != "" && !contains(out, "admin:"+ap.Slug) {
+			out = append(out, "admin:"+ap.Slug)
+		}
+	}
+	for _, role := range held {
+		if role != "" && !contains(out, role) {
+			out = append(out, role)
+		}
+	}
+	return out
 }
 
 // user360 mirrors HOP ID's /api/hop/users/{id} answer; unknown fields stay as raw JSON for the debug panel.
@@ -210,7 +234,7 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	}
 	raw = env.Data
 	if alias := a.cfg.Alias(str(u.Profile["username"]), str(u.Profile["email"])); alias != "" {
-		u.Profile["name"], u.Profile["email"] = alias, ""
+		u.Profile["username"], u.Profile["name"], u.Profile["email"] = alias, alias, ""
 		raw = nil
 	}
 
@@ -239,13 +263,14 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	}
 	wg.Wait()
 
+	apps, _ := a.db.Apps(r.Context())
 	a.render(w, r, "user.html", "@"+str(u.Profile["username"]), map[string]any{
 		"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)), "CanNote": canNote(current(r)),
 		"Protected": u.protected(),
 		"PixelUser": summaries["pixelhop"].User, "PixelErr": summaries["pixelhop"].Err,
 		"NoteUser": summaries["notehop"].User, "NoteErr": summaries["notehop"].Err,
 		"FileUser": summaries["filehop"].User, "FileErr": summaries["filehop"].Err,
-		"RoleOptions": []string{"owner", "admin", "moderator", "support"},
+		"RoleOptions": roleOptions(apps, u.Roles),
 	})
 }
 
@@ -335,19 +360,28 @@ func (a *App) usersBulkAction(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	back := "/users?" + url.Values{"q": {r.FormValue("q")}, "status": {r.FormValue("status")}, "role": {r.FormValue("role")}}.Encode()
 	action := strings.TrimSpace(r.FormValue("action"))
-	if !isAdmin(s) || !contains(userBulkActions, action) {
-		a.flashError(w, a.T("err.forbidden"))
+	// A form whose action is still on the empty "choose" option must say so, not report
+	// a missing role: the default used to be Suspend, so an empty submit suspended people.
+	if action == "" {
+		a.flashError(w, a.T("bulk.no_action"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
-	if r.FormValue("confirm") != "yes" && (confirmAction(action) || action == "revoke_sessions" || action == "revoke_tokens") {
-		a.flashError(w, a.T("bulk.need_confirm"))
+	if !isAdmin(s) || !contains(userBulkActions, action) {
+		a.flashError(w, a.T("err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	ids := uniquePicks(r.Form["pick"])
 	if len(ids) == 0 {
 		a.flashError(w, a.T("bulk.none"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	// Rows are counted before the confirmation is judged: with nothing selected the
+	// message must be "No rows selected.", not "this changes many rows".
+	if r.FormValue("confirm") != "yes" && (confirmAction(action) || action == "revoke_sessions" || action == "revoke_tokens") {
+		a.flashError(w, a.T("bulk.need_confirm"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -414,11 +448,16 @@ func (a *App) apps(w http.ResponseWriter, r *http.Request) {
 		health[k] = v
 	}
 	a.mu.Unlock()
-	a.render(w, r, "apps.html", a.T("apps.title"), map[string]any{"Apps": apps, "Health": health, "HopURL": a.cfg.HopURL, "Global": globalRole(current(r))})
+	a.render(w, r, "apps.html", a.T("apps.title"), map[string]any{"Apps": apps, "Health": health, "HopURL": a.cfg.HopURL, "Global": globalRole(current(r)), "CanSync": isAdmin(current(r))})
 }
 
 func (a *App) appsSync(w http.ResponseWriter, r *http.Request) {
 	s := current(r)
+	if !isAdmin(s) {
+		a.flashError(w, a.T("err.forbidden"))
+		http.Redirect(w, r, "/apps", http.StatusFound)
+		return
+	}
 	if err := a.syncApps(s); err != nil {
 		a.flashError(w, a.T("err.hop")+": "+err.Error())
 	} else {

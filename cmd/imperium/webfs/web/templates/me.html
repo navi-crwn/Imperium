@@ -1,9 +1,12 @@
 {{template "head" .}}{{template "top" .}}
 <h1>@{{.Data.Username}}</h1>
 <div class="card"><table>
-<tr><th>HOP ID</th><td class="mono">{{.Data.Sub}}</td></tr><tr><th>Name</th><td>{{.Data.Name}}</td></tr><tr><th>Email</th><td>{{or .Data.Email "—"}}</td></tr>
+<tr><th>{{t "login.hop_id"}}</th><td class="mono">{{.Data.Sub}}</td></tr><tr><th>{{t "col.name"}}</th><td>{{.Data.Name}}</td></tr><tr><th>{{t "col.email"}}</th><td>{{or .Data.Email "—"}}</td></tr>
 <tr><th>{{t "user.roles"}}</th><td>{{range .Data.Roles}}<span class="chip {{.}}">{{.}}</span>{{end}}</td></tr>
-<tr><th>2FA</th><td>{{if .Data.MFA}}{{t "yes"}}{{else}}{{t "no"}}{{end}}</td></tr>
-<tr><th>Session</th><td class="small">{{date .Data.Created}} → {{date .Data.Expires}} · {{.Data.IP}} · {{.Data.UA}}</td></tr>
+<tr><th>{{t "login.mfa_chip"}}</th><td>{{if .Data.MFA}}{{t "yes"}}{{else}}{{t "no"}}{{end}}</td></tr>
+<tr><th>{{t "user.session"}}</th><td class="small">{{datez .Data.Created}} → {{datez .Data.Expires}} · {{.Data.IP}} · {{.Data.UA}}</td></tr>
 </table></div>
+<h2>{{t "ui.style"}}</h2>
+<div class="card"><label for="ui-style">{{t "ui.style"}}</label><select id="ui-style" data-ui-select><option value="hop"{{if ne .UI "clean"}} selected{{end}}>{{t "ui.hop"}}</option><option value="clean"{{if eq .UI "clean"}} selected{{end}}>{{t "ui.clean"}}</option></select><p class="muted small">{{t "ui.hint"}}</p></div>
+<p class="muted small mt14">{{t "time.hint"}}</p>
 {{template "foot" .}}

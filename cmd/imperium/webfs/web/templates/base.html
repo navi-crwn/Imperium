@@ -1,9 +1,9 @@
-{{define "head"}}<!doctype html><html lang="{{lang}}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · {{t "app"}}</title><link rel="stylesheet" href="/static/hop/fonts.css"><link rel="stylesheet" href="/static/app.css"><link rel="icon" type="image/svg+xml" href="/static/imperium.svg"><meta name="color-scheme" content="dark light"></head><body>{{end}}
+{{define "head"}}<!doctype html><html lang="{{lang}}"{{if eq .UI "clean"}} data-ui="clean"{{end}}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · {{t "app"}}</title><link rel="stylesheet" href="/static/hop/fonts.css"><link rel="stylesheet" href="/static/app.css"><link rel="icon" type="image/svg+xml" href="/static/imperium.svg"><meta name="color-scheme" content="dark light"></head><body>{{end}}
 {{define "top"}}
 <header class="top">
   <button class="menu-btn" type="button" data-side-toggle aria-controls="side" aria-expanded="false" aria-label="{{t "nav.menu"}}"><span></span><span></span><span></span></button>
   <a href="/" class="brand"><img class="logo" src="/static/imperium.svg" alt="">IMPERIUM<small>{{t "tagline"}}</small></a>
-  <form class="search" action="/search" method="get"><input type="search" name="q" value="{{.Query}}" placeholder="{{t "search.ph"}}" autocomplete="off"></form>
+  {{if .Nav.Global}}<form class="search" action="/search" method="get"><input type="search" name="q" value="{{.Query}}" placeholder="{{t "search.ph"}}" autocomplete="off"></form>{{end}}
   <div class="who">{{if .Session.Avatar}}<img src="{{.Session.Avatar}}" alt="">{{end}}<a href="/me">@{{.Session.Username}}</a>
     {{range .Session.Roles}}<span class="chip {{.}}">{{.}}</span>{{end}}
     <form method="post" action="/logout"><button class="btn" type="submit">{{t "nav.logout"}}</button></form></div>

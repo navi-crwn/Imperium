@@ -3,7 +3,7 @@
 <div class="dash-head">
   <div>
     <h1 class="app-card-title"><img class="app-mark" src="{{appMark $d.App.Slug}}" alt="" width="40" height="40">{{$d.App.Name}} <span class="chip">{{$d.App.Slug}}</span></h1>
-    <p class="small muted dash-meta"><span class="dot {{if eq $d.Health.Status "maint"}}maint{{else if $d.Health.OK}}ok{{else}}bad{{end}}"></span>{{if eq $d.Health.Status "maint"}}{{t "status.maint"}}{{else if $d.Health.OK}}{{t "status.ok"}} · {{t "dash.latency"}} {{$d.Health.Latency.Milliseconds}} ms{{if $d.Health.Version}} · {{t "dash.version"}} {{$d.Health.Version}}{{end}}{{else}}{{t "status.down"}}{{if $d.Health.Detail}} · {{$d.Health.Detail}}{{end}}{{end}}
+    <p class="small muted dash-meta"><span class="dot {{if eq $d.Health.Status "maint"}}maint{{else if $d.Health.OK}}ok{{else}}bad{{end}}"></span>{{if eq $d.Health.Status "maint"}}{{t "status.maint"}}{{else if $d.Health.OK}}{{t "status.ok"}} · {{t "dash.latency"}} {{$d.Health.Latency.Milliseconds}} ms{{if $d.Health.Version}} · {{t "dash.version"}} {{versionLabel $d.Health.Version}}{{end}}{{else}}{{t "status.down"}}{{if $d.Health.Detail}} · {{$d.Health.Detail}}{{end}}{{end}}
       · <a href="{{$d.App.URL}}" target="_blank" rel="noopener">{{$d.App.URL}} ↗</a></p>
   </div>
 </div>

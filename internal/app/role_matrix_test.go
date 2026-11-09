@@ -38,11 +38,12 @@ func TestRoleMatrix(t *testing.T) {
 	}
 	for i, role := range roles {
 		hop := newFakeHop(t)
-		_, srv := newApp(t, hop)
+		a, srv := newApp(t, hop)
 		defer srv.Close()
 		hop.ticket = scopedTicket("27", "mx"+strconv.Itoa(i), role)
 		c := client(t)
 		body(login(t, c, srv))
+		waitRegistrySynced(t, a, hop) // the sign-in's background sync has fully landed before the counters reset
 		for _, row := range rows {
 			want, _ := strconv.Atoi(row.want[i])
 			if row.method == "GET" {
@@ -56,15 +57,27 @@ func TestRoleMatrix(t *testing.T) {
 				}
 				continue
 			}
+			// How many operations of this kind reached the other side: user/report/content actions,
+			// a signed registry read for /apps/sync, or a signed settings PUT for /apps/pixelhop/settings.
+			// The counters are reset and read through the fake's mutex: its handlers run on
+			// server goroutines while this test goroutine snapshots them.
 			hop.actions = nil
+			hop.resetUpstreamCounters()
 			form := url.Values{"action": {row.action}, "reason": {"matrix"}, "text": {"matrix"}}
 			res, err := c.PostForm(srv.URL+row.path, form)
 			if err != nil {
 				t.Fatal(err)
 			}
 			body(res)
-			if got := len(hop.actions); got != want {
-				t.Errorf("%-14s POST %s [%s]: %d upstream actions, want %d", role, row.path, row.action, got, want)
+			got := len(hop.actions)
+			switch row.path {
+			case "/apps/sync":
+				got = hop.registryReads()
+			case "/apps/pixelhop/settings":
+				got = hop.settingsPuts()
+			}
+			if got != want {
+				t.Errorf("%-14s POST %s [%s]: %d upstream operations, want %d", role, row.path, row.action, got, want)
 			}
 		}
 	}
