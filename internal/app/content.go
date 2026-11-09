@@ -210,6 +210,31 @@ func (r row) OwnerSub() string {
 	return str(r.Owner["sub"])
 }
 
+// aliasOwner hides an aliased person in the owner object an app sent with a content row: the username and
+// the name become the alias, the email goes. It matches by the username or email the app reports.
+func (a *App) aliasOwner(o map[string]any) {
+	if o == nil {
+		return
+	}
+	alias := a.cfg.Alias(str(o["username"]), str(o["email"]))
+	if alias == "" {
+		return
+	}
+	o["username"] = alias
+	if _, ok := o["name"]; ok {
+		o["name"] = alias
+	}
+	if _, ok := o["email"]; ok {
+		o["email"] = ""
+	}
+}
+
+func (a *App) aliasRows(rows []row) {
+	for i := range rows {
+		a.aliasOwner(rows[i].Owner)
+	}
+}
+
 // canActIn says whether the session may run a content/report action on one
 // app. admin:<app> is an admin of that app only (hub contract, HEL.ink
 // User.php roleNames); owner, admin and moderator act everywhere.
@@ -256,6 +281,7 @@ func (a *App) content(w http.ResponseWriter, r *http.Request) {
 		errMsg = err.Error()
 	} else {
 		_ = json.Unmarshal(env.Data, &rows)
+		a.aliasRows(rows)
 		if env.Page != nil {
 			next, total = env.Page.Next, env.Page.Total
 		}
@@ -278,8 +304,14 @@ func (a *App) item(w http.ResponseWriter, r *http.Request) {
 	}
 	var it row
 	_ = json.Unmarshal(env.Data, &it)
+	a.aliasOwner(it.Owner)
 	var pretty any
 	_ = json.Unmarshal(env.Data, &pretty)
+	if m, ok := pretty.(map[string]any); ok { // the raw JSON panel shows the same owner object
+		if o, ok := m["owner"].(map[string]any); ok {
+			a.aliasOwner(o)
+		}
+	}
 	a.render(w, r, "item.html", ap.Name+" · "+typ+" "+id, map[string]any{"App": ap, "M": m, "Type": typ, "ID": id, "CT": m.ContentType(typ), "It": it, "Raw": jsonPretty(pretty), "CanAct": canActIn(current(r), ap.Slug)})
 }
 

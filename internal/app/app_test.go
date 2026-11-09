@@ -102,6 +102,9 @@ func newFakeHop(t *testing.T) *fakeHop {
 		f.contentQueries = append(f.contentQueries, r.URL.RawQuery)
 		_, _ = w.Write([]byte(`{"ok":true,"data":[{"id":"img1","type":"image","title":"cat.jpg","owner":{"sub":"26","username":"rani"},"status":"live","size":20480,"views":7,"created_at":"2026-10-21T10:00:00Z","url":"` + f.px.URL + `/i/img1","preview":"` + f.px.URL + `/t/img1"}],"page":{"next":"","total":1}}`))
 	}))
+	pxmux.HandleFunc("GET /hop/content/image/img1", px(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"id":"img1","type":"image","title":"cat.jpg","owner":{"sub":"26","username":"rani","name":"Rani","email":"r@x"},"status":"live","size":20480,"views":7,"created_at":"2026-10-21T10:00:00Z"}}`))
+	}))
 	pxmux.HandleFunc("GET /hop/reports", px(func(w http.ResponseWriter, r *http.Request, _ []byte) {
 		if f.pxReports != "" {
 			_, _ = w.Write([]byte(f.pxReports))

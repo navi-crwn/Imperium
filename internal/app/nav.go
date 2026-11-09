@@ -373,6 +373,7 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	wg.Wait()
+	a.aliasRows(latest)
 	var ops []opsCard
 	for i, ext := range exts {
 		ops = append(ops, a.opsCard(ext, opsData[i], opsErr[i]))

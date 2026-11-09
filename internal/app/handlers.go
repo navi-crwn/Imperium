@@ -163,7 +163,7 @@ func (a *App) users(w http.ResponseWriter, r *http.Request) {
 	}
 	for i := range rows {
 		if alias := a.cfg.Alias(rows[i].Username, rows[i].Email); alias != "" {
-			rows[i].Name, rows[i].Email = alias, ""
+			rows[i].Username, rows[i].Name, rows[i].Email = alias, alias, "" // the username is as telling as the name
 		}
 	}
 	a.render(w, r, "users.html", a.T("users.title"), map[string]any{"Rows": rows, "Err": errMsg, "Next": next, "Q": q.Get("q"), "Status": q.Get("status"), "Role": q.Get("role"),
@@ -215,7 +215,7 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	}
 	raw = env.Data
 	if alias := a.cfg.Alias(str(u.Profile["username"]), str(u.Profile["email"])); alias != "" {
-		u.Profile["name"], u.Profile["email"] = alias, ""
+		u.Profile["username"], u.Profile["name"], u.Profile["email"] = alias, alias, ""
 		raw = nil
 	}
 
