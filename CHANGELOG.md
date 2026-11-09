@@ -4,6 +4,8 @@ All notable changes to Imperium are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-10
+
 ### Added
 
 - Nine languages: every catalog key exists in `en`, `zh-CN`, `de`, `id`, `ja`, `pt-BR`, `es`, `fr` and `ru`, and `IMPERIUM_LANG` selects any of them. Headings and field names that were written inside the templates (When, Actor, Owner, Email, Joined, Name, Status, and so on) now come from the catalog. A test checks that every language has every key.
