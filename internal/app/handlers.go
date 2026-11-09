@@ -360,19 +360,28 @@ func (a *App) usersBulkAction(w http.ResponseWriter, r *http.Request) {
 	_ = r.ParseForm()
 	back := "/users?" + url.Values{"q": {r.FormValue("q")}, "status": {r.FormValue("status")}, "role": {r.FormValue("role")}}.Encode()
 	action := strings.TrimSpace(r.FormValue("action"))
-	if !isAdmin(s) || !contains(userBulkActions, action) {
-		a.flashError(w, a.T("err.forbidden"))
+	// A form whose action is still on the empty "choose" option must say so, not report
+	// a missing role: the default used to be Suspend, so an empty submit suspended people.
+	if action == "" {
+		a.flashError(w, a.T("bulk.no_action"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
-	if r.FormValue("confirm") != "yes" && (confirmAction(action) || action == "revoke_sessions" || action == "revoke_tokens") {
-		a.flashError(w, a.T("bulk.need_confirm"))
+	if !isAdmin(s) || !contains(userBulkActions, action) {
+		a.flashError(w, a.T("err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	ids := uniquePicks(r.Form["pick"])
 	if len(ids) == 0 {
 		a.flashError(w, a.T("bulk.none"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	// Rows are counted before the confirmation is judged: with nothing selected the
+	// message must be "No rows selected.", not "this changes many rows".
+	if r.FormValue("confirm") != "yes" && (confirmAction(action) || action == "revoke_sessions" || action == "revoke_tokens") {
+		a.flashError(w, a.T("bulk.need_confirm"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}

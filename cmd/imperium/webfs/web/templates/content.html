@@ -31,7 +31,8 @@
   <p class="small muted">{{t "bulk.title"}}</p>
   <div class="row">
     <label for="bulk-action" class="small">{{t "bulk.action"}}</label>
-    <select id="bulk-action" name="action" form="bulk-form">
+    <select id="bulk-action" name="action" form="bulk-form" data-bulk-action>
+      <option value="" selected>{{t "bulk.choose"}}</option>
       {{range .Data.BulkActions}}<option value="{{.}}">{{actionLabel .}}</option>{{end}}
     </select>
     <label for="bulk-reason" class="small">{{t "bulk.reason"}}</label>
@@ -39,7 +40,7 @@
     <input type="checkbox" id="bulk-confirm" name="confirm" value="yes" form="bulk-form" data-bulk-confirm>
     <label for="bulk-confirm" class="small">{{t "bulk.confirm"}}</label>
   </div>
-  <p class="mt12"><button class="btn danger" type="submit" form="bulk-form" data-bulk-apply>{{t "bulk.apply"}}</button>
+  <p class="mt12"><button class="btn danger" type="submit" form="bulk-form" data-bulk-apply disabled>{{t "bulk.apply"}}</button>
   <span class="muted small">{{t "bulk.limit"}} {{t "bulk.params_hint"}}</span></p>
 </div>
 </form>

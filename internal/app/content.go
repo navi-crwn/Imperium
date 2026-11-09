@@ -440,13 +440,13 @@ func (a *App) reportsBulkAction(w http.ResponseWriter, r *http.Request) {
 		back += "?status=" + st
 	}
 	action := strings.TrimSpace(r.FormValue("action"))
-	if !canActIn(s, ap.Slug) || action == "" {
+	if !canActIn(s, ap.Slug) {
 		a.flashError(w, a.T("err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
-	if r.FormValue("confirm") != "yes" && confirmAction(action) {
-		a.flashError(w, a.T("bulk.need_confirm"))
+	if action == "" {
+		a.flashError(w, a.T("bulk.no_action"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -465,6 +465,13 @@ func (a *App) reportsBulkAction(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(picks) == 0 {
 		a.flashError(w, a.T("bulk.none"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	// The rows are counted first: with nothing ticked the operator is told that,
+	// never "this changes many rows".
+	if r.FormValue("confirm") != "yes" && confirmAction(action) {
+		a.flashError(w, a.T("bulk.need_confirm"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -555,19 +562,31 @@ func (a *App) contentBulkAction(w http.ResponseWriter, r *http.Request) {
 	// Back to the same list: type and filters, as a relative path only.
 	back := "/apps/" + ap.Slug + "/content?" + url.Values{"type": {typ}, "q": {r.FormValue("q")}, "status": {r.FormValue("status")}, "owner": {r.FormValue("owner")}}.Encode()
 	action := strings.TrimSpace(r.FormValue("action"))
-	if !canActIn(s, ap.Slug) || action == "" || !contains(bulkContentActions(m.ContentType(typ)), action) {
+	if !canActIn(s, ap.Slug) {
 		a.flashError(w, a.T("err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
-	if r.FormValue("confirm") != "yes" && confirmAction(action) {
-		a.flashError(w, a.T("bulk.need_confirm"))
+	if action == "" {
+		a.flashError(w, a.T("bulk.no_action"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	if !contains(bulkContentActions(m.ContentType(typ)), action) {
+		a.flashError(w, a.T("err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	ids := uniquePicks(r.Form["pick"])
 	if len(ids) == 0 {
 		a.flashError(w, a.T("bulk.none"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	// Counted before the confirmation, so an empty submit is told "no rows", never
+	// "this changes many rows".
+	if r.FormValue("confirm") != "yes" && confirmAction(action) {
+		a.flashError(w, a.T("bulk.need_confirm"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
