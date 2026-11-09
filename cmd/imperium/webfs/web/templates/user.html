@@ -6,31 +6,31 @@
 <div class="grid g2">
   <div class="card"><h2 class="card-title">{{t "user.profile"}}</h2>
     <table>
-      <tr><th>HOP ID</th><td class="mono">{{$p.sub}}</td></tr>
-      <tr><th>Email</th><td>{{$p.email}} {{if $p.verified}}<span class="chip active">verified</span>{{else}}<span class="chip">unverified</span>{{end}} {{if $p.mfa}}<span class="chip admin">2FA</span>{{end}}</td></tr>
-      <tr><th>Bio</th><td>{{$p.bio}}</td></tr>
-      <tr><th>Website</th><td>{{$p.website}}</td></tr>
-      <tr><th>Location</th><td>{{$p.location}}</td></tr>
-      <tr><th>Show owner</th><td>{{if $p.show_owner}}{{t "yes"}}{{else}}{{t "no"}}{{end}}</td></tr>
-      <tr><th>Profile v</th><td>{{$p.profile_version}}</td></tr>
-      <tr><th>Joined</th><td>{{$p.created_at}}</td></tr>
+      <tr><th>{{t "login.hop_id"}}</th><td class="mono">{{$p.sub}}</td></tr>
+      <tr><th>{{t "col.email"}}</th><td>{{$p.email}} {{if $p.verified}}<span class="chip active">{{t "chip.verified"}}</span>{{else}}<span class="chip">{{t "chip.unverified"}}</span>{{end}} {{if $p.mfa}}<span class="chip admin">{{t "login.mfa_chip"}}</span>{{end}}</td></tr>
+      <tr><th>{{t "col.bio"}}</th><td>{{$p.bio}}</td></tr>
+      <tr><th>{{t "user.website"}}</th><td>{{$p.website}}</td></tr>
+      <tr><th>{{t "user.location"}}</th><td>{{$p.location}}</td></tr>
+      <tr><th>{{t "user.show_owner"}}</th><td>{{if $p.show_owner}}{{t "yes"}}{{else}}{{t "no"}}{{end}}</td></tr>
+      <tr><th>{{t "user.profile_version"}}</th><td>{{$p.profile_version}}</td></tr>
+      <tr><th>{{t "col.joined"}}</th><td>{{datesz (print $p.created_at)}}</td></tr>
     </table>
   </div>
   <div class="card"><h2 class="card-title">{{t "user.counts"}}</h2>
     <div class="grid g5">{{range $k, $v := $u.Counts}}<div><div class="k muted small">{{$k}}</div><div class="v v-sm">{{n $v}}</div></div>{{end}}</div>
-    <h2>{{t "user.sessions"}}</h2>
+    <h2>{{t "col.sessions"}}</h2>
     <div class="small">{{range $k, $v := $u.Sessions}}<span class="chip">{{$k}}: {{$v}}</span>{{end}}</div>
   </div>
 </div>
 <div class="grid g2 mt14">
   <div class="card"><h2 class="card-title">{{t "user.logins"}}</h2>
-    <table>{{range $u.Logins}}<tr><td class="small">{{index . "at"}}</td><td class="mono">{{index . "ip"}}</td><td class="small">{{index . "country"}} {{index . "city"}}</td><td class="small muted">{{index . "device"}} · {{index . "browser"}} · {{index . "provider"}}{{if index . "is_proxy"}} · <span class="chip locked">proxy</span>{{end}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>
+    <table>{{range $u.Logins}}<tr><td class="small">{{datesz (print (index . "at"))}}</td><td class="mono">{{index . "ip"}}</td><td class="small">{{index . "country"}} {{index . "city"}}</td><td class="small muted">{{index . "device"}} · {{index . "browser"}} · {{index . "provider"}}{{if index . "is_proxy"}} · <span class="chip locked">{{t "chip.proxy"}}</span>{{end}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>
     <h2>{{t "user.links"}}</h2>
     <table>{{range $u.RecentLinks}}<tr><td class="mono">{{index . "slug"}}</td><td class="small ellipsis">{{index . "target_url"}}</td><td><span class="chip {{index . "status"}}">{{index . "status"}}</span></td><td>{{index . "clicks"}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>
   </div>
   <div class="card actions"><h2 class="card-title">{{t "user.actions"}}</h2>
     {{if .Data.Protected}}
-    <p role="status">Superadmin accounts are permanent and read-only, including for the account itself.</p>
+    <p role="status">{{t "user.superadmin_locked"}}</p>
     {{else}}
     {{if .Data.CanNote}}
     <form method="post" action="/users/{{.Data.ID}}/actions">
@@ -38,7 +38,7 @@
       <input type="hidden" name="action" value="note"><button class="btn mt6" type="submit">{{t "action.note"}}</button>
     </form>
     {{end}}
-    <ul class="small">{{range $u.Notes}}<li><span class="muted">{{index . "created_at"}} · {{index . "author"}}:</span> {{index . "text"}}</li>{{end}}</ul>
+    <ul class="small">{{range $u.Notes}}<li><span class="muted">{{datesz (print (index . "created_at"))}} · {{index . "author"}}:</span> {{index . "text"}}</li>{{end}}</ul>
     {{if .Data.IsAdmin}}
     <form method="post" action="/users/{{.Data.ID}}/actions">
       <label for="f-user-reason-2">{{t "action.reason"}}</label><input id="f-user-reason-2" type="text" name="reason" placeholder="…">
@@ -68,10 +68,10 @@
     {{if .Data.PixelUser}}
       {{$px := .Data.PixelUser}}
       <table>
-        <tr><th>Status</th><td><span class="chip {{$px.status}}">{{$px.status}}</span> {{if $px.role}}<span class="chip {{$px.role}}">{{$px.role}}</span>{{end}}</td></tr>
-        <tr><th>Images</th><td>{{n $px.images}} {{if $px.albums}}({{n $px.albums}} albums){{end}}</td></tr>
-        <tr><th>Storage</th><td>{{bytes $px.storage_bytes}}{{if $px.quota_bytes}} / {{bytes $px.quota_bytes}}{{end}}</td></tr>
-        {{if $px.sessions}}<tr><th>Active sessions</th><td>{{n $px.sessions}}</td></tr>{{end}}
+        <tr><th>{{t "col.status"}}</th><td><span class="chip {{$px.status}}">{{$px.status}}</span> {{if $px.role}}<span class="chip {{$px.role}}">{{$px.role}}</span>{{end}}</td></tr>
+        <tr><th>{{t "col.images"}}</th><td>{{n $px.images}} {{if $px.albums}}({{n $px.albums}} {{t "unit.albums"}}){{end}}</td></tr>
+        <tr><th>{{t "col.storage"}}</th><td>{{bytes $px.storage_bytes}}{{if $px.quota_bytes}} / {{bytes $px.quota_bytes}}{{end}}</td></tr>
+        {{if $px.sessions}}<tr><th>{{t "col.sessions"}}</th><td>{{n $px.sessions}}</td></tr>{{end}}
       </table>
     {{else if .Data.PixelErr}}
       <p class="flash err small">{{t "user.app_unreachable"}}: {{.Data.PixelErr}}</p>
@@ -83,10 +83,10 @@
     {{if .Data.NoteUser}}
       {{$nt := .Data.NoteUser}}
       <table>
-        <tr><th>Status</th><td><span class="chip {{$nt.status}}">{{$nt.status}}</span> {{if $nt.role}}<span class="chip {{$nt.role}}">{{$nt.role}}</span>{{end}}</td></tr>
-        <tr><th>Notes</th><td>{{n $nt.notes}} {{if $nt.notes_public}}({{n $nt.notes_public}} public){{end}}</td></tr>
-        <tr><th>Vault</th><td>{{if $nt.vault_set}}<span class="chip active">set</span>{{else}}<span class="chip">unset</span>{{end}}</td></tr>
-        {{if $nt.sessions}}<tr><th>Active sessions</th><td>{{n $nt.sessions}}</td></tr>{{end}}
+        <tr><th>{{t "col.status"}}</th><td><span class="chip {{$nt.status}}">{{$nt.status}}</span> {{if $nt.role}}<span class="chip {{$nt.role}}">{{$nt.role}}</span>{{end}}</td></tr>
+        <tr><th>{{t "col.notes"}}</th><td>{{n $nt.notes}} {{if $nt.notes_public}}({{n $nt.notes_public}} {{t "chip.public"}}){{end}}</td></tr>
+        <tr><th>{{t "user.vault"}}</th><td>{{if $nt.vault_set}}<span class="chip active">{{t "chip.set"}}</span>{{else}}<span class="chip">{{t "chip.unset"}}</span>{{end}}</td></tr>
+        {{if $nt.sessions}}<tr><th>{{t "col.sessions"}}</th><td>{{n $nt.sessions}}</td></tr>{{end}}
       </table>
     {{else if .Data.NoteErr}}
       <p class="flash err small">{{t "user.app_unreachable"}}: {{.Data.NoteErr}}</p>
@@ -98,9 +98,9 @@
     {{if .Data.FileUser}}
       {{$fh := .Data.FileUser}}
       <table>
-        <tr><th>Status</th><td><span class="chip {{$fh.status}}">{{$fh.status}}</span></td></tr>
-        <tr><th>First sign-in</th><td class="small">{{$fh.created_at}}</td></tr>
-        <tr><th>Last seen</th><td class="small">{{$fh.last_seen_at}}</td></tr>
+        <tr><th>{{t "col.status"}}</th><td><span class="chip {{$fh.status}}">{{$fh.status}}</span></td></tr>
+        <tr><th>{{t "col.first_sign_in"}}</th><td class="small">{{datesz (print $fh.created_at)}}</td></tr>
+        <tr><th>{{t "col.last_seen"}}</th><td class="small">{{datesz (print $fh.last_seen_at)}}</td></tr>
       </table>
     {{else if .Data.FileErr}}
       <p class="flash err small">{{t "user.app_unreachable"}}: {{.Data.FileErr}}</p>
@@ -110,7 +110,7 @@
   </div>
 </div>
 <div class="card mt14"><h2 class="card-title">{{t "user.activity"}}</h2>
-  <table>{{range $u.Activity}}<tr><td class="small">{{index . "at"}}</td><td><span class="chip">{{index . "action"}}</span> {{index . "model"}}</td><td class="small">{{index . "description"}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>
+  <table>{{range $u.Activity}}<tr><td class="small">{{datesz (print (index . "at"))}}</td><td><span class="chip">{{index . "action"}}</span> {{index . "model"}}</td><td class="small">{{index . "description"}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>
   <details class="mt10"><summary>JSON</summary><pre class="mono">{{.Data.Raw}}</pre></details>
 </div>
 {{template "foot" .}}

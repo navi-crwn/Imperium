@@ -3,6 +3,7 @@ package app
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"strconv"
 	"strings"
 	"time"
@@ -11,7 +12,7 @@ import (
 // since renders a relative time in the configured catalogue language.
 func (a *App) since(t time.Time) string {
 	if t.IsZero() || t.Unix() <= 0 {
-		return "–"
+		return "\u2013" // en dash; escaped so the source carries no byte-order surprises
 	}
 	d := time.Since(t)
 	switch {
@@ -24,6 +25,36 @@ func (a *App) since(t time.Time) string {
 	default:
 		return fmt.Sprintf(a.T("since.day"), int(d.Hours()/24))
 	}
+}
+
+// dateWithZone renders an instant in UTC with the zone spelled out, and the raw
+// instant in a datetime attribute so the browser can show it in the reader's own
+// zone. Times used to appear in the server's zone (CET) with no label at all.
+func (a *App) dateWithZone(t time.Time) template.HTML {
+	if t.IsZero() || t.Unix() <= 0 {
+		return template.HTML("<span class=\"muted\">–</span>")
+	}
+	utc := t.UTC()
+	return template.HTML(fmt.Sprintf(
+		`<time datetime="%s" data-utc-label="%s">%s</time> <span class="time-zone">%s</span>`,
+		utc.Format(time.RFC3339), template.HTMLEscapeString(a.T("time.utc")),
+		utc.Format("2006-01-02 15:04"), template.HTMLEscapeString(a.T("time.utc"))))
+}
+
+// datesz is dateWithZone for a timestamp that arrives as text from another app,
+// which may be RFC 3339 or already formatted. Unparseable text is shown as it
+// came, so nothing disappears.
+func (a *App) datesz(v string) template.HTML {
+	v = strings.TrimSpace(v)
+	if v == "" {
+		return template.HTML("<span class=\"muted\">–</span>")
+	}
+	for _, layout := range []string{time.RFC3339, "2006-01-02T15:04:05", "2006-01-02 15:04:05", "2006-01-02"} {
+		if t, err := time.Parse(layout, v); err == nil {
+			return a.dateWithZone(t)
+		}
+	}
+	return template.HTML(template.HTMLEscapeString(v))
 }
 
 func humanInt(n int64) string {
@@ -101,7 +132,7 @@ func humanBytes(v any) string {
 	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
 }
 
-// dayOf keeps the date of an ISO timestamp ("2026-10-28T07:40:00Z" → "2026-10-28").
+// dayOf keeps the date of an ISO timestamp ("2026-10-28T07:40:00Z" ÔåÆ "2026-10-28").
 func dayOf(v any) string {
 	s := str(v)
 	if len(s) >= 10 && s[4] == '-' && s[7] == '-' {
