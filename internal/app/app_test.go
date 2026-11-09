@@ -52,6 +52,7 @@ type fakeHop struct {
 	pxSettingsGets int              // how often PixelHop's signed GET /hop/settings was read
 	pxSettingsPuts []map[string]any // the signed PUT /hop/settings bodies PixelHop accepted
 	pxSettingsFail bool             // makes PixelHop refuse settings PUTs with db_locked
+	logoutReturns  []string         // the return= addresses HOP ID's /logout was asked to go back to
 }
 
 func (f *fakeHop) countRegistryRead() {
@@ -139,6 +140,13 @@ func newFakeHop(t *testing.T) *fakeHop {
 		m := hmac.New(sha256.New, []byte(secret))
 		m.Write([]byte(body))
 		http.Redirect(w, r, r.URL.Query().Get("return_to")+"?ticket="+body+"."+hopproto.B64(m.Sum(nil)), http.StatusFound)
+	})
+	// HOP ID's sign-out: ends its own session and goes on to return=.
+	mux.HandleFunc("GET /logout", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		f.logoutReturns = append(f.logoutReturns, r.URL.Query().Get("return"))
+		f.mu.Unlock()
+		http.Redirect(w, r, r.URL.Query().Get("return"), http.StatusFound)
 	})
 	api := func(h func(w http.ResponseWriter, r *http.Request, body []byte)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
@@ -967,5 +975,27 @@ func TestEnvExampleAliasesArePlaceholders(t *testing.T) {
 	}
 	if !found {
 		t.Error("the example no longer shows IMPERIUM_ALIASES")
+	}
+}
+
+// Signing out goes through HOP ID and comes back to Imperium's own sign-in page.
+func TestSignOutReturnsToImperiumLogin(t *testing.T) {
+	hop := newFakeHop(t)
+	defer hop.srv.Close()
+	a, srv := newApp(t, hop)
+	defer srv.Close()
+	hop.ticket = scopedTicket("5", "boss", "owner")
+	c := client(t)
+	body(login(t, c, srv))
+	res, err := c.PostForm(srv.URL+"/logout", url.Values{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body(res)
+	hop.mu.Lock()
+	got := append([]string(nil), hop.logoutReturns...)
+	hop.mu.Unlock()
+	if want := a.cfg.BaseURL + "/login"; len(got) != 1 || got[0] != want || res.Request.URL.Path != "/login" {
+		t.Fatalf("return = %v, landed on %s, want %q on /login", got, res.Request.URL, want)
 	}
 }

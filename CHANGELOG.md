@@ -19,6 +19,7 @@ All notable changes to Imperium are listed here. The format follows [Keep a Chan
 - nginx sends each security header once.
 
 ### Fixed
+- Signing out goes through HOP ID with `return=` set to Imperium's sign-in page, so the person ends up back on Imperium's own login.
 
 - An `admin:<app>` no longer sees the whole hub's numbers (accounts, sign-ups, suspended accounts); HOP ID's `/stats` is fetched only for the hub-wide roles. Sync, Search and Settings are limited to the right roles.
 - An alias stands in for the owner's username as well as the name and email: in the user list, on the user page and its title, and as the owner of content rows.
