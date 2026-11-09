@@ -17,6 +17,7 @@ func TestScopedAdminHomeHasNoHubNumbers(t *testing.T) {
 	hop.ticket = scopedTicket("27", "dewi", "admin:pixelhop")
 	c := client(t)
 	body(login(t, c, srv))
+	waitForRegistry(t, a, 2) // PixelHop and LinkHop
 	hop.statsCalls = 0
 	code, b := get(t, c, srv.URL+"/")
 	if code != 200 || !strings.Contains(b, "PixelHop") {

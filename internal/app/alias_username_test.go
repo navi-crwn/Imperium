@@ -20,6 +20,7 @@ func TestAliasHidesTheUsernameToo(t *testing.T) {
 	hop.ticket = scopedTicket("5", "boss", "admin")
 	c := client(t)
 	body(login(t, c, srv))
+	waitForRegistry(t, a, 2)
 	for _, path := range append(append([]string{}, hubPages...), appPages...) {
 		if code, b := get(t, c, srv.URL+path); code != 200 || !strings.Contains(b, "rani") {
 			t.Fatalf("control, admin GET %s: status %d, names the person: %v", path, code, strings.Contains(b, "rani"))
