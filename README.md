@@ -53,9 +53,9 @@ Everything Imperium needs is in public repositories: no private repository, no t
 
 ## Languages
 
-The interface language is set by the operator with `IMPERIUM_LANG` (see `deploy/imperium.env.example`). The default is `en`; `IMPERIUM_LANG=id` selects the Indonesian catalog. Unknown values fall back to English, and the page's `<html lang>` always matches the catalog in use.
+The interface language is set by the operator with `IMPERIUM_LANG` (see `deploy/imperium.env.example`). The default is `en`; `IMPERIUM_LANG` takes any of the nine codes listed below (for example `IMPERIUM_LANG=id` selects the Indonesian catalog). Unknown values fall back to English, and the page's `<html lang>` always matches the catalog in use.
 
-The Notifications pages are translated into all nine languages of the HOP family (`en`, `zh-CN`, `de`, `id`, `ja`, `pt-BR`, `es`, `fr`, `ru`). The older pages exist in `en` and `id` only so far; a text a language lacks falls back to English.
+Every page is translated into all nine languages of the HOP family (`en`, `zh-CN`, `de`, `id`, `ja`, `pt-BR`, `es`, `fr`, `ru`), and a test checks that each catalog has every key. Product names, HOP ID, 2FA, IP, JSON, slug and ISO are not translated.
 
 ## Notifications (HTTP 500 reports)
 
