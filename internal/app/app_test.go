@@ -41,6 +41,7 @@ type fakeHop struct {
 	member         func(sub string) (int, string) // HOP ID's answer for GET /api/hop/users/{sub}; nil means 404 not_found
 	searchLabel    string                         // overrides the label of the user hit in /api/hop/search
 	memberCalls    []string                       // the subs Imperium asked about
+	statsCalls     int                            // how often HOP ID's /stats was asked
 }
 
 func newFakeHop(t *testing.T) *fakeHop {
@@ -115,6 +116,7 @@ func newFakeHop(t *testing.T) *fakeHop {
 		_, _ = w.Write([]byte(`{"ok":true,"data":{}}`))
 	}))
 	mux.HandleFunc("GET /api/hop/stats", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		f.statsCalls++
 		_, _ = w.Write([]byte(`{"ok":true,"data":{"kpi":{"users":74,"open_reports":2},"series":{"signups":[["2026-10-20",1],["2026-10-21",3]],"clicks":[["2026-10-20",10]]}}}`))
 	}))
 	mux.HandleFunc("GET /api/hop/health", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {

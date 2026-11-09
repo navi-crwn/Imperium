@@ -33,10 +33,15 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	} else { // admin:<app>: the cards of the apps it may open
 		health = a.probeApps(r.Context(), s, visibleApps(s, apps))
 	}
+	// HOP ID's own numbers (accounts, sign-ups, reports across the hub) are for the hub-wide roles. admin:<app>
+	// gets the cards of its apps, whose dashboards carry that app's numbers; HOP ID is not even asked.
+	hubWide := globalRole(s)
 	var st stats
 	var statsErr string
-	if _, err := a.callHop(r.Context(), s, "GET", "/stats", nil, &st); err != nil {
-		statsErr = err.Error()
+	if hubWide {
+		if _, err := a.callHop(r.Context(), s, "GET", "/stats", nil, &st); err != nil {
+			statsErr = err.Error()
+		}
 	}
 	kpiOrder := []string{"users", "users_new_7d", "users_suspended"}
 	attention := map[string]int64{}
@@ -47,7 +52,7 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	}
 	a.render(w, r, "home.html", a.T("nav.home"), map[string]any{
 		"Health": health, "Stats": st, "StatsErr": statsErr, "KPIOrder": kpiOrder, "Attention": attention,
-		"Series": a.seriesViews(st.Series), "NewErrors": a.newErrors(r),
+		"Series": a.seriesViews(st.Series), "NewErrors": a.newErrors(r), "HubWide": hubWide,
 	})
 }
 
