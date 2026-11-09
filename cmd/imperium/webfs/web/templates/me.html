@@ -6,5 +6,7 @@
 <tr><th>{{t "login.mfa_chip"}}</th><td>{{if .Data.MFA}}{{t "yes"}}{{else}}{{t "no"}}{{end}}</td></tr>
 <tr><th>{{t "user.session"}}</th><td class="small">{{datez .Data.Created}} → {{datez .Data.Expires}} · {{.Data.IP}} · {{.Data.UA}}</td></tr>
 </table></div>
+<h2>{{t "ui.style"}}</h2>
+<div class="card"><label for="ui-style">{{t "ui.style"}}</label><select id="ui-style" data-ui-select><option value="hop"{{if ne .UI "clean"}} selected{{end}}>{{t "ui.hop"}}</option><option value="clean"{{if eq .UI "clean"}} selected{{end}}>{{t "ui.clean"}}</option></select><p class="muted small">{{t "ui.hint"}}</p></div>
 <p class="muted small mt14">{{t "time.hint"}}</p>
 {{template "foot" .}}

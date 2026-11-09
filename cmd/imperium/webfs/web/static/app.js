@@ -163,3 +163,14 @@ document.querySelectorAll('.dash-tabs').forEach(nav => {
     });
     sync();
 })();
+
+// Interface style: a host-only cookie the server reads for the next page; applied now without a reload.
+(() => {
+    const pick = document.querySelector('[data-ui-select]');
+    if (!pick) return;
+    pick.addEventListener('change', () => {
+        const clean = pick.value === 'clean';
+        document.cookie = 'hop_ui=' + (clean ? 'clean' : 'hop') + '; path=/; max-age=31536000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
+        if (clean) document.documentElement.dataset.ui = 'clean'; else document.documentElement.removeAttribute('data-ui');
+    });
+})();
