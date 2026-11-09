@@ -272,7 +272,7 @@ func TestSettingsTemplateAndStylesheetFixTheColumnWidth(t *testing.T) {
 		t.Fatal(err)
 	}
 	c := string(css)
-	for _, want := range []string{".set-table", "table-layout:fixed", "max-width:30rem", ".set-table td.narrow", "@media (max-width:720px)"} {
+	for _, want := range []string{".set-table", "table-layout:fixed", "--hop-field-max:28rem", ".set-table td.narrow", "@media (max-width:720px)"} {
 		if !strings.Contains(c, want) {
 			t.Errorf("app.css lacks %q", want)
 		}
