@@ -84,6 +84,32 @@ table.tight th, table.tight td { padding:6px 8px; } table.tight th { white-space
 .btn.sm { padding:4px 10px; font-size:12px; }
 .scroll-x { overflow-x:auto; } .wrap { word-break:break-all; } .ellipsis { max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .w30 { width:30%; } .normal { font-weight:400; } .v-sm { font-size:20px; } label.inline { display:inline-block; margin-right:12px; }
+/* Settings: one row per key. The label column reads; the value column holds a
+   field no wider than its content needs — a number box was 766px wide for "10"
+   on a desktop and 56px for a paragraph on a phone (dashboard test 2026-11-08). */
+.set-table { table-layout:fixed; }
+.set-table th { width:auto; word-break:break-word; text-transform:none; letter-spacing:0; }
+.set-table th .normal { text-transform:none; letter-spacing:0; font-weight:400; }
+.set-table th code { font-size:13px; font-weight:600; text-transform:none; letter-spacing:0; color:var(--ink); }
+.set-table td { width:50%; }
+.set-table td input[type=text], .set-table td textarea { width:100%; max-width:30rem; }
+.set-table td.narrow { width:11ch; }
+.set-table .set-flag { display:inline-block; margin-top:4px; text-transform:none; letter-spacing:0; }
+/* A time shown in UTC says so, and carries the instant it came from so the
+   browser can render it in the reader's own zone (dashboard test 2026-11-08:
+   every clock was server-local CET with no label). */
+time[datetime] { white-space:nowrap; }
+.time-zone { font-size:11px; color:var(--muted); margin-left:2px; }
+@media (max-width:720px) {
+  /* Stack the label over the field: a two-column table cannot give a paragraph
+     and an input room on a 375px screen. */
+  .set-table, .set-table tbody, .set-table tr, .set-table th, .set-table td { display:block; width:auto; }
+  .set-table tr { padding:12px 0; border-bottom:1px solid var(--line); }
+  .set-table tr:last-child { border-bottom:0; }
+  .set-table th, .set-table td { padding:0; border:0; }
+  .set-table td { margin-top:8px; }
+  .set-table td.narrow { width:auto; }
+}
 .mt6 { margin-top:6px; } .mt8 { margin-top:8px; } .mt10 { margin-top:10px; } .mt12 { margin-top:12px; } .mt14 { margin-top:14px; }
 @media (min-width:901px) { .menu-btn { opacity:.8; } }
 @media (max-width:900px) {
@@ -159,6 +185,8 @@ th,td{padding:12px 14px}table.tight th,table.tight td{padding:10px 12px}.scroll-
 .bulk-panel .row { align-items:center; gap:10px; }
 .bulk-panel .row label, .bulk-panel .row label.small { display:inline-flex; align-items:center; gap:6px; margin:0; }
 .bulk-panel select { width:auto; min-width:150px; padding:7px 10px; border:1px solid var(--line); border-radius:9px; background:var(--bg); color:var(--ink); }
+.bulk-panel select.need-choice { color:var(--muted); border-style:dashed; }
+.bulk-panel button[data-bulk-apply][disabled] { opacity:.45; cursor:not-allowed; filter:none; }
 .bulk-panel input[type=text] { flex:1 1 200px; max-width:340px; padding:7px 10px; border:1px solid var(--line); border-radius:9px; background:var(--bg); color:var(--ink); }
 .bulk-panel input[type=checkbox] { margin:0; }
 .bulk-panel .muted { margin:0; }
