@@ -252,3 +252,7 @@ table tr.picked td { background:color-mix(in srgb, var(--line) 45%, transparent)
 }
 @media (max-width:720px) { :root[data-ui="clean"] .search { flex:1 1 100%; }
 }
+.part-of { display: flex; align-items: center; justify-content: center; gap: 8px; width: fit-content; margin: 0 auto 10px; font-size: 13px; line-height: 20px; color: var(--muted); text-decoration: none; }
+.part-of img { width: 20px; height: 20px; display: block; }
+.part-of b { font-weight: 400; color: var(--text); }
+.part-of:hover b { text-decoration: underline; }

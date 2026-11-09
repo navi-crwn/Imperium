@@ -5,6 +5,7 @@ All notable changes to Imperium are listed here. The format follows [Keep a Chan
 ## [Unreleased]
 
 ### Added
+- The sign-in page footer starts with the HOP ID mark and "Part of Hop Easy Link", linking to hel.ink.
 
 - Nine languages: every catalog key exists in `en`, `zh-CN`, `de`, `id`, `ja`, `pt-BR`, `es`, `fr` and `ru`, and `IMPERIUM_LANG` selects any of them. Headings and field names that were written inside the templates (When, Actor, Owner, Email, Joined, Name, Status, and so on) now come from the catalog. A test checks that every language has every key.
 - The user page and the role filter list `admin:<app>` for every app in the registry, plus any role the person already holds, so saving never drops a role the form does not know. Only an owner or a global admin can submit the form.
