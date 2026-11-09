@@ -4,7 +4,7 @@
 {{range .Data.Health}}<a class="card card-link" href="/apps/{{.Slug}}">
   <div class="app-card-title"><img class="app-mark" src="{{appMark .Slug}}" alt="" width="32" height="32"><b>{{.Name}}</b><span class="dot {{if eq .Status "maint"}}maint{{else if .OK}}ok{{else}}bad{{end}}"></span></div>
   <div class="small muted">{{.URL}}</div>
-  <div class="small">{{if eq .Status "maint"}}{{t "status.maint"}}{{else if .OK}}{{t "status.ok"}} · {{.Latency.Milliseconds}} ms{{if .Version}} · {{.Version}}{{end}}{{else}}{{t "status.down"}}{{if .Detail}} · {{.Detail}}{{end}}{{end}}</div>
+  <div class="small">{{if eq .Status "maint"}}{{t "status.maint"}}{{else if .OK}}{{t "status.ok"}} · {{.Latency.Milliseconds}} ms{{if .Version}} · {{versionLabel .Version}}{{end}}{{else}}{{t "status.down"}}{{if .Detail}} · {{.Detail}}{{end}}{{end}}</div>
 </a>{{end}}
 </div>
 {{if .Data.NewErrors}}<h2>{{t "notif.title"}}</h2><div class="grid g5"><a class="card card-link" href="/notifications?status=new"><div class="k">{{t "notif.home_new"}}</div><div class="v warn">{{n .Data.NewErrors}}</div></a></div>{{end}}

@@ -5,6 +5,7 @@
   <img class="login-logo" src="/static/imperium.svg" alt="">
   <span class="brand brand-xl">IMPERIUM</span>
   <p class="muted login-tagline">{{t "tagline"}}</p>
+  {{if .Flash}}<div class="flash">{{.Flash}}</div>{{end}}
   {{if .Error}}<div class="flash err">{{.Error}}</div>{{end}}
   <div class="card login-card">
     <div class="login-door"><span class="dot ok"></span><span class="mono">{{.Data.Door}}</span><span class="chip">{{.Data.DoorKind}}</span></div>

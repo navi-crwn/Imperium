@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/navi-crwn/imperium/internal/db"
+	"github.com/navi-crwn/imperium/internal/hopproto"
 )
 
 // Generic modules driven by each app's /hop/manifest: content lists with
@@ -260,6 +261,13 @@ func (a *App) withSource(w http.ResponseWriter, r *http.Request) (*db.App, *Mani
 	return ap, m, true
 }
 
+// PixelHop applies status predicates to images only: every album row is
+// emitted as visible regardless of the requested status. The predicates
+// overlap (a visible image may also be expiring); they are not stored states.
+// An unknown status is refused locally, not forwarded where it would be
+// silently ignored.
+var pixelHopStatuses = []string{"visible", "hidden", "private", "expiring"}
+
 // GET /apps/{app}/content?type=&q=&status=&owner=&cursor=
 func (a *App) content(w http.ResponseWriter, r *http.Request) {
 	ap, m, ok := a.withSource(w, r)
@@ -272,14 +280,27 @@ func (a *App) content(w http.ResponseWriter, r *http.Request) {
 		typ = m.ContentTypes[0].Type
 	}
 	ct := m.ContentType(typ)
-	params := url.Values{"type": {typ}, "q": {q.Get("q")}, "status": {q.Get("status")}, "owner": {q.Get("owner")}, "cursor": {q.Get("cursor")}, "limit": {"50"}}
+	status := q.Get("status")
+	var errMsg string
+	if ap.Slug == "pixelhop" {
+		if typ != "image" {
+			status = "" // albums have no status downstream; never pretend to filter them
+		} else if status != "" && !contains(pixelHopStatuses, status) {
+			errMsg = a.T("content.bad_status")
+		}
+	}
+	params := url.Values{"type": {typ}, "q": {q.Get("q")}, "status": {status}, "owner": {q.Get("owner")}, "cursor": {q.Get("cursor")}, "limit": {"50"}}
 	var rows []row
-	var errMsg, next string
+	var next string
 	var total int
-	env, err := a.hop.Call(r.Context(), a.target(*ap), actorOf(current(r)), "GET", "/content?"+params.Encode(), nil)
+	var env *hopproto.Envelope
+	var err error
+	if errMsg == "" {
+		env, err = a.hop.Call(r.Context(), a.target(*ap), actorOf(current(r)), "GET", "/content?"+params.Encode(), nil)
+	}
 	if err != nil {
 		errMsg = err.Error()
-	} else {
+	} else if env != nil {
 		_ = json.Unmarshal(env.Data, &rows)
 		a.aliasRows(rows)
 		if env.Page != nil {
@@ -287,7 +308,8 @@ func (a *App) content(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.render(w, r, "content.html", ap.Name+" · "+typ, map[string]any{"App": ap, "M": m, "Type": typ, "CT": ct, "Rows": rows, "Err": errMsg, "Next": next, "Total": total,
-		"Q": q.Get("q"), "Status": q.Get("status"), "Owner": q.Get("owner"), "CanAct": canActIn(current(r), ap.Slug), "BulkActions": bulkContentActions(ct)})
+		"Q": q.Get("q"), "Status": status, "Owner": q.Get("owner"), "Statuses": pixelHopStatuses, "Cursor": q.Get("cursor"), "Filters": q, "ListPath": "/apps/" + ap.Slug + "/content",
+		"CanAct": canActIn(current(r), ap.Slug), "BulkActions": bulkContentActions(ct)})
 }
 
 // GET /apps/{app}/content/{type}/{id}

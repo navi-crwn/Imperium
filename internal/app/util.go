@@ -4,10 +4,42 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 )
+
+func pageURL(path string, values url.Values, without ...string) string {
+	q := url.Values{}
+	for key, list := range values {
+		if !contains(without, key) {
+			q[key] = append([]string(nil), list...)
+		}
+	}
+	if encoded := q.Encode(); encoded != "" {
+		return path + "?" + encoded
+	}
+	return path
+}
+
+func cursorURL(path string, values url.Values, cursor string) string {
+	q := url.Values{}
+	for key, list := range values {
+		if key != "cursor" {
+			q[key] = append([]string(nil), list...)
+		}
+	}
+	q.Set("cursor", cursor)
+	return path + "?" + q.Encode()
+}
+
+func (a *App) versionLabel(version string) string {
+	if version == "dev" {
+		return a.T("version.dev")
+	}
+	return version
+}
 
 // since renders a relative time in the configured catalogue language.
 func (a *App) since(t time.Time) string {

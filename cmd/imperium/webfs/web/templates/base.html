@@ -3,7 +3,7 @@
 <header class="top">
   <button class="menu-btn" type="button" data-side-toggle aria-controls="side" aria-expanded="false" aria-label="{{t "nav.menu"}}"><span></span><span></span><span></span></button>
   <a href="/" class="brand"><img class="logo" src="/static/imperium.svg" alt="">IMPERIUM<small>{{t "tagline"}}</small></a>
-  <form class="search" action="/search" method="get"><input type="search" name="q" value="{{.Query}}" placeholder="{{t "search.ph"}}" autocomplete="off"></form>
+  {{if .Nav.Global}}<form class="search" action="/search" method="get"><input type="search" name="q" value="{{.Query}}" placeholder="{{t "search.ph"}}" autocomplete="off"></form>{{end}}
   <div class="who">{{if .Session.Avatar}}<img src="{{.Session.Avatar}}" alt="">{{end}}<a href="/me">@{{.Session.Username}}</a>
     {{range .Session.Roles}}<span class="chip {{.}}">{{.}}</span>{{end}}
     <form method="post" action="/logout"><button class="btn" type="submit">{{t "nav.logout"}}</button></form></div>

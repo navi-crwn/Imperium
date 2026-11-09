@@ -16,6 +16,8 @@ GET /apps/pixelhop/x/ip	200	200	200	200	200	403
 GET /apps/hub	200	200	200	200	403	403
 GET /apps/nosuchapp	200	200	200	200	403	403
 GET /notifications	200	200	200	200	200	200
+POST /apps/sync	1	1	0	0	0	0
+POST /apps/pixelhop/settings	1	1	0	0	0	0
 POST /users/26/actions note	1	1	1	0	0	0
 POST /users/26/actions suspend	1	1	0	0	0	0
 POST /users/26/actions revoke_sessions	1	1	0	0	0	0

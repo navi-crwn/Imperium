@@ -39,5 +39,5 @@
 </div>
 </form>
 {{end}}
-{{if .Data.Next}}<p class="mt12"><a class="btn" href="/users?q={{.Data.Q}}&status={{.Data.Status}}&role={{.Data.Role}}&cursor={{.Data.Next}}">{{t "more"}}</a></p>{{end}}
+<nav class="row mt12" aria-label="{{t "page.navigation"}}">{{if .Data.Cursor}}<a class="btn" href="{{pageURL "/users" .Data.Filters "cursor"}}">{{t "page.first"}}</a>{{end}}{{if .Data.Next}}<a class="btn" href="{{cursorURL "/users" .Data.Filters .Data.Next}}">{{t "more"}}</a>{{end}}</nav>
 {{template "foot" .}}

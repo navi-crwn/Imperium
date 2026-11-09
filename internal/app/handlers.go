@@ -168,7 +168,7 @@ func (a *App) users(w http.ResponseWriter, r *http.Request) {
 	}
 	apps, _ := a.db.Apps(r.Context())
 	a.render(w, r, "users.html", a.T("users.title"), map[string]any{"Rows": rows, "Err": errMsg, "Next": next, "Q": q.Get("q"), "Status": q.Get("status"), "Role": q.Get("role"),
-		"IsAdmin": isAdmin(current(r)), "Me": current(r).Sub, "BulkActions": userBulkActions, "RoleFilter": roleOptions(apps, nil)})
+		"Cursor": q.Get("cursor"), "Filters": q, "IsAdmin": isAdmin(current(r)), "Me": current(r).Sub, "BulkActions": userBulkActions, "RoleFilter": roleOptions(apps, nil)})
 }
 
 // roleOptions are the roles a form offers: the hub-wide ones, admin:<app> for every registered app (HOP ID
@@ -448,11 +448,16 @@ func (a *App) apps(w http.ResponseWriter, r *http.Request) {
 		health[k] = v
 	}
 	a.mu.Unlock()
-	a.render(w, r, "apps.html", a.T("apps.title"), map[string]any{"Apps": apps, "Health": health, "HopURL": a.cfg.HopURL, "Global": globalRole(current(r))})
+	a.render(w, r, "apps.html", a.T("apps.title"), map[string]any{"Apps": apps, "Health": health, "HopURL": a.cfg.HopURL, "Global": globalRole(current(r)), "CanSync": isAdmin(current(r))})
 }
 
 func (a *App) appsSync(w http.ResponseWriter, r *http.Request) {
 	s := current(r)
+	if !isAdmin(s) {
+		a.flashError(w, a.T("err.forbidden"))
+		http.Redirect(w, r, "/apps", http.StatusFound)
+		return
+	}
 	if err := a.syncApps(s); err != nil {
 		a.flashError(w, a.T("err.hop")+": "+err.Error())
 	} else {

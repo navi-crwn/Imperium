@@ -69,19 +69,19 @@ func (a *App) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		t.Username, t.Name, t.Email = alias, alias, ""
 	}
 	if t.Status != "" && t.Status != "active" {
-		fail(a.T("login.denied"))
+		fail(fmt.Sprintf(a.T("login.denied"), "@"+t.Username))
 		return
 	}
 	if !allowedIn(t.Roles) {
 		a.db.AddAudit(r.Context(), &db.Audit{ActorSub: t.Sub, ActorName: t.Username, IP: clientIP(r), Action: "login.denied", Detail: map[string]any{"roles": t.Roles}})
 		a.notify(fmt.Sprintf("⛔ Login ditolak: @%s (%s) tanpa peran admin, dari %s", t.Username, t.Email, clientIP(r)))
-		fail(a.T("login.denied"))
+		fail(fmt.Sprintf(a.T("login.denied"), "@"+t.Username))
 		return
 	}
 	if a.cfg.RequireMFA && !t.MFA {
 		a.db.AddAudit(r.Context(), &db.Audit{ActorSub: t.Sub, ActorName: t.Username, IP: clientIP(r), Action: "login.no_mfa"})
 		a.notify(fmt.Sprintf("⚠️ Login admin tanpa 2FA ditolak: @%s dari %s", t.Username, clientIP(r)))
-		fail(a.T("login.mfa"))
+		fail(fmt.Sprintf(a.T("login.mfa"), "@"+t.Username))
 		return
 	}
 	tok := randomToken(32)
@@ -110,6 +110,9 @@ func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 		a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), Action: "logout"})
 	}
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: "/", MaxAge: -1, HttpOnly: true, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode})
+	if current(r) != nil {
+		a.flash(w, a.T("logout.done"))
+	}
 	http.Redirect(w, r, "/login", http.StatusFound)
 }
 

@@ -42,6 +42,86 @@ type fakeHop struct {
 	searchLabel    string                         // overrides the label of the user hit in /api/hop/search
 	memberCalls    []string                       // the subs Imperium asked about
 	statsCalls     int                            // how often HOP ID's /stats was asked
+
+	// mu guards the fields below. The handlers run on the fake servers'
+	// goroutines (including the sign-in's background registry sync) while the
+	// tests read, snapshot and reset these values, so every access goes
+	// through the mutex, never through the fields directly.
+	mu             sync.Mutex
+	registryCalls  int              // how often the signed registry list (GET /api/hop/apps) was read: one per registry sync
+	pxSettingsGets int              // how often PixelHop's signed GET /hop/settings was read
+	pxSettingsPuts []map[string]any // the signed PUT /hop/settings bodies PixelHop accepted
+	pxSettingsFail bool             // makes PixelHop refuse settings PUTs with db_locked
+}
+
+func (f *fakeHop) countRegistryRead() {
+	f.mu.Lock()
+	f.registryCalls++
+	f.mu.Unlock()
+}
+
+// registryReads snapshots the signed registry reads so far.
+func (f *fakeHop) registryReads() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.registryCalls
+}
+
+func (f *fakeHop) countSettingsGet() {
+	f.mu.Lock()
+	f.pxSettingsGets++
+	f.mu.Unlock()
+}
+
+func (f *fakeHop) settingsGets() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.pxSettingsGets
+}
+
+func (f *fakeHop) recordSettingsPut(m map[string]any) {
+	f.mu.Lock()
+	f.pxSettingsPuts = append(f.pxSettingsPuts, m)
+	f.mu.Unlock()
+}
+
+// settingsPuts snapshots how many signed settings PUTs were accepted.
+func (f *fakeHop) settingsPuts() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.pxSettingsPuts)
+}
+
+// lastSettingsPut snapshots the most recent signed settings PUT body (nil if none).
+func (f *fakeHop) lastSettingsPut() map[string]any {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if len(f.pxSettingsPuts) == 0 {
+		return nil
+	}
+	return f.pxSettingsPuts[len(f.pxSettingsPuts)-1]
+}
+
+func (f *fakeHop) settingsFail() bool {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.pxSettingsFail
+}
+
+func (f *fakeHop) setSettingsFail(v bool) {
+	f.mu.Lock()
+	f.pxSettingsFail = v
+	f.mu.Unlock()
+}
+
+// resetUpstreamCounters zeroes the registry and settings counters in one
+// critical section, so a test's before/after snapshots measure only what
+// happens between them.
+func (f *fakeHop) resetUpstreamCounters() {
+	f.mu.Lock()
+	f.registryCalls = 0
+	f.pxSettingsPuts = nil
+	f.mu.Unlock()
 }
 
 func newFakeHop(t *testing.T) *fakeHop {
@@ -72,6 +152,7 @@ func newFakeHop(t *testing.T) *fakeHop {
 		}
 	}
 	mux.HandleFunc("GET /api/hop/apps", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		f.countRegistryRead()
 		_, _ = w.Write([]byte(`{"ok":true,"data":[{"slug":"linkhop","name":"LinkHop","url":"` + f.srv.URL + `","status":"active","capabilities":["admin_api"],"secret":"` + lhOwnSecret + `"},{"slug":"pixelhop","name":"PixelHop","url":"` + f.px.URL + `","status":"active","capabilities":["account_api","admin_api"],"secret":"` + pxSecret + `"},{"slug":"imperium","name":"Imperium","url":"x","status":"active","hidden":true}]}`))
 	}))
 	f.srv = httptest.NewServer(mux)
@@ -117,6 +198,21 @@ func newFakeHop(t *testing.T) *fakeHop {
 		_ = json.Unmarshal(body, &m)
 		f.actions = append(f.actions, m)
 		_, _ = w.Write([]byte(`{"ok":true,"data":{}}`))
+	}))
+	pxmux.HandleFunc("GET /hop/settings", px(func(w http.ResponseWriter, r *http.Request, _ []byte) {
+		f.countSettingsGet()
+		_, _ = w.Write([]byte(`{"ok":true,"data":[{"key":"guest_uploads","type":"bool","description":"Let visitors upload without an account","value":true,"readonly":false}]}`))
+	}))
+	pxmux.HandleFunc("PUT /hop/settings", px(func(w http.ResponseWriter, r *http.Request, body []byte) {
+		var m map[string]any
+		_ = json.Unmarshal(body, &m)
+		f.recordSettingsPut(m)
+		if f.settingsFail() {
+			w.WriteHeader(500)
+			_, _ = w.Write([]byte(`{"ok":false,"error":"db_locked"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"ok":true,"data":[]}`))
 	}))
 	mux.HandleFunc("GET /api/hop/stats", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
 		f.statsCalls++
