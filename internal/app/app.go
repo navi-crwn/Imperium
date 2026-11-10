@@ -76,6 +76,7 @@ func (a *App) funcs(l string) template.FuncMap {
 		"partOf":        partOf,
 		"lang":          func() string { return l },
 		"langOptions":   langOptions,
+		"langShort":     langShort,
 		"since":         func(t time.Time) string { return since(l, t) },
 		"date":          func(t time.Time) string { return t.Local().Format("2006-01-02 15:04") },
 		"datez":         func(t time.Time) template.HTML { return dateWithZone(l, t) },

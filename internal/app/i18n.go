@@ -1,6 +1,9 @@
 package app
 
-import "net/http"
+import (
+	"net/http"
+	"strings"
+)
 
 // UI strings in the nine languages of the HOP family: en, zh-CN, de, id, ja,
 // pt-BR, es, fr, ru. Every key is present in every language; T falls back to
@@ -2637,12 +2640,17 @@ func (a *App) prefs(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, safeNext(r.FormValue("next")), http.StatusSeeOther)
 }
 
-type langOption struct{ Code, Name string }
+type langOption struct{ Code, Name, Short string }
+
+// langShort is the compact code on the picker button: EN, ZH, PT.
+func langShort(code string) string {
+	return strings.ToUpper(strings.SplitN(code, "-", 2)[0])
+}
 
 func langOptions() []langOption {
 	out := make([]langOption, 0, len(langOrder))
 	for _, c := range langOrder {
-		out = append(out, langOption{c, langNames[c]})
+		out = append(out, langOption{c, langNames[c], langShort(c)})
 	}
 	return out
 }

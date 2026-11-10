@@ -72,16 +72,26 @@ func TestThemeCookieSetsDataThemeAndPickerListsNineLanguages(t *testing.T) {
 		t.Fatal("no theme chosen: the page must follow the system")
 	}
 	for _, code := range []string{"en", "zh-CN", "de", "id", "ja", "pt-BR", "es", "fr", "ru"} {
-		if !strings.Contains(page, `<option value="`+code+`"`) {
+		if !strings.Contains(page, `name="lang" value="`+code+`"`) {
 			t.Errorf("language picker lacks %s", code)
 		}
 	}
 	if strings.Contains(page, `value="ar"`) {
 		t.Error("Arabic must not be offered")
 	}
+	if !strings.Contains(page, `name="theme" value="light"`) {
+		t.Fatal("system -> the theme button must offer light next")
+	}
+	postPrefs(t, c, base, url.Values{"theme": {"light"}, "next": {"/users"}})
+	if page = mustGet(t, c, base+"/users"); !strings.Contains(page, `name="theme" value="dark"`) {
+		t.Fatal("light -> the theme button must offer dark next")
+	}
 	postPrefs(t, c, base, url.Values{"theme": {"dark"}, "next": {"/users"}})
 	if page = mustGet(t, c, base+"/users"); !strings.Contains(page, `data-theme="dark"`) {
 		t.Fatal("theme=dark must render data-theme")
+	}
+	if page = mustGet(t, c, base+"/users"); !strings.Contains(page, `name="theme" value="system"`) {
+		t.Fatal("dark -> the theme button must offer system next")
 	}
 	postPrefs(t, c, base, url.Values{"theme": {"system"}, "next": {"/users"}})
 	if page = mustGet(t, c, base+"/users"); strings.Contains(page, "data-theme=") {

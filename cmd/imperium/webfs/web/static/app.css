@@ -261,18 +261,24 @@ table tr.picked td { background:color-mix(in srgb, var(--line) 45%, transparent)
 .part-of b { font-weight: 400; color: var(--text); }
 .part-of:hover b { text-decoration: underline; }
 
-/* Topbar: primary action (search) - language - theme - account menu. Standard controls: 8 px radius, 36/32/40 px. */
-.top-end { display:flex; align-items:center; gap:10px; margin-inline-start:auto; }
+/* Topbar: primary action (search) - language - theme - account menu. Standard controls: 8 px radius, 36 px high (44 px on touch), as wide as their content. */
+.top-end { display:flex; align-items:center; gap:8px; margin-inline-start:auto; }
 .top-end .pref { display:inline-flex; margin:0; }
-.top-end select { height:var(--hop-ctl-h); width:auto; max-width:11rem; padding:0 10px; border-radius:var(--hop-ctl-radius); font-size:var(--hop-ctl-font); }
-.js .pref-go { display:none; }
-.acct { position:relative; }
-.acct summary { display:flex; align-items:center; gap:8px; height:var(--hop-ctl-h); padding:0 10px; border:1px solid var(--line); border-radius:var(--hop-ctl-radius); background:var(--panel2); color:var(--ink); font-size:var(--hop-ctl-font); font-weight:600; cursor:pointer; list-style:none; }
-.acct summary::-webkit-details-marker { display:none; }
-.acct summary:focus-visible { outline:none; box-shadow:0 0 0 var(--hop-ring) color-mix(in srgb, var(--accent) 35%, transparent); }
+.ctl { display:inline-flex; align-items:center; justify-content:center; gap:6px; height:var(--hop-ctl-h); min-width:var(--hop-ctl-h); padding:0 10px; border:1px solid var(--line); border-radius:var(--hop-ctl-radius); background:var(--panel2); color:var(--ink); font-family:inherit; font-size:var(--hop-ctl-font); font-weight:600; line-height:1; cursor:pointer; list-style:none; white-space:nowrap; }
+.ctl-icon { padding:0; width:var(--hop-ctl-h); }
+.ctl:hover { filter:brightness(1.1); }
+.ctl:focus-visible, .pop-item:focus-visible { outline:none; box-shadow:0 0 0 var(--hop-ring) color-mix(in srgb, var(--accent) 35%, transparent); }
+.pop { position:relative; }
+.pop summary::-webkit-details-marker { display:none; }
+.pop-menu, .acct-menu { position:absolute; inset-inline-end:0; top:calc(100% + 6px); min-width:200px; display:flex; flex-direction:column; align-items:stretch; gap:2px; margin:0; padding:6px; background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 32px rgb(0 0 0 / .25); z-index:9; }
+.pop-item { display:flex; align-items:center; justify-content:space-between; gap:16px; height:var(--hop-ctl-h); padding:0 10px; border:0; border-radius:var(--hop-ctl-radius); background:transparent; color:var(--ink); font-family:inherit; font-size:var(--hop-ctl-font); text-align:start; cursor:pointer; }
+.pop-item:hover, .pop-item:focus-visible { background:var(--panel2); }
+.pop-item[aria-current="true"] { background:var(--panel2); font-weight:700; box-shadow:inset 3px 0 0 var(--accent); }
+.pop-code { font:12px var(--hop-font-mono, monospace); color:var(--muted); }
 .acct summary img { width:24px; height:24px; border-radius:50%; }
-.acct-menu { position:absolute; inset-inline-end:0; top:calc(100% + 6px); min-width:200px; display:flex; flex-direction:column; align-items:flex-start; gap:10px; padding:12px; background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 32px rgb(0 0 0 / .25); z-index:9; }
+.acct-menu { padding:12px; gap:10px; align-items:flex-start; }
 .acct-menu form { margin:0; }
-.acct-menu .chip { align-self:flex-start; }
 .acct-name { max-width:9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-@media (max-width:720px) { .top-end { order:2; width:100%; margin:0; gap:8px; } .top-end .pref { flex:1 1 0; min-width:0; } .top-end select { width:100%; max-width:none; } .acct { flex:0 0 auto; } .acct-name { max-width:6.5rem; } .acct-menu { inset-inline-end:0; } }
+@media (max-width:720px) { .lang-menu .pop-menu { inset-inline-start:0; inset-inline-end:auto; } .top-end { order:2; width:100%; margin:0; } .acct { margin-inline-start:auto; } .acct-name { max-width:6.5rem; } }
+@media (pointer:coarse) { .ctl, .pop-item { min-height:44px; } .ctl-icon { width:44px; } }
+@media (prefers-reduced-motion: reduce) { .ctl { transition:none; } }
