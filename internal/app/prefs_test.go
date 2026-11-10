@@ -145,3 +145,32 @@ func TestFamilyListsMatchManifest(t *testing.T) {
 		}
 	}
 }
+
+func TestPrefsKeepTheQueryAndRefuseCrossOrigin(t *testing.T) {
+	c, base, done := prefsLogin(t, "en")
+	defer done()
+	page := mustGet(t, c, base+"/users?q=ann&page=2")
+	if !strings.Contains(page, `name="next" value="/users?q=ann&amp;page=2"`) {
+		t.Fatal("the preference forms must carry the query string")
+	}
+	_, res := postPrefs(t, c, base, url.Values{"lang": {"de"}, "next": {"/users?q=ann&page=2"}})
+	if got := res.Request.URL.RequestURI(); got != "/users?q=ann&page=2" {
+		t.Fatalf("came back to %s", got)
+	}
+	for _, ck := range res.Request.Response.Cookies() {
+		if ck.Name == langCookie && (!ck.HttpOnly || ck.SameSite != http.SameSiteLaxMode) {
+			t.Errorf("hop_lang must be HttpOnly and SameSite=Lax: %+v", ck)
+		}
+	}
+	req, _ := http.NewRequest("POST", base+"/prefs", strings.NewReader("lang=fr"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Origin", "https://evil.example")
+	req.Header.Set("Sec-Fetch-Site", "cross-site")
+	r2, err := c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r2.StatusCode != http.StatusForbidden {
+		t.Fatalf("cross-origin POST /prefs = %d, want 403", r2.StatusCode)
+	}
+}

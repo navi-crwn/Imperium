@@ -361,6 +361,7 @@ type page struct {
 	Query   string
 	Version string
 	Nav     navData
+	Next    string // path plus query of this page, for the preference forms to come back to
 	Theme   string // "light" or "dark" when the reader chose one (cookie hop_theme)
 	UI      string // "clean" when the reader chose the optional Clean style (cookie hop_ui)
 	Data    any
@@ -378,7 +379,7 @@ func (a *App) renderStatus(w http.ResponseWriter, r *http.Request, status int, n
 			d["Items"] = a.appItems(r, ap.Slug, m, r.URL.Path, r.URL.Query().Get("type"))
 		}
 	}
-	p := page{Title: title, Session: current(r), Path: r.URL.Path, Query: r.URL.Query().Get("q"), Version: a.cfg.Version, UI: uiStyle(r), Theme: themeOf(r), Data: data}
+	p := page{Title: title, Session: current(r), Path: r.URL.Path, Next: r.URL.RequestURI(), Query: r.URL.Query().Get("q"), Version: a.cfg.Version, UI: uiStyle(r), Theme: themeOf(r), Data: data}
 	if p.Session != nil {
 		p.Nav = a.nav(r)
 	}

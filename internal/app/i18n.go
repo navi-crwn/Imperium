@@ -2617,7 +2617,7 @@ func themeOf(r *http.Request) string {
 // prefs stores the reader's language and theme in host-only cookies and goes back.
 func (a *App) prefs(w http.ResponseWriter, r *http.Request) {
 	set := func(name, val string, clear bool) {
-		c := &http.Cookie{Name: name, Value: val, Path: "/", MaxAge: 31536000, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode}
+		c := &http.Cookie{Name: name, Value: val, Path: "/", MaxAge: 31536000, HttpOnly: true, Secure: a.cfg.Secure || r.TLS != nil, SameSite: http.SameSiteLaxMode}
 		if clear {
 			c.MaxAge = -1
 		}
