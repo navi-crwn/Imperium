@@ -12,6 +12,7 @@ All notable changes to Imperium are listed here. The format follows [Keep a Chan
 - An optional Clean interface style (flat neutral surfaces, solid bordered cards, quiet type and tabs), chosen on the account page. The HOP look stays the default.
 
 ### Changed
+- New LinkHop and BioHop marks from hop-assets v6 (the embedded manifest and, where the app carries them, the home art and floating-tile copies).
 
 - Controls follow the HOP control standard: one radius and one height for buttons, fields and search.
 - Times are printed in UTC with the label "UTC" and a `datetime` attribute; a small script shows them in the reader's zone and names it. Without JavaScript the UTC text stays.
