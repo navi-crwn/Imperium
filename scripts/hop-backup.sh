@@ -105,12 +105,12 @@ fi
 # Database PayHop berisi akun, sesi, serta metode bayar dan riwayat tagihan yang dienkripsi dengan
 # PAYHOP_PROFILE_KEY (ada di env, ikut arsip rahasia terenkripsi): tanpa kunci itu isinya tidak terbaca.
 # Salinan dibuat dengan "sqlite3 .backup" sebagai user layanan ke berkas sementara di folder datanya,
-# lalu dibaca dan dihapus; sudoers (tahap0-sudo.sh) hanya mengizinkan perintah persis ini.
+# lalu dibaca (juga sebagai user layanan, supaya symlink di folder itu tidak membocorkan berkas root) dan dihapus; sudoers (tahap0-sudo.sh) hanya mengizinkan perintah persis ini.
 backup_service() {  # slug db env
   local slug=$1 db=$2 env=$3 tmp="/var/lib/$1/hop-backup.db"
   [ -f "/usr/local/bin/$slug" ] || return 0
   if sudo -n -u "$slug" /usr/bin/sqlite3 "$db" ".backup $tmp" 2>/dev/null \
-     && sudo -n /usr/bin/cat "$tmp" > "$DEST/$slug/$slug.db" 2>/dev/null; then
+     && sudo -n -u "$slug" /usr/bin/cat "$tmp" > "$DEST/$slug/$slug.db" 2>/dev/null; then
     say "$slug: salinan SQLite (sqlite3 .backup)"
   else
     rm -f "$DEST/$slug/$slug.db"

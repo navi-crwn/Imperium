@@ -9,7 +9,7 @@
 {{if .Data.Err}}<p class="flash err mt14">{{t "err.hop"}}: {{.Data.Err}}</p>{{end}}
 {{$bulk := and .Data.IsAdmin .Data.Rows}}
 {{if $bulk}}<form method="post" action="/users/actions" id="bulk-form">
-<input type="hidden" name="q" value="{{.Data.Q}}"><input type="hidden" name="status" value="{{.Data.Status}}"><input type="hidden" name="role" value="{{.Data.Role}}"><input type="hidden" name="back" value="{{.Next}}">
+<input type="hidden" name="q" value="{{.Data.Q}}"><input type="hidden" name="status" value="{{.Data.Status}}"><input type="hidden" name="role" value="{{.Data.Role}}">
 {{end}}
 {{if or .Data.Cursor .Data.Next}}<nav class="pager" aria-label="{{t "page.navigation"}}">{{if .Data.Cursor}}<a class="btn sm" href="{{pageURL "/users" .Data.Filters "cursor"}}">{{t "page.first"}}</a>{{end}}{{if .Data.Next}}<a class="btn sm" href="{{cursorURL "/users" .Data.Filters .Data.Next}}">{{t "page.next"}} ›</a>{{end}}</nav>
 {{end}}{{if $bulk}}<div class="bulk-bar" data-bulk-bar role="group" aria-label="{{t "bulk.title"}}">
@@ -31,10 +31,11 @@
   <td class="nw"><span class="chip {{.Status}}">{{.Status}}</span>{{range .Roles}}<span class="chip {{.}}">{{.}}</span>{{end}}</td>
   <td>{{.Links}}</td><td class="small muted nw">{{datesz .CreatedAt}}</td><td class="small muted nw">{{datesz .LastLoginAt}}</td>
 {{if $bulk}}<td class="w-act">{{if or (eq .Sub $.Data.Me) (has .Roles "owner")}}{{else}}<details class="pop row-menu"><summary class="ctl ctl-icon" aria-label="{{t "user.actions"}} @{{.Username}}" title="{{t "user.actions"}}"><span aria-hidden="true">⋯</span></summary>
-    <div class="pop-menu">{{if eq .Status "suspended"}}<button class="pop-item" type="submit" formaction="/users/{{.Sub}}/actions" name="action" value="activate">{{actionLabel "activate"}}</button>{{else}}<button class="pop-item danger" type="submit" formaction="/users/{{.Sub}}/actions" name="action" value="suspend">{{actionLabel "suspend"}}</button>{{end}}<button class="pop-item danger" type="submit" formaction="/users/{{.Sub}}/actions" name="action" value="revoke_sessions">{{actionLabel "revoke_sessions"}}</button><button class="pop-item danger" type="submit" formaction="/users/{{.Sub}}/actions" name="action" value="revoke_tokens">{{actionLabel "revoke_tokens"}}</button></div></details>{{end}}</td>{{end}}
+    <div class="pop-menu">{{if eq .Status "suspended"}}<button class="pop-item" type="submit" form="rowf-{{.Sub}}" name="action" value="activate">{{actionLabel "activate"}}</button>{{else}}<button class="pop-item danger" type="submit" form="rowf-{{.Sub}}" name="action" value="suspend">{{actionLabel "suspend"}}</button>{{end}}<button class="pop-item danger" type="submit" form="rowf-{{.Sub}}" name="action" value="revoke_sessions">{{actionLabel "revoke_sessions"}}</button><button class="pop-item danger" type="submit" form="rowf-{{.Sub}}" name="action" value="revoke_tokens">{{actionLabel "revoke_tokens"}}</button></div></details>{{end}}</td>{{end}}
 </tr>{{else}}<tr><td colspan="9" class="muted">{{t "users.none"}}</td></tr>{{end}}
 </table></div>
 {{if $bulk}}
 </form>
+{{range .Data.Rows}}{{if not (or (eq .Sub $.Data.Me) (has .Roles "owner"))}}<form id="rowf-{{.Sub}}" method="post" action="/users/{{.Sub}}/actions"><input type="hidden" name="back" value="{{$.Next}}"></form>{{end}}{{end}}
 {{end}}
 {{template "foot" .}}

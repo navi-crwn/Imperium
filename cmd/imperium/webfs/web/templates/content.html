@@ -11,7 +11,7 @@
 {{if .Data.Err}}<p class="flash err mt14">{{.Data.Err}}</p>{{end}}
 {{$bulk := and .Data.CanAct .Data.BulkActions .Data.Rows}}
 {{if $bulk}}<form method="post" action="/apps/{{.Data.App.Slug}}/content/actions" id="bulk-form">
-<input type="hidden" name="type" value="{{.Data.Type}}"><input type="hidden" name="q" value="{{.Data.Q}}"><input type="hidden" name="status" value="{{.Data.Status}}"><input type="hidden" name="owner" value="{{.Data.Owner}}"><input type="hidden" name="back" value="{{.Next}}">{{end}}
+<input type="hidden" name="type" value="{{.Data.Type}}"><input type="hidden" name="q" value="{{.Data.Q}}"><input type="hidden" name="status" value="{{.Data.Status}}"><input type="hidden" name="owner" value="{{.Data.Owner}}">{{end}}
 {{if or .Data.Cursor .Data.Next}}<nav class="pager" aria-label="{{t "page.navigation"}}">{{if .Data.Cursor}}<a class="btn sm" href="{{pageURL .Data.ListPath .Data.Filters "cursor"}}">{{t "page.first"}}</a>{{end}}{{if .Data.Next}}<a class="btn sm" href="{{cursorURL .Data.ListPath .Data.Filters .Data.Next}}">{{t "page.next"}} ›</a>{{end}}</nav>
 {{end}}{{if $bulk}}<div class="bulk-bar" data-bulk-bar role="group" aria-label="{{t "bulk.title"}}">
   <span class="bulk-count"><b data-bulk-count>0</b> {{t "bulk.selected"}}</span>
@@ -35,10 +35,11 @@
   <td class="small nw">{{if .Clicks}}{{n .Clicks}} clicks{{else if .Views}}{{n .Views}} views{{else if .Size}}{{bytes .Size}}{{end}}</td>
   <td class="small muted nw">{{day .Created}}</td>
   {{if $bulk}}<td class="w-act"><details class="pop row-menu"><summary class="ctl ctl-icon" aria-label="{{t "user.actions"}}" title="{{t "user.actions"}}"><span aria-hidden="true">⋯</span></summary>
-    <div class="pop-menu">{{range $.Data.BulkActions}}<button class="pop-item {{if confirmAction .}}danger{{end}}" type="submit" formaction="/apps/{{$.Data.App.Slug}}/content/{{$.Data.Type}}/{{$row.ID}}/actions" name="action" value="{{.}}">{{actionLabel .}}</button>{{end}}</div></details></td>{{end}}
+    <div class="pop-menu">{{range $.Data.BulkActions}}<button class="pop-item {{if confirmAction .}}danger{{end}}" type="submit" form="rowf-{{$row.ID}}" name="action" value="{{.}}">{{actionLabel .}}</button>{{end}}</div></details></td>{{end}}
 </tr>{{else}}<tr><td colspan="8" class="muted">{{t "content.none"}}</td></tr>{{end}}
 </table></div>
 {{if $bulk}}
 </form>
+{{range .Data.Rows}}<form id="rowf-{{.ID}}" method="post" action="/apps/{{$.Data.App.Slug}}/content/{{.Type}}/{{.ID}}/actions"><input type="hidden" name="back" value="{{$.Next}}"></form>{{end}}
 {{end}}
 {{template "foot" .}}

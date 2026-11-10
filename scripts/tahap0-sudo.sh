@@ -28,10 +28,10 @@ carawin ALL=(root) NOPASSWD: /usr/bin/cat /etc/payhop/payhop.env
 # Salinan SQLite FileHop dan PayHop: sqlite3 .backup sebagai user layanan ke berkas di folder datanya, dibaca lalu dihapus
 carawin ALL=(filehop) NOPASSWD: /usr/bin/sqlite3 /var/lib/filehop/filehop.db .backup\ /var/lib/filehop/hop-backup.db
 carawin ALL=(filehop) NOPASSWD: /usr/bin/rm -f /var/lib/filehop/hop-backup.db
-carawin ALL=(root) NOPASSWD: /usr/bin/cat /var/lib/filehop/hop-backup.db
+carawin ALL=(filehop) NOPASSWD: /usr/bin/cat /var/lib/filehop/hop-backup.db
 carawin ALL=(payhop) NOPASSWD: /usr/bin/sqlite3 /var/lib/payhop/payhop.db .backup\ /var/lib/payhop/hop-backup.db
 carawin ALL=(payhop) NOPASSWD: /usr/bin/rm -f /var/lib/payhop/hop-backup.db
-carawin ALL=(root) NOPASSWD: /usr/bin/cat /var/lib/payhop/hop-backup.db
+carawin ALL=(payhop) NOPASSWD: /usr/bin/cat /var/lib/payhop/hop-backup.db
 EOF
   chmod 440 /etc/sudoers.d/hop-backup && visudo -cf /etc/sudoers.d/hop-backup && echo "   sudoers OK"
 fi

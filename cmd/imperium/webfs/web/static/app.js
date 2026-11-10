@@ -163,7 +163,6 @@ document.querySelectorAll('.dash-tabs').forEach(nav => {
     // A form submitted with the keyboard (Enter) never clicks the button: keep the
     // server-side refusal as the second line, this one as the first.
     form.addEventListener('submit', event => {
-        if (event.submitter && event.submitter.hasAttribute('formaction')) return; // a row's own action
         if (picks().every(b => !b.checked)) event.preventDefault();
     });
     sync();
