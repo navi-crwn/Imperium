@@ -113,6 +113,11 @@ func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 	if current(r) != nil {
 		a.flash(w, a.T("logout.done"))
 	}
+	if a.cfg.SSOEnabled() && a.cfg.BaseURL != "" {
+		// HOP ID signs the person out of the family and sends them back to this login.
+		http.Redirect(w, r, a.cfg.HopURL+"/logout?return="+url.QueryEscape(a.cfg.BaseURL+"/login"), http.StatusFound)
+		return
+	}
 	http.Redirect(w, r, "/login", http.StatusFound)
 }
 

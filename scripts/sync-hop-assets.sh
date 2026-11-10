@@ -2,7 +2,7 @@
 # Copy the HOP family assets (fonts, floating tiles, app marks) into the embedded static folder.
 # Imperium's CSP is style-src 'self' and script-src 'self', so it serves its own copy
 # instead of loading https://hel.ink. Source: a HEL.ink checkout (default ../HEL.ink)
-# or, with --remote, https://hel.ink/hop-assets/v4.
+# or, with --remote, https://hel.ink/hop-assets/v6.
 #
 #   scripts/sync-hop-assets.sh [--remote | /path/to/HEL.ink]
 #
@@ -11,7 +11,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 dest=cmd/imperium/webfs/web/static/hop
-ver=v4
+ver=v6
 files=(hop-float.css hop-float.js
   apps/hub/hop-id-mark.svg apps/hub/rabbit-mark.png
   apps/linkhop/mark.svg apps/linkhop/mark-white.svg apps/biohop/mark.svg
