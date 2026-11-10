@@ -33,6 +33,12 @@ var (
 	nonces   hopproto.Nonces
 )
 
+func flagBool(n string, d bool, u string) *bool { return flag.Bool(n, d, u) }
+
+func jsonOut(w http.ResponseWriter, v any) { _ = json.NewEncoder(w).Encode(v) }
+
+var ()
+
 func ok(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{"ok": true, "data": data})
@@ -128,6 +134,10 @@ func laravelApp(hub bool) http.Handler {
 		ok(w, []map[string]any{{"kind": "user", "id": "26", "label": "@rani", "sub": "Rani Dewi"}})
 	})
 	s("GET /api/hop/users", func(w http.ResponseWriter, r *http.Request) {
+		if *bulk {
+			pageOf(w, bulkUsers(), r)
+			return
+		}
 		page(w, []map[string]any{
 			{"sub": "26", "username": "rani", "name": "Rani Dewi", "email": "rani@example.test", "status": "active", "roles": []string{}, "verified": true, "created_at": "2026-09-02", "last_login_at": "2026-10-27", "links": 38, "bio_pages": 1},
 			{"sub": "31", "username": "budi", "name": "Budi Santoso", "email": "budi@example.test", "status": "suspended", "roles": []string{}, "verified": true, "created_at": "2026-09-14", "last_login_at": "2026-10-20", "links": 410, "bio_pages": 0},
@@ -143,9 +153,17 @@ func laravelApp(hub bool) http.Handler {
 			"counts": map[string]any{"links": 38, "bio_pages": 1, "clicks_30d": 912}, "sessions": map[string]any{"count": 2}, "logins": []any{}, "activity": []any{}, "roles": roles, "notes": []any{}, "recent_links": []any{}})
 	})
 	s("GET /api/hop/audit", func(w http.ResponseWriter, r *http.Request) {
+		if *bulk {
+			ok(w, bulkAudit())
+			return
+		}
 		ok(w, []map[string]any{{"created_at": day(0) + "T08:12:00Z", "actor": "1:superadmin", "app_slug": "imperium", "action": "link.disable", "target_type": "link", "target_id": "9", "reason": "phishing"}})
 	})
 	s("GET /api/hop/content", func(w http.ResponseWriter, r *http.Request) {
+		if *bulk && r.URL.Query().Get("type") != "bio" {
+			pageOf(w, bulkLinks(), r)
+			return
+		}
 		if r.URL.Query().Get("type") == "bio" {
 			page(w, []map[string]any{{"id": "7", "type": "bio", "title": "Rani · tautan", "owner": map[string]any{"sub": "26", "username": "rani"}, "status": "published", "views": 1200, "created_at": day(9) + "T10:00:00Z", "url": "https://hel.ink/b/rani"}}, 41)
 			return
@@ -173,6 +191,10 @@ func laravelApp(hub bool) http.Handler {
 		}, 3)
 	})
 	s("GET /api/hop/settings", func(w http.ResponseWriter, r *http.Request) {
+		if *bulk {
+			ok(w, bulkSettings())
+			return
+		}
 		ok(w, []map[string]any{{"key": "seo.site_title", "type": "string", "value": "LinkHop", "description": "Site & SEO: site title"}, {"key": "turnstile", "type": "bool", "value": true, "readonly": true, "description": "Cloudflare Turnstile"}})
 	})
 	s("GET /api/hop/x/ip", func(w http.ResponseWriter, r *http.Request) {
@@ -180,6 +202,10 @@ func laravelApp(hub bool) http.Handler {
 			"watchlist": []map[string]any{{"id": 5, "ip": "198.51.100.4", "user": "budi", "reason": "failed logins", "attempts": 14, "last_attempt_at": day(0) + "T02:00:00Z"}}})
 	})
 	s("GET /api/hop/x/domains", func(w http.ResponseWriter, r *http.Request) {
+		if *bulk {
+			page(w, bulkDomains(), 55)
+			return
+		}
 		page(w, []map[string]any{{"id": 1, "domain": "bad.example", "match_type": "wildcard", "category": "phishing", "notes": "", "created_at": day(5) + "T00:00:00Z"}}, 1)
 	})
 	s("GET /api/hop/x/queue", func(w http.ResponseWriter, r *http.Request) {
@@ -273,6 +299,10 @@ func notehop() http.Handler {
 		ok(w, []map[string]any{{"key": "rate_limit_per_min", "type": "int", "value": 60, "description": "Requests per minute per IP"}})
 	})
 	s("GET /hop/x/names", func(w http.ResponseWriter, r *http.Request) {
+		if *bulk {
+			ok(w, bulkNames())
+			return
+		}
 		ok(w, map[string]any{"holds": []map[string]any{{"slug": "konten-buruk", "reason": "takedown", "until": day(-20)}, {"slug": "admin", "reason": "reserved", "until": nil}}, "reserved": []string{"admin", "api", "login"}})
 	})
 	s("GET /hop/x/files", func(w http.ResponseWriter, r *http.Request) {
