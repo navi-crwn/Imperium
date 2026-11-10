@@ -4,6 +4,8 @@ All notable changes to Imperium are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-10
+
 ### Added
 - The sign-in page footer starts with the HOP ID mark and "Part of Hop Easy Link", linking to hel.ink.
 
