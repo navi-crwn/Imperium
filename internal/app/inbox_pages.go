@@ -58,7 +58,7 @@ func (a *App) newErrors(r *http.Request) int {
 
 // fail renders an error page with a real status code.
 func (a *App) fail(w http.ResponseWriter, r *http.Request, status int, msg, back string) {
-	a.renderStatus(w, r, status, "error.html", a.T("notif.title"), map[string]any{"Err": msg, "Back": back})
+	a.renderStatus(w, r, status, "error.html", a.Tr(r, "notif.title"), map[string]any{"Err": msg, "Back": back})
 }
 
 const notifPageSize = 50
@@ -89,7 +89,7 @@ func (a *App) notifications(w http.ResponseWriter, r *http.Request) {
 	rows, total, err := a.db.ListNotifications(r.Context(), scope, db.NotifFilter{App: app, Status: status, Limit: notifPageSize, Offset: (page - 1) * notifPageSize})
 	if err != nil {
 		log.Printf("notifications: list: %v", err)
-		a.fail(w, r, http.StatusInternalServerError, a.T("notif.err.load"), "/")
+		a.fail(w, r, http.StatusInternalServerError, a.Tr(r, "notif.err.load"), "/")
 		return
 	}
 	counts, err := a.db.NotificationStatusCounts(r.Context(), scope, app)
@@ -134,7 +134,7 @@ func (a *App) notifications(w http.ResponseWriter, r *http.Request) {
 	if page*notifPageSize < total {
 		d["NextHref"] = href(page + 1)
 	}
-	a.render(w, r, "notifications.html", a.T("notif.title"), d)
+	a.render(w, r, "notifications.html", a.Tr(r, "notif.title"), d)
 }
 
 func notifID(r *http.Request) (int64, bool) {
@@ -147,23 +147,23 @@ func (a *App) notification(w http.ResponseWriter, r *http.Request) {
 	s := current(r)
 	id, ok := notifID(r)
 	if !ok {
-		a.fail(w, r, http.StatusNotFound, a.T("notif.err.notfound"), "/notifications")
+		a.fail(w, r, http.StatusNotFound, a.Tr(r, "notif.err.notfound"), "/notifications")
 		return
 	}
 	n, err := a.db.Notification(r.Context(), id)
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		log.Printf("notifications: load %d: %v", id, err)
-		a.fail(w, r, http.StatusInternalServerError, a.T("notif.err.load"), "/notifications")
+		a.fail(w, r, http.StatusInternalServerError, a.Tr(r, "notif.err.load"), "/notifications")
 		return
 	}
 	if err != nil || !canSeeNotif(s, n.App) { // a report outside the role's apps looks like a missing one
-		a.fail(w, r, http.StatusNotFound, a.T("notif.err.notfound"), "/notifications")
+		a.fail(w, r, http.StatusNotFound, a.Tr(r, "notif.err.notfound"), "/notifications")
 		return
 	}
 	events, err := a.db.NotificationEvents(r.Context(), id)
 	if err != nil {
 		log.Printf("notifications: events %d: %v", id, err)
-		a.fail(w, r, http.StatusInternalServerError, a.T("notif.err.load"), "/notifications")
+		a.fail(w, r, http.StatusInternalServerError, a.Tr(r, "notif.err.load"), "/notifications")
 		return
 	}
 	var actions []string
@@ -177,7 +177,7 @@ func (a *App) notification(w http.ResponseWriter, r *http.Request) {
 	d := map[string]any{"N": n, "Events": events, "Actions": actions, "CanAct": canActNotif(s, n.App)}
 	title := n.Title
 	if dg := n.Sample.Digest; dg != nil {
-		title = a.T("notif.digest.title")
+		title = a.Tr(r, "notif.digest.title")
 		d["Digest"] = dg
 		d["DigestRows"], d["OtherSpikes"] = digestRows(dg)
 	}
@@ -218,17 +218,17 @@ func (a *App) notificationAction(w http.ResponseWriter, r *http.Request) {
 	s := current(r)
 	id, ok := notifID(r)
 	if !ok {
-		a.fail(w, r, http.StatusNotFound, a.T("notif.err.notfound"), "/notifications")
+		a.fail(w, r, http.StatusNotFound, a.Tr(r, "notif.err.notfound"), "/notifications")
 		return
 	}
 	n, err := a.db.Notification(r.Context(), id)
 	if err != nil && !errors.Is(err, db.ErrNotFound) {
 		log.Printf("notifications: load %d: %v", id, err)
-		a.fail(w, r, http.StatusInternalServerError, a.T("notif.err.load"), "/notifications")
+		a.fail(w, r, http.StatusInternalServerError, a.Tr(r, "notif.err.load"), "/notifications")
 		return
 	}
 	if err != nil || !canSeeNotif(s, n.App) {
-		a.fail(w, r, http.StatusNotFound, a.T("notif.err.notfound"), "/notifications")
+		a.fail(w, r, http.StatusNotFound, a.Tr(r, "notif.err.notfound"), "/notifications")
 		return
 	}
 	back := "/notifications/" + strconv.FormatInt(id, 10)
@@ -243,19 +243,19 @@ func (a *App) notificationAction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unknown action", http.StatusBadRequest)
 		return
 	case !canActNotif(s, n.App):
-		a.flashError(w, a.T("notif.err.forbidden"))
+		a.flashError(w, a.Tr(r, "notif.err.forbidden"))
 	case utf8.RuneCountInString(reason) > 200 || (action == "mute" && reason == ""):
-		a.flashError(w, a.T("notif.err.reason"))
+		a.flashError(w, a.Tr(r, "notif.err.reason"))
 	default:
 		_, err := a.db.ChangeNotification(r.Context(), id, action, reason, db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r)})
 		switch {
 		case errors.Is(err, db.ErrBadTransition):
-			a.flashError(w, a.T("notif.err.transition"))
+			a.flashError(w, a.Tr(r, "notif.err.transition"))
 		case err != nil:
 			log.Printf("notifications: %s %d: %v", action, id, err)
-			a.flashError(w, a.T("notif.err.save"))
+			a.flashError(w, a.Tr(r, "notif.err.save"))
 		default:
-			a.flash(w, a.T("notif.done"))
+			a.flash(w, a.Tr(r, "notif.done"))
 		}
 	}
 	http.Redirect(w, r, back, http.StatusFound)

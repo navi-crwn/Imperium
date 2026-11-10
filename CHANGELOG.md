@@ -4,6 +4,14 @@ All notable changes to Imperium are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+- Topbar language and theme pickers next to an account menu (profile, sign out), following the family chrome: primary action, language, theme, account. Standard controls (8 px radius, 36/32/40 px). Both work without JavaScript through the Apply button.
+- The language is now per reader: the `hop_lang` cookie, set by `POST /prefs`, picks one of the nine catalogue languages; `IMPERIUM_LANG` is only the default when there is no cookie (Telegram digests keep using it). The theme (`hop_theme`: light, dark, or system) is applied as `data-theme` on the page.
+- Test that `appMark`, `kpiOrder` and the mark list in `scripts/sync-hop-assets.sh` match the embedded hop-assets manifest.
+
+### Removed
+- `scripts/deploy-notehop.sh`, an old deploy helper for a single app that nothing else called.
+
 ### Changed
 - The BioHop mark is the new 8x8 page mark from hop-assets v8 (the embedded manifest and the floating-tile copy); the sync script now reads v8.
 

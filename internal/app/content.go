@@ -255,7 +255,7 @@ func (a *App) withSource(w http.ResponseWriter, r *http.Request) (*db.App, *Mani
 	}
 	m, err := a.manifest(r.Context(), current(r), ap, r.URL.Query().Get("refresh") == "1")
 	if err != nil {
-		a.render(w, r, "error.html", ap.Name, map[string]any{"Err": a.T("err.manifest") + ": " + err.Error(), "Back": "/apps"})
+		a.render(w, r, "error.html", ap.Name, map[string]any{"Err": a.Tr(r, "err.manifest") + ": " + err.Error(), "Back": "/apps"})
 		return nil, nil, false
 	}
 	return ap, m, true
@@ -286,7 +286,7 @@ func (a *App) content(w http.ResponseWriter, r *http.Request) {
 		if typ != "image" {
 			status = "" // albums have no status downstream; never pretend to filter them
 		} else if status != "" && !contains(pixelHopStatuses, status) {
-			errMsg = a.T("content.bad_status")
+			errMsg = a.Tr(r, "content.bad_status")
 		}
 	}
 	params := url.Values{"type": {typ}, "q": {q.Get("q")}, "status": {status}, "owner": {q.Get("owner")}, "cursor": {q.Get("cursor")}, "limit": {"50"}}
@@ -350,7 +350,7 @@ func (a *App) itemAction(w http.ResponseWriter, r *http.Request) {
 	action := r.FormValue("action")
 	ct := m.ContentType(typ)
 	if !canActIn(s, ap.Slug) || ct == nil || !contains(ct.Actions, action) {
-		a.flashError(w, a.T("err.forbidden"))
+		a.flashError(w, a.Tr(r, "err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -365,9 +365,9 @@ func (a *App) itemAction(w http.ResponseWriter, r *http.Request) {
 	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: ap.Slug, Action: typ + "." + action, Target: id,
 		Detail: map[string]any{"reason": reason, "params": params, "error": errString(err)}, OK: err == nil})
 	if err != nil {
-		a.flashError(w, a.T("action.failed")+": "+err.Error())
+		a.flashError(w, a.Tr(r, "action.failed")+": "+err.Error())
 	} else {
-		a.flash(w, a.T("action.done"))
+		a.flash(w, a.Tr(r, "action.done"))
 		if action == "delete" || action == "purge" {
 			back = "/apps/" + ap.Slug + "/content?type=" + typ
 		}
@@ -404,7 +404,7 @@ func (a *App) reportAction(w http.ResponseWriter, r *http.Request) {
 	id, kind, action := r.PathValue("id"), r.FormValue("kind"), r.FormValue("action")
 	back := "/apps/" + ap.Slug + "/reports"
 	if !canActIn(s, ap.Slug) || action == "" {
-		a.flashError(w, a.T("err.forbidden"))
+		a.flashError(w, a.Tr(r, "err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -418,9 +418,9 @@ func (a *App) reportAction(w http.ResponseWriter, r *http.Request) {
 	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: ap.Slug, Action: "report." + action, Target: kind + ":" + id,
 		Detail: map[string]any{"reason": reason, "error": errString(err)}, OK: err == nil})
 	if err != nil {
-		a.flashError(w, a.T("action.failed")+": "+err.Error())
+		a.flashError(w, a.Tr(r, "action.failed")+": "+err.Error())
 	} else {
-		a.flash(w, a.T("action.done"))
+		a.flash(w, a.Tr(r, "action.done"))
 	}
 	http.Redirect(w, r, back, http.StatusFound)
 }
@@ -463,12 +463,12 @@ func (a *App) reportsBulkAction(w http.ResponseWriter, r *http.Request) {
 	}
 	action := strings.TrimSpace(r.FormValue("action"))
 	if !canActIn(s, ap.Slug) {
-		a.flashError(w, a.T("err.forbidden"))
+		a.flashError(w, a.Tr(r, "err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	if action == "" {
-		a.flashError(w, a.T("bulk.no_action"))
+		a.flashError(w, a.Tr(r, "bulk.no_action"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -486,19 +486,19 @@ func (a *App) reportsBulkAction(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if len(picks) == 0 {
-		a.flashError(w, a.T("bulk.none"))
+		a.flashError(w, a.Tr(r, "bulk.none"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	// The rows are counted first: with nothing ticked the operator is told that,
 	// never "this changes many rows".
 	if r.FormValue("confirm") != "yes" && confirmAction(action) {
-		a.flashError(w, a.T("bulk.need_confirm"))
+		a.flashError(w, a.Tr(r, "bulk.need_confirm"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	if len(picks) > maxBulk {
-		a.flashError(w, a.T("bulk.too_many"))
+		a.flashError(w, a.Tr(r, "bulk.too_many"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -530,9 +530,9 @@ func (a *App) reportsBulkAction(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if failed > 0 {
-		a.flashError(w, fmt.Sprintf(a.T("bulk.summary_failed"), done, failed, skipped))
+		a.flashError(w, fmt.Sprintf(a.Tr(r, "bulk.summary_failed"), done, failed, skipped))
 	} else {
-		a.flash(w, fmt.Sprintf(a.T("bulk.summary"), done, skipped))
+		a.flash(w, fmt.Sprintf(a.Tr(r, "bulk.summary"), done, skipped))
 	}
 	http.Redirect(w, r, back, http.StatusFound)
 }
@@ -585,35 +585,35 @@ func (a *App) contentBulkAction(w http.ResponseWriter, r *http.Request) {
 	back := "/apps/" + ap.Slug + "/content?" + url.Values{"type": {typ}, "q": {r.FormValue("q")}, "status": {r.FormValue("status")}, "owner": {r.FormValue("owner")}}.Encode()
 	action := strings.TrimSpace(r.FormValue("action"))
 	if !canActIn(s, ap.Slug) {
-		a.flashError(w, a.T("err.forbidden"))
+		a.flashError(w, a.Tr(r, "err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	if action == "" {
-		a.flashError(w, a.T("bulk.no_action"))
+		a.flashError(w, a.Tr(r, "bulk.no_action"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	if !contains(bulkContentActions(m.ContentType(typ)), action) {
-		a.flashError(w, a.T("err.forbidden"))
+		a.flashError(w, a.Tr(r, "err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	ids := uniquePicks(r.Form["pick"])
 	if len(ids) == 0 {
-		a.flashError(w, a.T("bulk.none"))
+		a.flashError(w, a.Tr(r, "bulk.none"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	// Counted before the confirmation, so an empty submit is told "no rows", never
 	// "this changes many rows".
 	if r.FormValue("confirm") != "yes" && confirmAction(action) {
-		a.flashError(w, a.T("bulk.need_confirm"))
+		a.flashError(w, a.Tr(r, "bulk.need_confirm"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	if len(ids) > maxBulk {
-		a.flashError(w, a.T("bulk.too_many"))
+		a.flashError(w, a.Tr(r, "bulk.too_many"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -630,9 +630,9 @@ func (a *App) contentBulkAction(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if failed > 0 {
-		a.flashError(w, fmt.Sprintf(a.T("bulk.summary_failed"), done, failed, 0))
+		a.flashError(w, fmt.Sprintf(a.Tr(r, "bulk.summary_failed"), done, failed, 0))
 	} else {
-		a.flash(w, fmt.Sprintf(a.T("bulk.summary"), done, 0))
+		a.flash(w, fmt.Sprintf(a.Tr(r, "bulk.summary"), done, 0))
 	}
 	http.Redirect(w, r, back, http.StatusFound)
 }
@@ -660,7 +660,7 @@ func (a *App) saveSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	back := "/apps/" + ap.Slug + "/settings"
 	if !isAdmin(s) {
-		a.flashError(w, a.T("err.forbidden"))
+		a.flashError(w, a.Tr(r, "err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -688,9 +688,9 @@ func (a *App) saveSettings(w http.ResponseWriter, r *http.Request) {
 	err := a.call(r.Context(), s, ap, "PUT", "/settings", body, nil)
 	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: ap.Slug, Action: "settings.update", Detail: map[string]any{"keys": keysOf(body), "error": errString(err)}, OK: err == nil})
 	if err != nil {
-		a.flashError(w, a.T("action.failed")+": "+err.Error())
+		a.flashError(w, a.Tr(r, "action.failed")+": "+err.Error())
 	} else {
-		a.flash(w, a.T("action.done"))
+		a.flash(w, a.Tr(r, "action.done"))
 	}
 	http.Redirect(w, r, back, http.StatusFound)
 }
@@ -716,7 +716,7 @@ func (a *App) extension(w http.ResponseWriter, r *http.Request) {
 	if err := a.call(r.Context(), current(r), ap, "GET", "/x/"+extPath(ext)+"?q="+url.QueryEscape(q), nil, &data); err != nil {
 		errMsg = err.Error()
 	}
-	a.render(w, r, "extension.html", ap.Name+" · "+a.extLabel(ext), map[string]any{"App": ap, "M": m, "Ext": ext, "Data": data, "Tables": tables(data), "Raw": jsonPretty(data), "Err": errMsg, "Q": q,
+	a.render(w, r, "extension.html", ap.Name+" · "+extLabel(a.langOf(r), ext), map[string]any{"App": ap, "M": m, "Ext": ext, "Data": data, "Tables": tables(data), "Raw": jsonPretty(data), "Err": errMsg, "Q": q,
 		"IsAdmin": isAdmin(current(r)), "Actions": extActions[ext], "KV": kvRows(data)})
 }
 
@@ -730,7 +730,7 @@ func (a *App) extensionAction(w http.ResponseWriter, r *http.Request) {
 	ext := r.PathValue("ext")
 	back := "/apps/" + ap.Slug + "/x/" + url.PathEscape(ext)
 	if !isAdmin(s) {
-		a.flashError(w, a.T("err.forbidden"))
+		a.flashError(w, a.Tr(r, "err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -746,7 +746,7 @@ func (a *App) extensionAction(w http.ResponseWriter, r *http.Request) {
 	// An optional sub-path picks a nested resource: NoteHop releases a slug hold at /x/names/holds/{slug}/actions.
 	sub := strings.Trim(r.FormValue("path"), "/")
 	if !safeSubPath(sub) {
-		a.flashError(w, a.T("action.failed"))
+		a.flashError(w, a.Tr(r, "action.failed"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -758,9 +758,9 @@ func (a *App) extensionAction(w http.ResponseWriter, r *http.Request) {
 	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: ap.Slug, Action: ext + "." + action, Target: sub + str(params["ip"]) + str(params["domain"]) + str(params["slug"]) + str(params["id"]),
 		Detail: map[string]any{"reason": reason, "params": params, "error": errString(err)}, OK: err == nil})
 	if err != nil {
-		a.flashError(w, a.T("action.failed")+": "+err.Error())
+		a.flashError(w, a.Tr(r, "action.failed")+": "+err.Error())
 	} else {
-		a.flash(w, a.T("action.done"))
+		a.flash(w, a.Tr(r, "action.done"))
 	}
 	http.Redirect(w, r, back, http.StatusFound)
 }

@@ -1,12 +1,16 @@
-{{define "head"}}<!doctype html><html lang="{{lang}}"{{if eq .UI "clean"}} data-ui="clean"{{end}}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · {{t "app"}}</title><link rel="stylesheet" href="/static/hop/fonts.css"><link rel="stylesheet" href="/static/app.css"><link rel="icon" type="image/svg+xml" href="/static/imperium.svg"><meta name="color-scheme" content="dark light"></head><body>{{end}}
+{{define "head"}}<!doctype html><html lang="{{lang}}"{{if eq .UI "clean"}} data-ui="clean"{{end}}{{if .Theme}} data-theme="{{.Theme}}"{{end}}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{.Title}} · {{t "app"}}</title><link rel="stylesheet" href="/static/hop/fonts.css"><link rel="stylesheet" href="/static/app.css"><link rel="icon" type="image/svg+xml" href="/static/imperium.svg"><meta name="color-scheme" content="dark light"></head><body>{{end}}
 {{define "top"}}
 <header class="top">
   <button class="menu-btn" type="button" data-side-toggle aria-controls="side" aria-expanded="false" aria-label="{{t "nav.menu"}}"><span></span><span></span><span></span></button>
   <a href="/" class="brand"><img class="logo" src="/static/imperium.svg" alt="">IMPERIUM<small>{{t "tagline"}}</small></a>
   {{if .Nav.Global}}<form class="search" action="/search" method="get"><input type="search" name="q" value="{{.Query}}" placeholder="{{t "search.ph"}}" autocomplete="off"></form>{{end}}
-  <div class="who">{{if .Session.Avatar}}<img src="{{.Session.Avatar}}" alt="">{{end}}<a href="/me">@{{.Session.Username}}</a>
-    {{range .Session.Roles}}<span class="chip {{.}}">{{.}}</span>{{end}}
-    <form method="post" action="/logout"><button class="btn" type="submit">{{t "nav.logout"}}</button></form></div>
+  <div class="top-end">
+    <form class="pref" method="post" action="/prefs"><input type="hidden" name="next" value="{{.Path}}"><label class="sr" for="pref-lang">{{t "pref.language"}}</label><select id="pref-lang" name="lang" data-pref-auto>{{$cur := lang}}{{range langOptions}}<option value="{{.Code}}"{{if eq .Code $cur}} selected{{end}}>{{.Name}}</option>{{end}}</select><button class="btn sm pref-go" type="submit">{{t "pref.apply"}}</button></form>
+    <form class="pref" method="post" action="/prefs"><input type="hidden" name="next" value="{{.Path}}"><label class="sr" for="pref-theme">{{t "pref.theme"}}</label><select id="pref-theme" name="theme" data-pref-auto><option value="system"{{if not .Theme}} selected{{end}}>{{t "pref.system"}}</option><option value="light"{{if eq .Theme "light"}} selected{{end}}>{{t "pref.light"}}</option><option value="dark"{{if eq .Theme "dark"}} selected{{end}}>{{t "pref.dark"}}</option></select><button class="btn sm pref-go" type="submit">{{t "pref.apply"}}</button></form>
+    <details class="acct"><summary aria-label="{{t "nav.account"}}">{{if .Session.Avatar}}<img src="{{.Session.Avatar}}" alt="">{{end}}<span class="acct-name">@{{.Session.Username}}</span></summary>
+      <div class="acct-menu">{{range .Session.Roles}}<span class="chip {{.}}">{{.}}</span>{{end}}<a href="/me">{{t "nav.profile"}}</a>
+        <form method="post" action="/logout"><button class="btn sm" type="submit">{{t "nav.logout"}}</button></form></div></details>
+  </div>
 </header>
 <div class="shell">
 {{template "side" .}}

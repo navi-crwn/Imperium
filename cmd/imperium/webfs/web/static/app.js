@@ -174,3 +174,14 @@ document.querySelectorAll('.dash-tabs').forEach(nav => {
         if (clean) document.documentElement.dataset.ui = 'clean'; else document.documentElement.removeAttribute('data-ui');
     });
 })();
+
+// Language and theme pickers save on change; without JavaScript the Apply button does the same.
+(() => {
+    document.documentElement.classList.add('js');
+    document.querySelectorAll('select[data-pref-auto]').forEach((sel) => {
+        sel.addEventListener('change', () => sel.form.submit());
+    });
+    document.addEventListener('click', (e) => {
+        document.querySelectorAll('details.acct[open]').forEach((d) => { if (!d.contains(e.target)) d.removeAttribute('open'); });
+    });
+})();

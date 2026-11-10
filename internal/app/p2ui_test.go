@@ -143,34 +143,32 @@ func TestReportsBulkSaysNoActionAndCountsRowsFirst(t *testing.T) {
 // label at all, and raw ISO text in some tables. Every clock is now UTC with the zone
 // named, and carries the instant so the browser can convert it.
 func TestTimesSayTheirZoneAndCarryTheInstant(t *testing.T) {
-	a := &App{cfg: Config{Lang: "en"}}
 	at := time.Date(2026, 11, 8, 16, 37, 0, 0, time.UTC)
-	got := string(a.dateWithZone(at))
+	got := string(dateWithZone("en", at))
 	for _, want := range []string{`datetime="2026-11-08T16:37:00Z"`, ">2026-11-08 16:37<", `class="time-zone">UTC<`} {
 		if !strings.Contains(got, want) {
 			t.Errorf("dateWithZone lacks %q: %s", want, got)
 		}
 	}
 	// A zero time shows a dash, never "0001-01-01".
-	if z := string(a.dateWithZone(time.Time{})); strings.Contains(z, "0001") {
+	if z := string(dateWithZone("en", time.Time{})); strings.Contains(z, "0001") {
 		t.Errorf("zero time rendered: %s", z)
 	}
 	// Text from another app is parsed when it is a time, and shown as given when it is not.
-	if v := string(a.datesz("2026-11-08T16:37:00Z")); !strings.Contains(v, `datetime="2026-11-08T16:37:00Z"`) {
+	if v := string(datesz("en", "2026-11-08T16:37:00Z")); !strings.Contains(v, `datetime="2026-11-08T16:37:00Z"`) {
 		t.Errorf("an RFC 3339 string was not parsed: %s", v)
 	}
-	if v := string(a.datesz("2026-11-08 16:37:00")); !strings.Contains(v, "<time ") {
+	if v := string(datesz("en", "2026-11-08 16:37:00")); !strings.Contains(v, "<time ") {
 		t.Errorf("a naive timestamp was not parsed: %s", v)
 	}
-	if v := string(a.datesz("not a time")); v != "not a time" {
+	if v := string(datesz("en", "not a time")); v != "not a time" {
 		t.Errorf("unparseable text must be shown as it came, got %s", v)
 	}
-	if v := string(a.datesz("")); strings.Contains(v, "<time ") {
+	if v := string(datesz("en", "")); strings.Contains(v, "<time ") {
 		t.Errorf("an empty value must not render a clock: %s", v)
 	}
 	// The Indonesian catalogue names the zone in its own words only if it says UTC.
-	id := &App{cfg: Config{Lang: "id"}}
-	if v := string(id.dateWithZone(at)); !strings.Contains(v, "UTC") {
+	if v := string(dateWithZone("id", at)); !strings.Contains(v, "UTC") {
 		t.Errorf("the zone label is missing in Indonesian: %s", v)
 	}
 }

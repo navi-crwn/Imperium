@@ -316,10 +316,10 @@ func TestLoginDenialNamesTheAccountAndLogoutConfirms(t *testing.T) {
 
 func TestDevelopmentVersionAndSingleSecurityHeaders(t *testing.T) {
 	a := &App{cfg: Config{Lang: "en"}}
-	if got := a.versionLabel("dev"); got != "development build" {
+	if got := versionLabel("en", "dev"); got != "development build" {
 		t.Fatalf("development version = %q", got)
 	}
-	if got := a.versionLabel("1"); got != "1" {
+	if got := versionLabel("en", "1"); got != "1" {
 		t.Fatalf("an upstream release value was changed: %q", got)
 	}
 	hop := newFakeHop(t)

@@ -42,8 +42,8 @@ type navData struct {
 }
 
 // extLabel names an extension in the sidebar and page titles.
-func (a *App) extLabel(ext string) string {
-	if v := a.T("ext." + ext); v != "ext."+ext {
+func extLabel(l, ext string) string {
+	if v := tl(l, "ext."+ext); v != "ext."+ext {
 		return v
 	}
 	return ext
@@ -71,11 +71,12 @@ func (a *App) healthSnapshot() map[string]Health {
 }
 
 // appItems lists the modules for one app's content navigation bar.
-func (a *App) appItems(slug string, m *Manifest, path, typ string) []navItem {
+func (a *App) appItems(r *http.Request, slug string, m *Manifest, path, typ string) []navItem {
+	l := a.langOf(r)
 	base := "/apps/" + slug
-	items := []navItem{{Label: a.T("dash.title"), Href: base, Kind: "dash", On: path == base}}
+	items := []navItem{{Label: a.Tr(r, "dash.title"), Href: base, Kind: "dash", On: path == base}}
 	if slug == "hub" {
-		items = append(items, navItem{Label: a.T("nav.users"), Href: "/users", Kind: "users", On: path == "/users" || strings.HasPrefix(path, "/users/")})
+		items = append(items, navItem{Label: a.Tr(r, "nav.users"), Href: "/users", Kind: "users", On: path == "/users" || strings.HasPrefix(path, "/users/")})
 	}
 	if m == nil {
 		return items
@@ -85,13 +86,13 @@ func (a *App) appItems(slug string, m *Manifest, path, typ string) []navItem {
 		items = append(items, navItem{Label: ct.Label, Href: base + "/content?type=" + url.QueryEscape(ct.Type), Kind: "content", On: on})
 	}
 	if m.HasReports() {
-		items = append(items, navItem{Label: a.T("mod.reports"), Href: base + "/reports", Kind: "reports", On: strings.HasPrefix(path, base+"/reports")})
+		items = append(items, navItem{Label: a.Tr(r, "mod.reports"), Href: base + "/reports", Kind: "reports", On: strings.HasPrefix(path, base+"/reports")})
 	}
 	if m.HasSettings() {
-		items = append(items, navItem{Label: a.T("mod.settings"), Href: base + "/settings", Kind: "settings", On: path == base+"/settings"})
+		items = append(items, navItem{Label: a.Tr(r, "mod.settings"), Href: base + "/settings", Kind: "settings", On: path == base+"/settings"})
 	}
 	for _, ext := range m.Extensions {
-		items = append(items, navItem{Label: a.extLabel(ext), Href: base + "/x/" + url.PathEscape(ext), Kind: "ext", On: path == base+"/x/"+ext})
+		items = append(items, navItem{Label: extLabel(l, ext), Href: base + "/x/" + url.PathEscape(ext), Kind: "ext", On: path == base+"/x/"+ext})
 	}
 	return items
 }
@@ -102,15 +103,15 @@ func (a *App) nav(r *http.Request) navData {
 	typ := r.URL.Query().Get("type")
 	sess := current(r)
 	global := globalRole(sess)
-	n := navData{Global: global, Pages: []navItem{{Label: a.T("nav.home"), Href: "/", Kind: "home", On: path == "/"}}}
+	n := navData{Global: global, Pages: []navItem{{Label: a.Tr(r, "nav.home"), Href: "/", Kind: "home", On: path == "/"}}}
 	if global {
-		n.Pages = append(n.Pages, navItem{Label: a.T("nav.users"), Href: "/users", Kind: "users", On: path == "/users" || strings.HasPrefix(path, "/users/")})
+		n.Pages = append(n.Pages, navItem{Label: a.Tr(r, "nav.users"), Href: "/users", Kind: "users", On: path == "/users" || strings.HasPrefix(path, "/users/")})
 	}
 	n.Pages = append(n.Pages,
-		navItem{Label: a.T("nav.apps"), Href: "/apps", Kind: "apps", On: path == "/apps"},
-		navItem{Label: a.T("nav.notifications"), Href: "/notifications", Kind: "notifications", On: strings.HasPrefix(path, "/notifications"), Badge: a.newErrors(r)})
+		navItem{Label: a.Tr(r, "nav.apps"), Href: "/apps", Kind: "apps", On: path == "/apps"},
+		navItem{Label: a.Tr(r, "nav.notifications"), Href: "/notifications", Kind: "notifications", On: strings.HasPrefix(path, "/notifications"), Badge: a.newErrors(r)})
 	if global {
-		n.Pages = append(n.Pages, navItem{Label: a.T("nav.audit"), Href: "/audit", Kind: "audit", On: path == "/audit"})
+		n.Pages = append(n.Pages, navItem{Label: a.Tr(r, "nav.audit"), Href: "/audit", Kind: "audit", On: path == "/audit"})
 	}
 	health := a.healthSnapshot()
 	current := ""
@@ -122,7 +123,7 @@ func (a *App) nav(r *http.Request) navData {
 		na := navApp{Slug: ap.Slug, Name: ap.Name, URL: ap.URL, Tag: tag, Health: health[ap.Slug], Admin: admin, Open: ap.Slug == current}
 		if admin {
 			na.Href = "/apps/" + ap.Slug
-			na.Items = a.appItems(ap.Slug, a.cachedManifest(ap.Slug), path, typ)
+			na.Items = a.appItems(r, ap.Slug, a.cachedManifest(ap.Slug), path, typ)
 		} else {
 			na.Href = "/apps"
 		}
@@ -204,8 +205,8 @@ type opsCard struct {
 	Tables          []table
 }
 
-func (a *App) opsCard(ext string, data any, err string) opsCard {
-	c := opsCard{Ext: ext, Label: a.extLabel(ext), Err: err, KV: kvRows(data), Tables: tables(data)}
+func (a *App) opsCard(l, ext string, data any, err string) opsCard {
+	c := opsCard{Ext: ext, Label: extLabel(l, ext), Err: err, KV: kvRows(data), Tables: tables(data)}
 	for i := range c.Tables {
 		if len(c.Tables[i].Rows) > dashRows {
 			c.Tables[i].Rows = c.Tables[i].Rows[:dashRows]
@@ -217,22 +218,22 @@ func (a *App) opsCard(ext string, data any, err string) opsCard {
 func isBytesKey(k string) bool { return k == "bytes" || strings.HasSuffix(k, "_bytes") }
 
 // kpiLabel translates a KPI key, falling back to the key spelled out.
-func (a *App) kpiLabel(key string) string {
-	if v := a.T("kpi." + key); v != "kpi."+key {
+func kpiLabel(l, key string) string {
+	if v := tl(l, "kpi."+key); v != "kpi."+key {
 		return v
 	}
 	return strings.ToUpper(key[:1]) + strings.ReplaceAll(key[1:], "_", " ")
 }
 
-func (a *App) seriesLabel(key string) string {
-	if v := a.T("series." + key); v != "series."+key {
+func seriesLabel(l, key string) string {
+	if v := tl(l, "series."+key); v != "series."+key {
 		return v
 	}
 	return strings.ToUpper(key[:1]) + strings.ReplaceAll(key[1:], "_", " ")
 }
 
 // kpis orders and formats the KPI map of one app.
-func (a *App) kpis(slug string, raw map[string]int64) (all, attention []kpi) {
+func (a *App) kpis(l, slug string, raw map[string]int64) (all, attention []kpi) {
 	seen := map[string]bool{}
 	var keys []string
 	for _, k := range kpiOrder[slug] {
@@ -251,7 +252,7 @@ func (a *App) kpis(slug string, raw map[string]int64) (all, attention []kpi) {
 	keys = append(keys, rest...)
 	for _, k := range keys {
 		v := raw[k]
-		item := kpi{Key: k, Label: a.kpiLabel(k), Value: humanInt(v)}
+		item := kpi{Key: k, Label: kpiLabel(l, k), Value: humanInt(v)}
 		if isBytesKey(k) {
 			item.Value = humanBytes(v)
 		}
@@ -264,7 +265,7 @@ func (a *App) kpis(slug string, raw map[string]int64) (all, attention []kpi) {
 	return all, attention
 }
 
-func (a *App) seriesViews(raw map[string][][2]any) []seriesView {
+func (a *App) seriesViews(l string, raw map[string][][2]any) []seriesView {
 	keys := make([]string, 0, len(raw))
 	for k := range raw {
 		keys = append(keys, k)
@@ -276,7 +277,7 @@ func (a *App) seriesViews(raw map[string][][2]any) []seriesView {
 		if len(pts) == 0 {
 			continue
 		}
-		sv := seriesView{Key: k, Label: a.seriesLabel(k), Points: pts, Bytes: isBytesKey(k)}
+		sv := seriesView{Key: k, Label: seriesLabel(l, k), Points: pts, Bytes: isBytesKey(k)}
 		for _, p := range pts {
 			sv.Total += p.N
 			if p.N > sv.Max {
@@ -377,16 +378,16 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 	a.aliasRows(latest)
 	var ops []opsCard
 	for i, ext := range exts {
-		ops = append(ops, a.opsCard(ext, opsData[i], opsErr[i]))
+		ops = append(ops, a.opsCard(a.langOf(r), ext, opsData[i], opsErr[i]))
 	}
 	kpiMap := st.KPI
 	if len(kpiMap) == 0 {
 		kpiMap = st.Totals
 	}
-	all, attention := a.kpis(ap.Slug, kpiMap)
+	all, attention := a.kpis(a.langOf(r), ap.Slug, kpiMap)
 	a.render(w, r, "dashboard.html", ap.Name, map[string]any{
-		"App": ap, "M": m, "Health": health, "Items": a.appItems(ap.Slug, m, r.URL.Path, ""),
-		"KPIs": all, "Attention": attention, "Series": a.seriesViews(st.Series), "StatsErr": statsErr,
+		"App": ap, "M": m, "Health": health, "Items": a.appItems(r, ap.Slug, m, r.URL.Path, ""),
+		"KPIs": all, "Attention": attention, "Series": a.seriesViews(a.langOf(r), st.Series), "StatsErr": statsErr,
 		"CT": firstCT, "Latest": latest, "LatestErr": latestErr,
 		"Reports": reports, "ReportsErr": reportsErr, "HasReports": m.HasReports(),
 		"Ops": ops, "CanAct": canActIn(s, ap.Slug),

@@ -23,7 +23,7 @@ func (a *App) loginPage(w http.ResponseWriter, r *http.Request) {
 	if a.cfg.AltHost != "" && strings.EqualFold(r.Host, a.cfg.AltHost) {
 		kind = "Cloudflare Access"
 	}
-	a.render(w, r, "login.html", a.T("login.title"), map[string]any{
+	a.render(w, r, "login.html", a.Tr(r, "login.title"), map[string]any{
 		"Enabled": a.cfg.SSOEnabled(), "Next": safeNext(r.URL.Query().Get("next")),
 		"Door": r.Host, "DoorKind": kind,
 	})
@@ -32,7 +32,7 @@ func (a *App) loginPage(w http.ResponseWriter, r *http.Request) {
 // ssoStart sends the visitor to HOP ID to sign in.
 func (a *App) ssoStart(w http.ResponseWriter, r *http.Request) {
 	if !a.cfg.SSOEnabled() {
-		a.flashError(w, a.T("login.off"))
+		a.flashError(w, a.Tr(r, "login.off"))
 		http.Redirect(w, r, "/login", http.StatusFound)
 		return
 	}
@@ -52,7 +52,7 @@ func (a *App) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	}
 	c, err := r.Cookie(ssoCookie)
 	if err != nil {
-		fail(a.T("login.bad_ticket"))
+		fail(a.Tr(r, "login.bad_ticket"))
 		return
 	}
 	http.SetCookie(w, &http.Cookie{Name: ssoCookie, Path: "/auth/", MaxAge: -1, HttpOnly: true, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode})
@@ -61,7 +61,7 @@ func (a *App) ssoCallback(w http.ResponseWriter, r *http.Request) {
 	client, secret, _ := a.cfg.Door(r.Host)
 	t, err := hopproto.ParseTicket(r.URL.Query().Get("ticket"), secret, time.Now())
 	if err != nil || t.State != state || (t.Aud != "" && t.Aud != client) || !a.jti.First(t.Jti, time.Unix(t.Exp, 0)) {
-		fail(a.T("login.bad_ticket"))
+		fail(a.Tr(r, "login.bad_ticket"))
 		return
 	}
 	if alias := a.cfg.Alias(t.Username, t.Email); alias != "" {
@@ -69,19 +69,19 @@ func (a *App) ssoCallback(w http.ResponseWriter, r *http.Request) {
 		t.Username, t.Name, t.Email = alias, alias, ""
 	}
 	if t.Status != "" && t.Status != "active" {
-		fail(fmt.Sprintf(a.T("login.denied"), "@"+t.Username))
+		fail(fmt.Sprintf(a.Tr(r, "login.denied"), "@"+t.Username))
 		return
 	}
 	if !allowedIn(t.Roles) {
 		a.db.AddAudit(r.Context(), &db.Audit{ActorSub: t.Sub, ActorName: t.Username, IP: clientIP(r), Action: "login.denied", Detail: map[string]any{"roles": t.Roles}})
 		a.notify(fmt.Sprintf("⛔ Login ditolak: @%s (%s) tanpa peran admin, dari %s", t.Username, t.Email, clientIP(r)))
-		fail(fmt.Sprintf(a.T("login.denied"), "@"+t.Username))
+		fail(fmt.Sprintf(a.Tr(r, "login.denied"), "@"+t.Username))
 		return
 	}
 	if a.cfg.RequireMFA && !t.MFA {
 		a.db.AddAudit(r.Context(), &db.Audit{ActorSub: t.Sub, ActorName: t.Username, IP: clientIP(r), Action: "login.no_mfa"})
 		a.notify(fmt.Sprintf("⚠️ Login admin tanpa 2FA ditolak: @%s dari %s", t.Username, clientIP(r)))
-		fail(fmt.Sprintf(a.T("login.mfa"), "@"+t.Username))
+		fail(fmt.Sprintf(a.Tr(r, "login.mfa"), "@"+t.Username))
 		return
 	}
 	tok := randomToken(32)
@@ -111,7 +111,7 @@ func (a *App) logout(w http.ResponseWriter, r *http.Request) {
 	}
 	http.SetCookie(w, &http.Cookie{Name: sessionCookie, Path: "/", MaxAge: -1, HttpOnly: true, Secure: a.cfg.Secure, SameSite: http.SameSiteLaxMode})
 	if current(r) != nil {
-		a.flash(w, a.T("logout.done"))
+		a.flash(w, a.Tr(r, "logout.done"))
 	}
 	if a.cfg.SSOEnabled() && a.cfg.BaseURL != "" {
 		// HOP ID signs the person out of the family and sends them back to this login.

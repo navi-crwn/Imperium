@@ -17,11 +17,10 @@ func TestDestructiveProtocolActionsRequireConfirmation(t *testing.T) {
 
 func TestProtocolActionLabelsFollowLanguage(t *testing.T) {
 	for _, tc := range []struct{ lang, want string }{{"en", "Delete"}, {"id", "Hapus"}} {
-		a := &App{cfg: Config{Lang: tc.lang}}
-		if got := a.actionLabel("delete"); got != tc.want {
+		if got := actionLabel(tc.lang, "delete"); got != tc.want {
 			t.Errorf("%s: got %q, want %q", tc.lang, got, tc.want)
 		}
-		if got := a.actionLabel("future_action"); got != "future action" {
+		if got := actionLabel(tc.lang, "future_action"); got != "future action" {
 			t.Errorf("unknown action fallback: %q", got)
 		}
 	}

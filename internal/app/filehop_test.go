@@ -6,7 +6,7 @@ import "testing"
 // its dashboard puts them in a fixed order, and a suspended account is work.
 func TestFileHopKPIOrder(t *testing.T) {
 	a, _ := newApp(t, newFakeHop(t))
-	all, attention := a.kpis("filehop", map[string]int64{
+	all, attention := a.kpis("en", "filehop", map[string]int64{
 		"users_suspended": 1, "sessions_live": 9, "users": 12, "users_active_30d": 11,
 	})
 	want := []string{"users", "users_active_30d", "sessions_live", "users_suspended"}
