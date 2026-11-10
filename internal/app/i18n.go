@@ -1,11 +1,24 @@
 package app
 
+import (
+	"net/http"
+	"strings"
+)
+
 // UI strings in the nine languages of the HOP family: en, zh-CN, de, id, ja,
 // pt-BR, es, fr, ru. Every key is present in every language; T falls back to
 // English and then to the key itself, so a missing line never shows a blank.
 // The notification pages carry their own catalogue in i18n_notifications.go.
 var catalog = map[string]map[string]string{
 	"en": {
+		"pref.language":          "Language",
+		"pref.theme":             "Theme",
+		"pref.system":            "System",
+		"pref.light":             "Light",
+		"pref.dark":              "Dark",
+		"nav.account":            "Account",
+		"nav.profile":            "Profile",
+		"pref.apply":             "Apply",
 		"app":                    "Imperium",
 		"tagline":                "HOP Dashboard",
 		"login.title":            "Sign in to Imperium",
@@ -281,6 +294,14 @@ var catalog = map[string]map[string]string{
 		"version.dev":            "development build",
 	},
 	"id": {
+		"pref.language":          "Bahasa",
+		"pref.theme":             "Tema",
+		"pref.system":            "Sistem",
+		"pref.light":             "Terang",
+		"pref.dark":              "Gelap",
+		"nav.account":            "Akun",
+		"nav.profile":            "Profil",
+		"pref.apply":             "Terapkan",
 		"app":                    "Imperium",
 		"tagline":                "HOP Dashboard",
 		"login.title":            "Masuk ke Imperium",
@@ -556,6 +577,14 @@ var catalog = map[string]map[string]string{
 		"version.dev":            "build pengembangan",
 	},
 	"zh-CN": {
+		"pref.language":          "语言",
+		"pref.theme":             "主题",
+		"pref.system":            "跟随系统",
+		"pref.light":             "浅色",
+		"pref.dark":              "深色",
+		"nav.account":            "账户",
+		"nav.profile":            "个人资料",
+		"pref.apply":             "应用",
 		"app":                    "Imperium",
 		"tagline":                "HOP 控制台",
 		"login.title":            "登录 Imperium",
@@ -831,6 +860,14 @@ var catalog = map[string]map[string]string{
 		"version.dev":            "开发构建",
 	},
 	"de": {
+		"pref.language":          "Sprache",
+		"pref.theme":             "Design",
+		"pref.system":            "System",
+		"pref.light":             "Hell",
+		"pref.dark":              "Dunkel",
+		"nav.account":            "Konto",
+		"nav.profile":            "Profil",
+		"pref.apply":             "Übernehmen",
 		"app":                    "Imperium",
 		"tagline":                "HOP-Dashboard",
 		"login.title":            "Bei Imperium anmelden",
@@ -1106,6 +1143,14 @@ var catalog = map[string]map[string]string{
 		"version.dev":            "Entwicklungsbuild",
 	},
 	"ja": {
+		"pref.language":          "言語",
+		"pref.theme":             "テーマ",
+		"pref.system":            "システム",
+		"pref.light":             "ライト",
+		"pref.dark":              "ダーク",
+		"nav.account":            "アカウント",
+		"nav.profile":            "プロフィール",
+		"pref.apply":             "適用",
 		"app":                    "Imperium",
 		"tagline":                "HOP ダッシュボード",
 		"login.title":            "Imperium にサインイン",
@@ -1381,6 +1426,14 @@ var catalog = map[string]map[string]string{
 		"version.dev":            "開発ビルド",
 	},
 	"pt-BR": {
+		"pref.language":          "Idioma",
+		"pref.theme":             "Tema",
+		"pref.system":            "Sistema",
+		"pref.light":             "Claro",
+		"pref.dark":              "Escuro",
+		"nav.account":            "Conta",
+		"nav.profile":            "Perfil",
+		"pref.apply":             "Aplicar",
 		"app":                    "Imperium",
 		"tagline":                "Painel HOP",
 		"login.title":            "Entrar no Imperium",
@@ -1656,6 +1709,14 @@ var catalog = map[string]map[string]string{
 		"version.dev":            "build de desenvolvimento",
 	},
 	"es": {
+		"pref.language":          "Idioma",
+		"pref.theme":             "Tema",
+		"pref.system":            "Sistema",
+		"pref.light":             "Claro",
+		"pref.dark":              "Oscuro",
+		"nav.account":            "Cuenta",
+		"nav.profile":            "Perfil",
+		"pref.apply":             "Aplicar",
 		"app":                    "Imperium",
 		"tagline":                "Panel de HOP",
 		"login.title":            "Iniciar sesión en Imperium",
@@ -1931,6 +1992,14 @@ var catalog = map[string]map[string]string{
 		"version.dev":            "compilación de desarrollo",
 	},
 	"fr": {
+		"pref.language":          "Langue",
+		"pref.theme":             "Thème",
+		"pref.system":            "Système",
+		"pref.light":             "Clair",
+		"pref.dark":              "Sombre",
+		"nav.account":            "Compte",
+		"nav.profile":            "Profil",
+		"pref.apply":             "Appliquer",
 		"app":                    "Imperium",
 		"tagline":                "Tableau de bord HOP",
 		"login.title":            "Se connecter à Imperium",
@@ -2206,6 +2275,14 @@ var catalog = map[string]map[string]string{
 		"version.dev":            "version de développement",
 	},
 	"ru": {
+		"pref.language":          "Язык",
+		"pref.theme":             "Тема",
+		"pref.system":            "Системная",
+		"pref.light":             "Светлая",
+		"pref.dark":              "Тёмная",
+		"nav.account":            "Аккаунт",
+		"nav.profile":            "Профиль",
+		"pref.apply":             "Применить",
 		"app":                    "Imperium",
 		"tagline":                "Панель HOP",
 		"login.title":            "Вход в Imperium",
@@ -2482,9 +2559,14 @@ var catalog = map[string]map[string]string{
 	},
 }
 
-// T looks a key up in the configured language, then English, then returns the key.
-func (a *App) T(key string) string {
-	if v, ok := catalog[a.cfg.Lang][key]; ok {
+// langOrder is the order of the topbar picker; langNames are the endonyms it shows.
+var langOrder = []string{"en", "zh-CN", "de", "id", "ja", "pt-BR", "es", "fr", "ru"}
+
+var langNames = map[string]string{"en": "English", "zh-CN": "简体中文", "de": "Deutsch", "id": "Bahasa Indonesia", "ja": "日本語", "pt-BR": "Português (Brasil)", "es": "Español", "fr": "Français", "ru": "Русский"}
+
+// tl looks a key up in one language, then English, then returns the key.
+func tl(lang, key string) string {
+	if v, ok := catalog[lang][key]; ok {
 		return v
 	}
 	if v, ok := catalog["en"][key]; ok {
@@ -2493,11 +2575,82 @@ func (a *App) T(key string) string {
 	return key
 }
 
-// lang is the language actually in use: the configured one when the catalog
-// has it, English otherwise. Templates render it as <html lang>.
+// T translates into the instance default language (IMPERIUM_LANG): used where
+// there is no reader, such as Telegram digests. Pages use Tr.
+func (a *App) T(key string) string { return tl(a.cfg.Lang, key) }
+
+// Tr translates for the reader of this request.
+func (a *App) Tr(r *http.Request, key string) string { return tl(a.langOf(r), key) }
+
+// lang is the instance default language: the configured one when the catalog
+// has it, English otherwise.
 func (a *App) lang() string {
 	if _, ok := catalog[a.cfg.Lang]; ok {
 		return a.cfg.Lang
 	}
 	return "en"
+}
+
+// langOf is the language of this reader: the hop_lang cookie when it names a
+// catalog language, the instance default otherwise.
+func (a *App) langOf(r *http.Request) string {
+	if r != nil {
+		if c, err := r.Cookie(langCookie); err == nil {
+			if l := normLang(c.Value); catalog[l] != nil {
+				return l
+			}
+		}
+	}
+	return a.lang()
+}
+
+const (
+	langCookie  = "hop_lang"
+	themeCookie = "hop_theme"
+)
+
+// themeOf is "light" or "dark" when the reader chose one, "" to follow the system.
+func themeOf(r *http.Request) string {
+	if c, err := r.Cookie(themeCookie); err == nil && (c.Value == "light" || c.Value == "dark") {
+		return c.Value
+	}
+	return ""
+}
+
+// prefs stores the reader's language and theme in host-only cookies and goes back.
+func (a *App) prefs(w http.ResponseWriter, r *http.Request) {
+	set := func(name, val string, clear bool) {
+		c := &http.Cookie{Name: name, Value: val, Path: "/", MaxAge: 31536000, HttpOnly: true, Secure: a.cfg.Secure || r.TLS != nil, SameSite: http.SameSiteLaxMode}
+		if clear {
+			c.MaxAge = -1
+		}
+		http.SetCookie(w, c)
+	}
+	if v := r.FormValue("lang"); v != "" {
+		if l := normLang(v); catalog[l] != nil {
+			set(langCookie, l, false)
+		}
+	}
+	switch v := r.FormValue("theme"); v {
+	case "light", "dark":
+		set(themeCookie, v, false)
+	case "system":
+		set(themeCookie, "", true)
+	}
+	http.Redirect(w, r, safeNext(r.FormValue("next")), http.StatusSeeOther)
+}
+
+type langOption struct{ Code, Name, Short string }
+
+// langShort is the compact code on the picker button: EN, ZH, PT.
+func langShort(code string) string {
+	return strings.ToUpper(strings.SplitN(code, "-", 2)[0])
+}
+
+func langOptions() []langOption {
+	out := make([]langOption, 0, len(langOrder))
+	for _, c := range langOrder {
+		out = append(out, langOption{c, langNames[c], langShort(c)})
+	}
+	return out
 }

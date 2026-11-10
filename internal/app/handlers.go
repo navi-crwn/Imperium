@@ -50,9 +50,9 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 			attention[k] = v
 		}
 	}
-	a.render(w, r, "home.html", a.T("nav.home"), map[string]any{
+	a.render(w, r, "home.html", a.Tr(r, "nav.home"), map[string]any{
 		"Health": health, "Stats": st, "StatsErr": statsErr, "KPIOrder": kpiOrder, "Attention": attention,
-		"Series": a.seriesViews(st.Series), "NewErrors": a.newErrors(r), "HubWide": hubWide,
+		"Series": a.seriesViews(a.langOf(r), st.Series), "NewErrors": a.newErrors(r), "HubWide": hubWide,
 	})
 }
 
@@ -167,7 +167,7 @@ func (a *App) users(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	apps, _ := a.db.Apps(r.Context())
-	a.render(w, r, "users.html", a.T("users.title"), map[string]any{"Rows": rows, "Err": errMsg, "Next": next, "Q": q.Get("q"), "Status": q.Get("status"), "Role": q.Get("role"),
+	a.render(w, r, "users.html", a.Tr(r, "users.title"), map[string]any{"Rows": rows, "Err": errMsg, "Next": next, "Q": q.Get("q"), "Status": q.Get("status"), "Role": q.Get("role"),
 		"Cursor": q.Get("cursor"), "Filters": q, "IsAdmin": isAdmin(current(r)), "Me": current(r).Sub, "BulkActions": userBulkActions, "RoleFilter": roleOptions(apps, nil)})
 }
 
@@ -284,7 +284,7 @@ func str(v any) string { s, _ := v.(string); return s }
 func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 	s := current(r)
 	if !globalRole(s) {
-		a.flashError(w, a.T("err.forbidden"))
+		a.flashError(w, a.Tr(r, "err.forbidden"))
 		http.Redirect(w, r, "/", http.StatusFound)
 		return
 	}
@@ -299,14 +299,14 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 	switch action {
 	case "suspend", "activate", "revoke_sessions", "revoke_tokens", "delete", "set_roles":
 		if !isAdmin(s) {
-			a.flashError(w, a.T("err.forbidden"))
+			a.flashError(w, a.Tr(r, "err.forbidden"))
 			http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
 			return
 		}
 	case "note":
 		// support is read-only (docs/01-FITUR.md); a note is a write.
 		if !canNote(s) {
-			a.flashError(w, a.T("err.forbidden"))
+			a.flashError(w, a.Tr(r, "err.forbidden"))
 			http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
 			return
 		}
@@ -325,7 +325,7 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 	body := map[string]any{"action": action, "reason": reason, "params": params}
 	var target user360
 	if _, err := a.callHop(r.Context(), s, "GET", "/users/"+url.PathEscape(id), nil, &target); err != nil {
-		a.flashError(w, a.T("action.failed")+": "+err.Error())
+		a.flashError(w, a.Tr(r, "action.failed")+": "+err.Error())
 		http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
 		return
 	}
@@ -338,9 +338,9 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: "hub", Action: "user." + action, Target: id,
 		Detail: map[string]any{"reason": reason, "params": params, "error": errString(err)}, OK: err == nil})
 	if err != nil {
-		a.flashError(w, a.T("action.failed")+": "+err.Error())
+		a.flashError(w, a.Tr(r, "action.failed")+": "+err.Error())
 	} else {
-		a.flash(w, a.T("action.done"))
+		a.flash(w, a.Tr(r, "action.done"))
 	}
 	if action == "delete" && err == nil {
 		http.Redirect(w, r, "/users", http.StatusFound)
@@ -363,30 +363,30 @@ func (a *App) usersBulkAction(w http.ResponseWriter, r *http.Request) {
 	// A form whose action is still on the empty "choose" option must say so, not report
 	// a missing role: the default used to be Suspend, so an empty submit suspended people.
 	if action == "" {
-		a.flashError(w, a.T("bulk.no_action"))
+		a.flashError(w, a.Tr(r, "bulk.no_action"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	if !isAdmin(s) || !contains(userBulkActions, action) {
-		a.flashError(w, a.T("err.forbidden"))
+		a.flashError(w, a.Tr(r, "err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	ids := uniquePicks(r.Form["pick"])
 	if len(ids) == 0 {
-		a.flashError(w, a.T("bulk.none"))
+		a.flashError(w, a.Tr(r, "bulk.none"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	// Rows are counted before the confirmation is judged: with nothing selected the
 	// message must be "No rows selected.", not "this changes many rows".
 	if r.FormValue("confirm") != "yes" && (confirmAction(action) || action == "revoke_sessions" || action == "revoke_tokens") {
-		a.flashError(w, a.T("bulk.need_confirm"))
+		a.flashError(w, a.Tr(r, "bulk.need_confirm"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
 	if len(ids) > maxBulk {
-		a.flashError(w, a.T("bulk.too_many"))
+		a.flashError(w, a.Tr(r, "bulk.too_many"))
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -423,9 +423,9 @@ func (a *App) usersBulkAction(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if failed > 0 {
-		a.flashError(w, fmt.Sprintf(a.T("bulk.summary_failed"), done, failed, skipped))
+		a.flashError(w, fmt.Sprintf(a.Tr(r, "bulk.summary_failed"), done, failed, skipped))
 	} else {
-		a.flash(w, fmt.Sprintf(a.T("bulk.summary"), done, skipped))
+		a.flash(w, fmt.Sprintf(a.Tr(r, "bulk.summary"), done, skipped))
 	}
 	http.Redirect(w, r, back, http.StatusFound)
 }
@@ -448,20 +448,20 @@ func (a *App) apps(w http.ResponseWriter, r *http.Request) {
 		health[k] = v
 	}
 	a.mu.Unlock()
-	a.render(w, r, "apps.html", a.T("apps.title"), map[string]any{"Apps": apps, "Health": health, "HopURL": a.cfg.HopURL, "Global": globalRole(current(r)), "CanSync": isAdmin(current(r))})
+	a.render(w, r, "apps.html", a.Tr(r, "apps.title"), map[string]any{"Apps": apps, "Health": health, "HopURL": a.cfg.HopURL, "Global": globalRole(current(r)), "CanSync": isAdmin(current(r))})
 }
 
 func (a *App) appsSync(w http.ResponseWriter, r *http.Request) {
 	s := current(r)
 	if !isAdmin(s) {
-		a.flashError(w, a.T("err.forbidden"))
+		a.flashError(w, a.Tr(r, "err.forbidden"))
 		http.Redirect(w, r, "/apps", http.StatusFound)
 		return
 	}
 	if err := a.syncApps(s); err != nil {
-		a.flashError(w, a.T("err.hop")+": "+err.Error())
+		a.flashError(w, a.Tr(r, "err.hop")+": "+err.Error())
 	} else {
-		a.flash(w, a.T("apps.synced"))
+		a.flash(w, a.Tr(r, "apps.synced"))
 	}
 	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), Action: "apps.sync"})
 	http.Redirect(w, r, "/apps", http.StatusFound)
@@ -479,7 +479,7 @@ func (a *App) audit(w http.ResponseWriter, r *http.Request) {
 	if _, err := a.callHop(r.Context(), current(r), "GET", "/audit?limit=50", nil, &remote); err != nil {
 		errMsg = err.Error()
 	}
-	a.render(w, r, "audit.html", a.T("audit.title"), map[string]any{"Local": local, "Remote": remote, "Err": errMsg})
+	a.render(w, r, "audit.html", a.Tr(r, "audit.title"), map[string]any{"Local": local, "Remote": remote, "Err": errMsg})
 }
 
 // appSummary is one app's answer for the User 360 page.

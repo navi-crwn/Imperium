@@ -3,7 +3,7 @@ package app
 import "strings"
 
 // Known protocol actions have readable labels; new actions keep a readable fallback.
-func (a *App) actionLabel(action string) string {
+func actionLabel(l, action string) string {
 	labels := map[string][2]string{
 		"delete": {"Delete", "Hapus"}, "purge": {"Permanently delete", "Hapus permanen"},
 		"takedown": {"Take down", "Tarik konten"}, "ban_ip": {"Block IP", "Blokir IP"},
@@ -23,7 +23,7 @@ func (a *App) actionLabel(action string) string {
 		"revoke_sessions": {"Sign out everywhere", "Keluarkan dari semua sesi"}, "revoke_tokens": {"Revoke API tokens", "Cabut token API"},
 	}
 	if label, ok := labels[action]; ok {
-		if a.lang() == "id" {
+		if l == "id" {
 			return label[1]
 		}
 		return label[0]

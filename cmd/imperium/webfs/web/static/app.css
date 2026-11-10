@@ -1,5 +1,6 @@
 :root { --hop-ctl-radius:8px; --hop-ctl-h:36px; --hop-ctl-h-sm:32px; --hop-ctl-h-lg:40px; --hop-ctl-px:12px; --hop-ctl-font:14px; --hop-ring:3px; --hop-field-max:28rem; --hop-field-max-narrow:24rem; --hop-field-max-short:11rem; --hop-search-max:20rem; --bg:#0b0b10; --panel:#13131b; --panel2:#1a1a25; --ink:#e8e8f0; --muted:#9a9ab0; --line:#262636; --accent:#8b9cff; --ok:#3ddc97; --bad:#ff6b6b; --warn:#ffc857; }
-@media (prefers-color-scheme: light) { :root { --bg:#f4f4f8; --panel:#ffffff; --panel2:#f0f0f6; --ink:#15151f; --muted:#5e5e74; --line:#dedeea; --accent:#3b4fd8; } }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --bg:#f4f4f8; --panel:#ffffff; --panel2:#f0f0f6; --ink:#15151f; --muted:#5e5e74; --line:#dedeea; --accent:#3b4fd8; } }
+:root[data-theme="light"] { --bg:#f4f4f8; --panel:#ffffff; --panel2:#f0f0f6; --ink:#15151f; --muted:#5e5e74; --line:#dedeea; --accent:#3b4fd8; color-scheme:light; } :root[data-theme="dark"] { color-scheme:dark; }
 * { box-sizing: border-box; }
 html, body { margin:0; background:var(--bg); color:var(--ink); font: 15px/1.5 var(--hop-font-body, system-ui, -apple-system, "Segoe UI", sans-serif); }
 h1, h2, h3 { font-family: var(--hop-font-display, inherit); letter-spacing:-.01em; }
@@ -10,6 +11,7 @@ a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: un
 .brand .logo { width:28px; height:28px; border-radius:7px; box-shadow:0 2px 0 0 rgb(0 0 0 / .18), 0 6px 14px -6px rgb(251 113 133 / .7); }
 .brand small { letter-spacing:0; font-weight:400; color:var(--muted); margin-left:8px; }
 .search { flex:1; display:flex; } 
+.sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
 .who { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:13px; } .who img { width:28px; height:28px; border-radius:50%; }
 .who form { display:inline; }
 .shell { display:flex; align-items:stretch; min-height:calc(100vh - var(--top)); }
@@ -178,7 +180,8 @@ th,td{padding:12px 14px}table.tight th,table.tight td{padding:10px 12px}.scroll-
 .chip.new { background:#4d3b1f; color:#ffe2b8; } .chip.seen { background:#1f3b6e; color:#c9dcff; } .chip.resolved { background:#1f4d3b; color:#bff0d6; } .chip.muted { background:var(--panel2); color:var(--muted); }
 .chip.regression, .chip.spike { background:#5a1f1f; color:#ffc9c9; }
 
-@media (prefers-color-scheme: light) { .chip.new { background:#fdeccb; color:#6a4a0a; } .chip.seen { background:#dbe5ff; color:#1d3a8a; } .chip.resolved { background:#d6f3e4; color:#145c3d; } .chip.regression, .chip.spike { background:#fcdcdc; color:#8a1f1f; } }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .chip.new { background:#fdeccb; color:#6a4a0a; } :root:not([data-theme="dark"]) .chip.seen { background:#dbe5ff; color:#1d3a8a; } :root:not([data-theme="dark"]) .chip.resolved { background:#d6f3e4; color:#145c3d; } :root:not([data-theme="dark"]) .chip.regression, :root:not([data-theme="dark"]) .chip.spike { background:#fcdcdc; color:#8a1f1f; } }
+:root[data-theme="light"] .chip.new { background:#fdeccb; color:#6a4a0a; } :root[data-theme="light"] .chip.seen { background:#dbe5ff; color:#1d3a8a; } :root[data-theme="light"] .chip.resolved { background:#d6f3e4; color:#145c3d; } :root[data-theme="light"] .chip.regression, :root[data-theme="light"] .chip.spike { background:#fcdcdc; color:#8a1f1f; }
 .notif-chips { display:flex; flex-wrap:wrap; gap:6px; margin:14px 0; } .notif-chips .chip { padding:6px 12px; font-size:13px; }
 .notif-chips .chip:hover { text-decoration:none; }
 .notif-title { display:flex; flex-wrap:wrap; align-items:center; gap:10px; overflow-wrap:anywhere; }
@@ -211,7 +214,8 @@ table tr.picked td { background:color-mix(in srgb, var(--line) 45%, transparent)
 /* Optional Clean style: on only with <html data-ui="clean">; the original HOP look stays the default and the control-standard rules above are not scoped. coss surfaces (owner-approved pilot, hel.ink coss.css values): flat neutral background, solid bordered cards,
    flat chrome divided by hairlines, quiet type, 6 px status badges. No blur, glass or gradients. */
 :root[data-ui="clean"] { --bg:#0a0a0c; --panel:#141418; --panel2:#1c1c21; --muted:#9aa2b0; --line:rgb(255 255 255 / .09); --frame:rgb(255 255 255 / .03); --card-shadow:none; }
-@media (prefers-color-scheme: light) { :root[data-ui="clean"] { --bg:#f7f7f8; --panel:#ffffff; --panel2:#f1f1f3; --muted:#606876; --line:rgb(0 0 0 / .09); --frame:rgb(0 0 0 / .035); --card-shadow:0 1px 2px rgb(0 0 0 / .04); } }
+@media (prefers-color-scheme: light) { :root[data-ui="clean"]:not([data-theme="dark"]) { --bg:#f7f7f8; --panel:#ffffff; --panel2:#f1f1f3; --muted:#606876; --line:rgb(0 0 0 / .09); --frame:rgb(0 0 0 / .035); --card-shadow:0 1px 2px rgb(0 0 0 / .04); } }
+:root[data-ui="clean"][data-theme="light"] { --bg:#f7f7f8; --panel:#ffffff; --panel2:#f1f1f3; --muted:#606876; --line:rgb(0 0 0 / .09); --frame:rgb(0 0 0 / .035); --card-shadow:0 1px 2px rgb(0 0 0 / .04); }
 :root[data-ui="clean"] .top, :root[data-ui="clean"] .side { background:var(--bg); }
 :root[data-ui="clean"] .card, :root[data-ui="clean"] .login-card { background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--card-shadow); }
 :root[data-ui="clean"] .card-link:hover { border-color:color-mix(in srgb, var(--ink) 25%, transparent); }
@@ -256,3 +260,25 @@ table tr.picked td { background:color-mix(in srgb, var(--line) 45%, transparent)
 .part-of img { width: 20px; height: 20px; display: block; }
 .part-of b { font-weight: 400; color: var(--text); }
 .part-of:hover b { text-decoration: underline; }
+
+/* Topbar: primary action (search) - language - theme - account menu. Standard controls: 8 px radius, 36 px high (44 px on touch), as wide as their content. */
+.top-end { display:flex; align-items:center; gap:8px; margin-inline-start:auto; }
+.top-end .pref { display:inline-flex; margin:0; }
+.ctl { display:inline-flex; align-items:center; justify-content:center; gap:6px; height:var(--hop-ctl-h); min-width:var(--hop-ctl-h); padding:0 10px; border:1px solid var(--line); border-radius:var(--hop-ctl-radius); background:var(--panel2); color:var(--ink); font-family:inherit; font-size:var(--hop-ctl-font); font-weight:600; line-height:1; cursor:pointer; list-style:none; white-space:nowrap; }
+.ctl-icon { padding:0; width:var(--hop-ctl-h); }
+.ctl:hover { filter:brightness(1.1); }
+.ctl:focus-visible, .pop-item:focus-visible { outline:none; box-shadow:0 0 0 var(--hop-ring) color-mix(in srgb, var(--accent) 35%, transparent); }
+.pop { position:relative; }
+.pop summary::-webkit-details-marker { display:none; }
+.pop-menu, .acct-menu { position:absolute; inset-inline-end:0; top:calc(100% + 6px); min-width:200px; display:flex; flex-direction:column; align-items:stretch; gap:2px; margin:0; padding:6px; background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 32px rgb(0 0 0 / .25); z-index:9; }
+.pop-item { display:flex; align-items:center; justify-content:space-between; gap:16px; height:var(--hop-ctl-h); padding:0 10px; border:0; border-radius:var(--hop-ctl-radius); background:transparent; color:var(--ink); font-family:inherit; font-size:var(--hop-ctl-font); text-align:start; cursor:pointer; }
+.pop-item:hover, .pop-item:focus-visible { background:var(--panel2); }
+.pop-item[aria-current="true"] { background:var(--panel2); font-weight:700; box-shadow:inset 3px 0 0 var(--accent); }
+.pop-code { font:12px var(--hop-font-mono, monospace); color:var(--muted); }
+.acct summary img { width:24px; height:24px; border-radius:50%; }
+.acct-menu { padding:12px; gap:10px; align-items:flex-start; }
+.acct-menu form { margin:0; }
+.acct-name { max-width:9rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+@media (max-width:720px) { .lang-menu .pop-menu { inset-inline-start:0; inset-inline-end:auto; } .top-end { order:2; width:100%; margin:0; } .acct { margin-inline-start:auto; } .acct-name { max-width:6.5rem; } }
+@media (pointer:coarse) { .ctl, .pop-item { min-height:44px; } .ctl-icon { width:44px; } }
+@media (prefers-reduced-motion: reduce) { .ctl { transition:none; } }

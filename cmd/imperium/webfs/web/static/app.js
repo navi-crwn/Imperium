@@ -174,3 +174,35 @@ document.querySelectorAll('.dash-tabs').forEach(nav => {
         if (clean) document.documentElement.dataset.ui = 'clean'; else document.documentElement.removeAttribute('data-ui');
     });
 })();
+
+// Language and account menus are <details> (they work without JavaScript). This adds
+// Escape, click-outside and arrow-key navigation.
+(() => {
+    const open = () => document.querySelectorAll('details.pop[open]');
+    document.addEventListener('click', (e) => {
+        open().forEach((d) => { if (!d.contains(e.target)) d.removeAttribute('open'); });
+    });
+    document.addEventListener('keydown', (e) => {
+        const d = e.target.closest ? e.target.closest('details.pop') : null;
+        if (e.key === 'Escape') {
+            const o = d && d.open ? d : open()[0];
+            if (o) { o.removeAttribute('open'); const s = o.querySelector('summary'); if (s) s.focus(); }
+            return;
+        }
+        if (!d || !d.open || ['ArrowDown', 'ArrowUp', 'Home', 'End'].indexOf(e.key) < 0) return;
+        const items = Array.from(d.querySelectorAll('.pop-item, .acct-menu a, .acct-menu button'));
+        if (!items.length) return;
+        e.preventDefault();
+        let i = items.indexOf(document.activeElement);
+        if (e.key === 'ArrowDown') i = i < 0 ? 0 : (i + 1) % items.length;
+        else if (e.key === 'ArrowUp') i = i < 0 ? items.length - 1 : (i - 1 + items.length) % items.length;
+        else i = e.key === 'Home' ? 0 : items.length - 1;
+        items[i].focus();
+    });
+    document.querySelectorAll('details.pop').forEach((d) => d.addEventListener('toggle', () => {
+        if (!d.open) return;
+        open().forEach((o) => { if (o !== d) o.removeAttribute('open'); });
+        const f = d.querySelector('.pop-item[aria-current="true"], .pop-item');
+        if (f && d.classList.contains('lang-menu')) f.focus();
+    }));
+})();

@@ -27,7 +27,7 @@ import (
 type App struct {
 	cfg    Config
 	db     *db.DB
-	tpl    *template.Template
+	tpls   map[string]*template.Template // one parsed set per catalog language
 	static fs.FS
 	hop    *hopproto.Client
 	jti    hopproto.Nonces
@@ -46,15 +46,42 @@ type App struct {
 func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
 	a := &App{cfg: cfg, db: d, health: map[string]Health{}, start: time.Now(), manifests: manifestCache{m: map[string]*Manifest{}}, inbox: newNotifyInbox(), checked: map[string]time.Time{}}
 	a.hop = &hopproto.Client{As: cfg.HopClient, HTTP: a.httpClient()}
-	funcs := template.FuncMap{
-		"t":             a.T,
+	a.tpls = map[string]*template.Template{}
+	for _, l := range langOrder {
+		tpl, err := template.New("").Funcs(a.funcs(l)).ParseFS(web, "web/templates/*.html")
+		if err != nil {
+			return nil, err
+		}
+		a.tpls[l] = tpl
+	}
+	a.static, _ = fs.Sub(web, "web/static")
+	return a, nil
+}
+
+// appMark is the embedded mark of a family app; Imperium's own for anything else.
+func appMark(slug string) string {
+	switch slug {
+	case "hub":
+		return "/static/hop/apps/hub/rabbit-mark.png"
+	case "linkhop", "biohop", "pixelhop", "notehop", "filehop":
+		return "/static/hop/apps/" + slug + "/mark.svg"
+	}
+	return "/static/imperium.svg"
+}
+
+// funcs are the template helpers bound to one language; New parses one template set per language.
+func (a *App) funcs(l string) template.FuncMap {
+	return template.FuncMap{
+		"t":             func(k string) string { return tl(l, k) },
 		"partOf":        partOf,
-		"lang":          a.lang,
-		"since":         a.since,
+		"lang":          func() string { return l },
+		"langOptions":   langOptions,
+		"langShort":     langShort,
+		"since":         func(t time.Time) string { return since(l, t) },
 		"date":          func(t time.Time) string { return t.Local().Format("2006-01-02 15:04") },
-		"datez":         a.dateWithZone,
-		"datesz":        a.datesz,
-		"versionLabel":  a.versionLabel,
+		"datez":         func(t time.Time) template.HTML { return dateWithZone(l, t) },
+		"datesz":        func(v string) template.HTML { return datesz(l, v) },
+		"versionLabel":  func(v string) string { return versionLabel(l, v) },
 		"pageURL":       pageURL,
 		"cursorURL":     cursorURL,
 		"utcz":          func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
@@ -66,26 +93,11 @@ func New(cfg Config, d *db.DB, web embed.FS) (*App, error) {
 		"bytes":         humanBytes,
 		"day":           dayOf,
 		"utc":           func(t time.Time) string { return t.UTC().Format("2006-01-02 15:04:05") },
-		"ext":           a.extLabel,
-		"actionLabel":   a.actionLabel,
+		"ext":           func(e string) string { return extLabel(l, e) },
+		"actionLabel":   func(x string) string { return actionLabel(l, x) },
 		"confirmAction": confirmAction,
-		"appMark": func(slug string) string {
-			switch slug {
-			case "hub":
-				return "/static/hop/apps/hub/rabbit-mark.png"
-			case "linkhop", "biohop", "pixelhop", "notehop", "filehop":
-				return "/static/hop/apps/" + slug + "/mark.svg"
-			}
-			return "/static/imperium.svg"
-		},
+		"appMark":       appMark,
 	}
-	tpl, err := template.New("").Funcs(funcs).ParseFS(web, "web/templates/*.html")
-	if err != nil {
-		return nil, err
-	}
-	a.tpl = tpl
-	a.static, _ = fs.Sub(web, "web/static")
-	return a, nil
 }
 
 func (a *App) httpClient() *http.Client {
@@ -114,6 +126,7 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("GET /auth/sso", a.ssoStart)
 	m.HandleFunc("GET /auth/sso/callback", a.ssoCallback)
 	m.HandleFunc("POST /logout", a.logout)
+	m.HandleFunc("POST /prefs", a.prefs)
 	m.HandleFunc("GET /{$}", a.member(a.home))
 	m.HandleFunc("GET /search", a.member(a.search))
 	m.HandleFunc("GET /users", a.member(a.users))
@@ -304,7 +317,7 @@ func visibleApps(s *db.Session, apps []db.App) []db.App {
 
 // forbidden answers 403 with the standard page.
 func (a *App) forbidden(w http.ResponseWriter, r *http.Request) {
-	a.renderStatus(w, r, http.StatusForbidden, "error.html", a.T("err.forbidden"), map[string]any{"Err": a.T("err.forbidden"), "Back": "/"})
+	a.renderStatus(w, r, http.StatusForbidden, "error.html", a.Tr(r, "err.forbidden"), map[string]any{"Err": a.Tr(r, "err.forbidden"), "Back": "/"})
 }
 
 // requireGlobal answers 403 and returns false for sessions without a hub-wide role.
@@ -349,6 +362,8 @@ type page struct {
 	Query   string
 	Version string
 	Nav     navData
+	Next    string // path plus query of this page, for the preference forms to come back to
+	Theme   string // "light" or "dark" when the reader chose one (cookie hop_theme)
 	UI      string // "clean" when the reader chose the optional Clean style (cookie hop_ui)
 	Data    any
 }
@@ -362,10 +377,10 @@ func (a *App) renderStatus(w http.ResponseWriter, r *http.Request, status int, n
 	if d, ok := data.(map[string]any); ok {
 		if ap, ok := d["App"].(*db.App); ok {
 			m, _ := d["M"].(*Manifest)
-			d["Items"] = a.appItems(ap.Slug, m, r.URL.Path, r.URL.Query().Get("type"))
+			d["Items"] = a.appItems(r, ap.Slug, m, r.URL.Path, r.URL.Query().Get("type"))
 		}
 	}
-	p := page{Title: title, Session: current(r), Path: r.URL.Path, Query: r.URL.Query().Get("q"), Version: a.cfg.Version, UI: uiStyle(r), Data: data}
+	p := page{Title: title, Session: current(r), Path: r.URL.Path, Next: r.URL.RequestURI(), Query: r.URL.Query().Get("q"), Version: a.cfg.Version, UI: uiStyle(r), Theme: themeOf(r), Data: data}
 	if p.Session != nil {
 		p.Nav = a.nav(r)
 	}
@@ -383,7 +398,7 @@ func (a *App) renderStatus(w http.ResponseWriter, r *http.Request, status int, n
 	}
 	// Render to memory first: a template error halfway must not send half a page with a 200.
 	var buf bytes.Buffer
-	if err := a.tpl.ExecuteTemplate(&buf, name, p); err != nil {
+	if err := a.tpls[a.langOf(r)].ExecuteTemplate(&buf, name, p); err != nil {
 		log.Printf("render %s: %v", name, err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
