@@ -152,7 +152,7 @@ func (a *App) users(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
-	path := "/users?" + url.Values{"q": {q.Get("q")}, "status": {q.Get("status")}, "role": {q.Get("role")}, "cursor": {q.Get("cursor")}, "limit": {"50"}}.Encode()
+	path := "/users?" + url.Values{"q": {q.Get("q")}, "status": {q.Get("status")}, "role": {q.Get("role")}, "cursor": {q.Get("cursor")}, "limit": {"25"}}.Encode()
 	var rows []userRow
 	var errMsg, next string
 	env, err := a.callHop(r.Context(), current(r), "GET", path, nil, &rows)
@@ -241,7 +241,7 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	// Each app's own view of the person, fetched side by side. An app that has
 	// no account for this HOP id answers not_found; any other error is shown as
 	// such, so a broken app never reads as "not linked".
-	summaries := map[string]*appSummary{"pixelhop": {}, "notehop": {}, "filehop": {}}
+	summaries := map[string]*appSummary{"pixelhop": {}, "notehop": {}, "filehop": {}, "payhop": {}}
 	var wg sync.WaitGroup
 	for slug, sum := range summaries {
 		ap, err := a.db.App(r.Context(), slug)
@@ -270,6 +270,7 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 		"PixelUser": summaries["pixelhop"].User, "PixelErr": summaries["pixelhop"].Err,
 		"NoteUser": summaries["notehop"].User, "NoteErr": summaries["notehop"].Err,
 		"FileUser": summaries["filehop"].User, "FileErr": summaries["filehop"].Err,
+		"PayUser": summaries["payhop"].User, "PayErr": summaries["payhop"].Err,
 		"RoleOptions": roleOptions(apps, u.Roles),
 	})
 }
@@ -469,17 +470,40 @@ func (a *App) appsSync(w http.ResponseWriter, r *http.Request) {
 
 // ---- audit ----
 
+// auditStep is how many rows an audit list grows by; the page shows one list at a time
+// (?tab=imperium or ?tab=hop) and "Show more" asks for the next step (?n=).
+const auditStep = 25
+
 func (a *App) audit(w http.ResponseWriter, r *http.Request) {
 	if !a.requireGlobal(w, r) {
 		return
 	}
-	local, _ := a.db.Audits(r.Context(), 0, 100)
+	tab := r.URL.Query().Get("tab")
+	if tab != "hop" {
+		tab = "imperium"
+	}
+	n := auditStep
+	if v, err := strconv.Atoi(r.URL.Query().Get("n")); err == nil && v >= auditStep && v <= 200 {
+		n = v / auditStep * auditStep
+	}
+	var local []db.Audit
 	var remote []map[string]any
 	var errMsg string
-	if _, err := a.callHop(r.Context(), current(r), "GET", "/audit?limit=50", nil, &remote); err != nil {
-		errMsg = err.Error()
+	more := false
+	if tab == "imperium" {
+		local, _ = a.db.Audits(r.Context(), 0, n+1)
+		if more = len(local) > n; more {
+			local = local[:n]
+		}
+	} else {
+		if _, err := a.callHop(r.Context(), current(r), "GET", "/audit?limit="+strconv.Itoa(n+1), nil, &remote); err != nil {
+			errMsg = err.Error()
+		}
+		if more = len(remote) > n; more {
+			remote = remote[:n]
+		}
 	}
-	a.render(w, r, "audit.html", a.Tr(r, "audit.title"), map[string]any{"Local": local, "Remote": remote, "Err": errMsg})
+	a.render(w, r, "audit.html", a.Tr(r, "audit.title"), map[string]any{"Local": local, "Remote": remote, "Err": errMsg, "Tab": tab, "N": n, "NextN": n + auditStep, "More": more})
 }
 
 // appSummary is one app's answer for the User 360 page.

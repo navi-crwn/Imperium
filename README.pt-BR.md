@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Deutsch](README.de.md) · [Bahasa Indonesia](README.id.md) · [日本語](README.ja.md) · **Português (Brasil)** · [Español](README.es.md) · [Français](README.fr.md) · [Русский](README.ru.md)
 
-O painel de administração e console de operações da família de apps HOP (LinkHop, BioHop, PixelHop, NoteHop, FileHop). Ele é open source como o resto da família, e **opcional**: todo app funciona sem ele. Você só precisa dele se quiser um único lugar para gerenciar os usuários, o conteúdo, as denúncias de abuso, as configurações e a saúde de todos os seus apps.
+O painel de administração e console de operações da família de apps HOP (LinkHop, BioHop, PixelHop, NoteHop, FileHop, PayHop). Ele é open source como o resto da família, e **opcional**: todo app funciona sem ele. Você só precisa dele se quiser um único lugar para gerenciar os usuários, o conteúdo, as denúncias de abuso, as configurações e a saúde de todos os seus apps.
 
 O que ele faz:
 

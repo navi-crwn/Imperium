@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Deutsch](README.de.md) · [Bahasa Indonesia](README.id.md) · [日本語](README.ja.md) · [Português (Brasil)](README.pt-BR.md) · **Español** · [Français](README.fr.md) · [Русский](README.ru.md)
 
-El panel de administración y la consola de operaciones de la familia de apps HOP (LinkHop, BioHop, PixelHop, NoteHop, FileHop). Es de código abierto como el resto de la familia, y **opcional**: cada app funciona sin él. Solo lo necesitas si quieres un único lugar para gestionar los usuarios, el contenido, las denuncias de abuso, los ajustes y el estado de todas tus apps.
+El panel de administración y la consola de operaciones de la familia de apps HOP (LinkHop, BioHop, PixelHop, NoteHop, FileHop, PayHop). Es de código abierto como el resto de la familia, y **opcional**: cada app funciona sin él. Solo lo necesitas si quieres un único lugar para gestionar los usuarios, el contenido, las denuncias de abuso, los ajustes y el estado de todas tus apps.
 
 Qué hace:
 

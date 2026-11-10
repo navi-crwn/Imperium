@@ -1,19 +1,18 @@
 {{template "head" .}}{{template "top" .}}
 <h2>{{t "home.apps"}}</h2>
-<div class="grid g3">
-{{range .Data.Health}}<a class="card card-link" href="/apps/{{.Slug}}">
+<div class="grid stats {{statCols (len .Data.Health) 6}}">
+{{range .Data.Health}}<a class="card card-link app-tile" href="/apps/{{.Slug}}" title="{{.URL}}{{if .Version}} · {{versionLabel .Version}}{{end}}">
   <div class="app-card-title"><img class="app-mark" src="{{appMark .Slug}}" alt="" width="32" height="32"><b>{{.Name}}</b><span class="dot {{if eq .Status "maint"}}maint{{else if .OK}}ok{{else}}bad{{end}}"></span></div>
-  <div class="small muted">{{.URL}}</div>
-  <div class="small">{{if eq .Status "maint"}}{{t "status.maint"}}{{else if .OK}}{{t "status.ok"}} · {{.Latency.Milliseconds}} ms{{if .Version}} · {{versionLabel .Version}}{{end}}{{else}}{{t "status.down"}}{{if .Detail}} · {{.Detail}}{{end}}{{end}}</div>
+  <div class="small">{{if eq .Status "maint"}}{{t "status.maint"}}{{else if .OK}}{{t "status.ok"}} · {{.Latency.Milliseconds}} ms{{else}}{{t "status.down"}}{{if .Detail}} · {{.Detail}}{{end}}{{end}}</div>
 </a>{{end}}
 </div>
-{{if .Data.NewErrors}}<h2>{{t "notif.title"}}</h2><div class="grid g5"><a class="card card-link" href="/notifications?status=new"><div class="k">{{t "notif.home_new"}}</div><div class="v warn">{{n .Data.NewErrors}}</div></a></div>{{end}}
+{{if .Data.NewErrors}}<h2>{{t "notif.title"}}</h2><div class="grid stats c4"><a class="card card-link" href="/notifications?status=new"><div class="k">{{t "notif.home_new"}}</div><div class="v warn">{{n .Data.NewErrors}}</div></a></div>{{end}}
 {{if .Data.HubWide}}{{if .Data.StatsErr}}<p class="flash err">{{t "err.hop"}}: {{.Data.StatsErr}}</p>{{else}}
-{{if .Data.Attention}}<h2>{{t "home.attention"}}</h2><div class="grid g5">
+{{if .Data.Attention}}<h2>{{t "home.attention"}}</h2><div class="grid stats c6">
 {{range $k, $v := .Data.Attention}}<div class="card"><div class="k">{{t (printf "kpi.%s" $k)}}</div><div class="v warn">{{n $v}}</div></div>{{end}}
 </div>{{end}}
 <h2>{{t "home.kpi"}}</h2>
-<div class="grid g5">
+<div class="grid stats {{statCols (len .Data.KPIOrder) 6}}">
 {{range $k := .Data.KPIOrder}}<div class="card"><div class="k">{{t (printf "kpi.%s" $k)}}</div><div class="v">{{with index $.Data.Stats.KPI $k}}{{n .}}{{else}}0{{end}}</div></div>{{end}}
 </div>
 <div class="grid g2 mt14">

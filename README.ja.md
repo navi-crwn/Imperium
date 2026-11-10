@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Deutsch](README.de.md) · [Bahasa Indonesia](README.id.md) · **日本語** · [Português (Brasil)](README.pt-BR.md) · [Español](README.es.md) · [Français](README.fr.md) · [Русский](README.ru.md)
 
-HOP アプリファミリー（LinkHop、BioHop、PixelHop、NoteHop、FileHop）のための管理パネル兼運用コンソールです。ファミリーのほかのアプリと同じくオープンソースで、**任意**です。どのアプリも Imperium なしで動きます。すべてのアプリのユーザー、コンテンツ、不正利用の報告、設定、稼働状況を一か所で管理したい場合にだけ必要です。
+HOP アプリファミリー（LinkHop、BioHop、PixelHop、NoteHop、FileHop、PayHop）のための管理パネル兼運用コンソールです。ファミリーのほかのアプリと同じくオープンソースで、**任意**です。どのアプリも Imperium なしで動きます。すべてのアプリのユーザー、コンテンツ、不正利用の報告、設定、稼働状況を一か所で管理したい場合にだけ必要です。
 
 できること:
 

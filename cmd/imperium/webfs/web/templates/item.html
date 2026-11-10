@@ -11,7 +11,7 @@
       {{if $it.URL}}<tr><th>{{t "col.url"}}</th><td><a href="{{$it.URL}}" target="_blank" rel="noopener">{{$it.URL}}</a></td></tr>{{end}}
       <tr><th>{{t "col.owner"}}</th><td>{{if $it.OwnerSub}}<a href="/users/{{$it.OwnerSub}}">{{$it.OwnerName}}</a>{{else}}<span class="muted">{{t "table.guest"}}</span>{{end}}</td></tr>
       <tr><th>{{t "col.created"}}</th><td>{{datesz $it.Created}}</td></tr>
-      {{range $k, $v := $it.Extra}}<tr><th>{{$k}}</th><td class="small wrap">{{json $v}}</td></tr>{{end}}
+      {{range $k, $v := $it.Extra}}<tr><th>{{label $k}}</th><td class="small wrap">{{json $v}}</td></tr>{{end}}
     </table>
   </div>
   <div class="card actions">
@@ -26,7 +26,7 @@
       </div>
     </form>
     {{else}}<p class="muted small">{{t "err.forbidden"}}</p>{{end}}
-    <details class="mt14"><summary>JSON</summary><pre class="mono">{{.Data.Raw}}</pre></details>
+    <details class="mt14"><summary>{{t "raw.json"}}</summary><pre class="mono">{{.Data.Raw}}</pre></details>
   </div>
 </div>
 {{template "foot" .}}

@@ -282,3 +282,45 @@ table tr.picked td { background:color-mix(in srgb, var(--line) 45%, transparent)
 @media (max-width:720px) { .lang-menu .pop-menu { inset-inline-start:0; inset-inline-end:auto; } .top-end { order:2; width:100%; margin:0; } .acct { margin-inline-start:auto; } .acct-name { max-width:6.5rem; } }
 @media (pointer:coarse) { .ctl, .pop-item { min-height:44px; } .ctl-icon { width:44px; } }
 @media (prefers-reduced-motion: reduce) { .ctl { transition:none; } }
+
+/* Dashboard tidy (2026-11-11). Measured at 1920x945 before and after: tables kept one row per
+   line instead of wrapping to two or three, nothing overflows its card, the content area uses
+   the screen, cards line up, no text under 12px, the sidebar runs the height of the page. */
+main { max-width:1760px; }
+small { font-size:13px; }
+.time-zone { font-size:12px; }
+/* In a table the zone is not repeated on every row: the cell's title carries it and the page
+   foot says that times are UTC (the script turns them into the reader's own zone). */
+td .time-zone { display:none; }
+table.fit th, table.fit td { white-space:nowrap; }
+table.fit td.cut { max-width:0; overflow:hidden; text-overflow:ellipsis; }
+table.fit th.w-chk, table.fit td.w-chk { width:44px; }
+.w-chk input[type=checkbox] { margin:0; }
+.filters { align-items:end; }
+.filters .grow { flex:2 1 260px; }
+.filters > div { flex:0 1 190px; }
+.filters > .grow { flex:2 1 260px; }
+pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:320px; }
+/* Rows of cards: the template picks cN so the last row is never a lone card; the cards of a
+   row are the same height. Narrow screens fall back to whatever fits. */
+.stats { grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); grid-auto-rows:1fr; }
+@media (min-width:1200px) {
+  .stats.c1 { grid-template-columns:minmax(0, 1fr); } .stats.c2 { grid-template-columns:repeat(2, minmax(0, 1fr)); } .stats.c3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+  .stats.c4 { grid-template-columns:repeat(4, minmax(0, 1fr)); } .stats.c5 { grid-template-columns:repeat(5, minmax(0, 1fr)); } .stats.c6 { grid-template-columns:repeat(6, minmax(0, 1fr)); }
+}
+.app-tile .small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.span-all { grid-column:1 / -1; }
+.dash-cols { grid-template-columns:repeat(auto-fit, minmax(min(100%, 520px), 1fr)); }
+.dash-tabs { overflow:visible; flex-wrap:wrap; }
+.tabs-more { position:relative; }
+.tabs-more > summary { list-style:none; cursor:pointer; display:inline-block; }
+.tabs-more > summary::-webkit-details-marker { display:none; }
+.tabs-more > summary::after { content:""; display:inline-block; width:6px; height:6px; margin-inline-start:8px; border-right:1.6px solid currentColor; border-bottom:1.6px solid currentColor; transform:rotate(45deg) translateY(-2px); }
+.tabs-more .pop-menu { inset-inline-start:0; inset-inline-end:auto; }
+.tabs-more .pop-item.on { background:var(--panel2); font-weight:700; box-shadow:inset 3px 0 0 var(--accent); }
+.tabs-more .pop-item:hover { text-decoration:none; }
+/* The sidebar is as tall as the page; its list sticks under the topbar while you scroll. */
+@media (min-width:901px) {
+  .side { position:static; height:auto; overflow:visible; align-self:stretch; }
+  .side > .tree { position:sticky; top:calc(var(--top) + 10px); max-height:calc(100vh - var(--top) - 20px); overflow:auto; }
+}

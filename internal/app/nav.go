@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -46,7 +47,46 @@ func extLabel(l, ext string) string {
 	if v := tl(l, "ext."+ext); v != "ext."+ext {
 		return v
 	}
-	return ext
+	return plainWords(ext)
+}
+
+// plainWords spells a machine key out: api_tokens becomes "Api tokens".
+func plainWords(k string) string {
+	k = strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(k), "_", " "), "-", " ")
+	if k == "" {
+		return ""
+	}
+	return strings.ToUpper(k[:1]) + k[1:]
+}
+
+// keyLabel is the label of a key an app reports (a count, a column, a table name): the
+// translated KPI or label when there is one, else the key spelled out. Never raw underscores.
+func keyLabel(l, k string) string {
+	for _, p := range []string{"kpi.", "lbl."} {
+		if v := tl(l, p+k); v != p+k {
+			return v
+		}
+	}
+	return plainWords(k)
+}
+
+// splitTabs separates the tabs of an app: the main ones, and the extension tabs that go
+// under "More" once there are three or more of them.
+func splitTabs(items []navItem) (main, more []navItem) {
+	n := 0
+	for _, it := range items {
+		if it.Kind == "ext" {
+			n++
+		}
+	}
+	for _, it := range items {
+		if it.Kind == "ext" && n >= 3 {
+			more = append(more, it)
+		} else {
+			main = append(main, it)
+		}
+	}
+	return main, more
 }
 
 // cachedManifest returns an app's manifest when one was fetched recently;
@@ -171,8 +211,13 @@ var kpiOrder = map[string][]string{
 	"biohop":   {"pages", "pages_published", "pages_draft", "pages_adult", "blocks", "views_total", "clicks_total", "reports_open"},
 	"pixelhop": {"users", "content", "images", "videos", "pdfs", "albums", "bytes", "views", "uploads_today", "open_reports", "bans", "guest_uploads"},
 	"filehop":  {"users", "users_active_30d", "sessions_live", "users_suspended"},
+	"payhop":   {"users", "users_active_30d", "sessions_live", "users_suspended"},
 	"notehop":  {"users", "users_sso", "notes", "notes_encrypted", "notes_public", "notes_owned", "notes_burn", "files", "files_bytes", "files_budget_bytes", "live_rooms", "slug_holds", "reports_open", "takedowns"},
 }
+
+// hiddenKPIs are numbers an app reports that the dashboard leaves out. PayHop counts the saved payment
+// methods and bills of its people; those never appear in Imperium, not even as totals.
+var hiddenKPIs = map[string][]string{"payhop": {"methods_saved", "bills_saved"}}
 
 // attentionKeys are KPIs that mean work when they are above zero.
 var attentionKeys = []string{"open_reports", "open_flags", "reports_open", "takedowns", "users_suspended", "failed"}
@@ -219,6 +264,9 @@ func isBytesKey(k string) bool { return k == "bytes" || strings.HasSuffix(k, "_b
 
 // kpiLabel translates a KPI key, falling back to the key spelled out.
 func kpiLabel(l, key string) string {
+	if key == "" {
+		return ""
+	}
 	if v := tl(l, "kpi."+key); v != "kpi."+key {
 		return v
 	}
@@ -244,6 +292,9 @@ func (a *App) kpis(l, slug string, raw map[string]int64) (all, attention []kpi) 
 	}
 	var rest []string
 	for k := range raw {
+		if contains(hiddenKPIs[slug], k) {
+			continue
+		}
 		if !seen[k] {
 			rest = append(rest, k)
 		}
@@ -392,4 +443,15 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 		"Reports": reports, "ReportsErr": reportsErr, "HasReports": m.HasReports(),
 		"Ops": ops, "CanAct": canActIn(s, ap.Slug),
 	})
+}
+
+// statCols picks a column class for a row of n cards so that the last row is never a
+// lone card: n cards are spread over as few rows as max columns allow, then evenly.
+func statCols(n, max int) string {
+	if n < 1 {
+		n = 1
+	}
+	rows := (n + max - 1) / max
+	cols := (n + rows - 1) / rows
+	return "c" + strconv.Itoa(cols)
 }

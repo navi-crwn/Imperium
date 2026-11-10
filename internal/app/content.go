@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -289,7 +290,7 @@ func (a *App) content(w http.ResponseWriter, r *http.Request) {
 			errMsg = a.Tr(r, "content.bad_status")
 		}
 	}
-	params := url.Values{"type": {typ}, "q": {q.Get("q")}, "status": {status}, "owner": {q.Get("owner")}, "cursor": {q.Get("cursor")}, "limit": {"50"}}
+	params := url.Values{"type": {typ}, "q": {q.Get("q")}, "status": {status}, "owner": {q.Get("owner")}, "cursor": {q.Get("cursor")}, "limit": {"25"}}
 	var rows []row
 	var next string
 	var total int
@@ -716,7 +717,12 @@ func (a *App) extension(w http.ResponseWriter, r *http.Request) {
 	if err := a.call(r.Context(), current(r), ap, "GET", "/x/"+extPath(ext)+"?q="+url.QueryEscape(q), nil, &data); err != nil {
 		errMsg = err.Error()
 	}
-	a.render(w, r, "extension.html", ap.Name+" · "+extLabel(a.langOf(r), ext), map[string]any{"App": ap, "M": m, "Ext": ext, "Data": data, "Tables": tables(data), "Raw": jsonPretty(data), "Err": errMsg, "Q": q,
+	n := extStep
+	if v, err := strconv.Atoi(r.URL.Query().Get("n")); err == nil && v >= extStep && v <= 1000 {
+		n = v / extStep * extStep
+	}
+	tbls := pageTables(tables(data), q, n)
+	a.render(w, r, "extension.html", ap.Name+" · "+extLabel(a.langOf(r), ext), map[string]any{"App": ap, "M": m, "Ext": ext, "Data": data, "Tables": tbls, "N": n, "NextN": n + extStep, "Raw": jsonPretty(data), "Err": errMsg, "Q": q,
 		"IsAdmin": isAdmin(current(r)), "Actions": extActions[ext], "KV": kvRows(data)})
 }
 
@@ -785,9 +791,10 @@ func safeSubPath(p string) bool {
 
 // table is a generic rendering of a list of objects.
 type table struct {
-	Name string
-	Cols []string
-	Rows [][]string
+	Name  string
+	Cols  []string
+	Rows  [][]string
+	Total int // rows before the page was cut; 0 when nothing was cut
 }
 
 // tables turns {name: [ {..}, .. ], ...} or [ {..} ] into renderable tables.
@@ -879,4 +886,31 @@ func sortStrings(s []string) {
 			s[j], s[j-1] = s[j-1], s[j]
 		}
 	}
+}
+
+// extStep is how many rows of a list an extension page shows at first and adds per "Show more".
+const extStep = 25
+
+// pageTables keeps the rows that contain q (when given) and cuts every list to n rows,
+// remembering the full count so the page can say "Showing 25 of 189".
+func pageTables(in []table, q string, n int) []table {
+	q = strings.ToLower(strings.TrimSpace(q))
+	for i := range in {
+		rows := in[i].Rows
+		if q != "" {
+			var keep [][]string
+			for _, r := range rows {
+				if strings.Contains(strings.ToLower(strings.Join(r, " ")), q) {
+					keep = append(keep, r)
+				}
+			}
+			rows = keep
+		}
+		if len(rows) > n {
+			in[i].Total = len(rows)
+			rows = rows[:n]
+		}
+		in[i].Rows = rows
+	}
+	return in
 }

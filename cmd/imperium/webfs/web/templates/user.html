@@ -16,18 +16,6 @@
       <tr><th>{{t "col.joined"}}</th><td>{{datesz (print $p.created_at)}}</td></tr>
     </table>
   </div>
-  <div class="card"><h2 class="card-title">{{t "user.counts"}}</h2>
-    <div class="grid g5">{{range $k, $v := $u.Counts}}<div><div class="k muted small">{{$k}}</div><div class="v v-sm">{{n $v}}</div></div>{{end}}</div>
-    <h2>{{t "col.sessions"}}</h2>
-    <div class="small">{{range $k, $v := $u.Sessions}}<span class="chip">{{$k}}: {{$v}}</span>{{end}}</div>
-  </div>
-</div>
-<div class="grid g2 mt14">
-  <div class="card"><h2 class="card-title">{{t "user.logins"}}</h2>
-    <table>{{range $u.Logins}}<tr><td class="small">{{datesz (print (index . "at"))}}</td><td class="mono">{{index . "ip"}}</td><td class="small">{{index . "country"}} {{index . "city"}}</td><td class="small muted">{{index . "device"}} · {{index . "browser"}} · {{index . "provider"}}{{if index . "is_proxy"}} · <span class="chip locked">{{t "chip.proxy"}}</span>{{end}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>
-    <h2>{{t "user.links"}}</h2>
-    <table>{{range $u.RecentLinks}}<tr><td class="mono">{{index . "slug"}}</td><td class="small ellipsis">{{index . "target_url"}}</td><td><span class="chip {{index . "status"}}">{{index . "status"}}</span></td><td>{{index . "clicks"}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>
-  </div>
   <div class="card actions"><h2 class="card-title">{{t "user.actions"}}</h2>
     {{if .Data.Protected}}
     <p role="status">{{t "user.superadmin_locked"}}</p>
@@ -61,6 +49,18 @@
     </form>
     {{end}}
     {{end}}
+  </div>
+</div>
+<div class="grid g2 mt14">
+  <div class="card"><h2 class="card-title">{{t "user.counts"}}</h2>
+    <div class="grid g5">{{range $k, $v := $u.Counts}}<div><div class="k muted small">{{label $k}}</div><div class="v v-sm">{{n $v}}</div></div>{{end}}</div>
+    <h2>{{t "col.sessions"}}</h2>
+    <div class="small">{{range $k, $v := $u.Sessions}}<span class="chip">{{label $k}}: {{$v}}</span>{{end}}</div>
+  </div>
+  <div class="card"><h2 class="card-title">{{t "user.logins"}}</h2>
+    <table class="fit">{{range first $u.Logins 5}}<tr><td class="small nw">{{datesz (print (index . "at"))}}</td><td class="mono nw">{{index . "ip"}}</td><td class="small nw">{{index . "country"}} {{index . "city"}}</td><td class="small muted cut">{{index . "device"}} · {{index . "browser"}} · {{index . "provider"}}{{if index . "is_proxy"}} · <span class="chip locked">{{t "chip.proxy"}}</span>{{end}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>
+    <h2>{{t "user.links"}}</h2>
+    <table>{{range $u.RecentLinks}}<tr><td class="mono">{{index . "slug"}}</td><td class="small ellipsis">{{index . "target_url"}}</td><td><span class="chip {{index . "status"}}">{{index . "status"}}</span></td><td>{{index . "clicks"}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>
   </div>
 </div>
 <div class="grid g2 mt14">
@@ -108,9 +108,23 @@
       <p class="muted small">{{t "user.app_not_linked"}}</p>
     {{end}}
   </div>
+  <div class="card"><h2 class="card-title">PayHop</h2>
+    {{if .Data.PayUser}}
+      {{$pay := .Data.PayUser}}
+      <table>
+        <tr><th>{{t "col.status"}}</th><td><span class="chip {{$pay.status}}">{{$pay.status}}</span></td></tr>
+        <tr><th>{{t "col.first_sign_in"}}</th><td class="small">{{datesz (print $pay.created_at)}}</td></tr>
+        <tr><th>{{t "col.last_seen"}}</th><td class="small">{{datesz (print $pay.last_seen_at)}}</td></tr>
+      </table>
+    {{else if .Data.PayErr}}
+      <p class="flash err small">{{t "user.app_unreachable"}}: {{.Data.PayErr}}</p>
+    {{else}}
+      <p class="muted small">{{t "user.app_not_linked"}}</p>
+    {{end}}
+  </div>
 </div>
 <div class="card mt14"><h2 class="card-title">{{t "user.activity"}}</h2>
   <table>{{range $u.Activity}}<tr><td class="small">{{datesz (print (index . "at"))}}</td><td><span class="chip">{{index . "action"}}</span> {{index . "model"}}</td><td class="small">{{index . "description"}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>
-  <details class="mt10"><summary>JSON</summary><pre class="mono">{{.Data.Raw}}</pre></details>
+  <details class="mt10"><summary>{{t "raw.json"}}</summary><pre class="mono">{{.Data.Raw}}</pre></details>
 </div>
 {{template "foot" .}}

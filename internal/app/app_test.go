@@ -604,7 +604,7 @@ func TestContentModulesFollowTheManifest(t *testing.T) {
 	}
 	// extension renders tables and forwards actions
 	res, _ = c.Get(srv.URL + "/apps/linkhop/x/ip")
-	if b := body(res); !strings.Contains(b, "203.0.113.9") || !strings.Contains(b, "<th>reason</th>") {
+	if b := body(res); !strings.Contains(b, "203.0.113.9") || !strings.Contains(b, "<th>Reason</th>") {
 		t.Fatal("extension table")
 	}
 	res, _ = c.PostForm(srv.URL+"/apps/linkhop/x/ip/actions", url.Values{"action": {"unban"}, "p_ip": {"203.0.113.9"}})
@@ -706,7 +706,7 @@ func TestSidebarAndAppDashboards(t *testing.T) {
 	// home: the sidebar names both apps and their dashboards; the registry cards link to them
 	res, _ := c.Get(srv.URL + "/")
 	b := body(res)
-	for _, want := range []string{`class="tree"`, `href="/apps/linkhop"`, `href="/apps/pixelhop"`, "PixelHop", "HOP ID", "data-side-toggle", `class="card card-link" href="/apps/pixelhop"`, `class="h100"`} {
+	for _, want := range []string{`class="tree"`, `href="/apps/linkhop"`, `href="/apps/pixelhop"`, "PixelHop", "HOP ID", "data-side-toggle", `class="card card-link app-tile" href="/apps/pixelhop"`, `class="h100"`} {
 		if !strings.Contains(b, want) {
 			t.Errorf("home missing %q", want)
 		}

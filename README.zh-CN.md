@@ -2,7 +2,7 @@
 
 [English](README.md) · **简体中文** · [Deutsch](README.de.md) · [Bahasa Indonesia](README.id.md) · [日本語](README.ja.md) · [Português (Brasil)](README.pt-BR.md) · [Español](README.es.md) · [Français](README.fr.md) · [Русский](README.ru.md)
 
-HOP 应用家族（LinkHop、BioHop、PixelHop、NoteHop、FileHop）的管理面板和运维控制台。它和家族中的其他应用一样开源，并且是**可选的**：每个应用都可以在没有它的情况下运行。只有当你想在一个地方管理所有应用的用户、内容、滥用举报、设置和运行状况时，才需要它。
+HOP 应用家族（LinkHop、BioHop、PixelHop、NoteHop、FileHop、PayHop）的管理面板和运维控制台。它和家族中的其他应用一样开源，并且是**可选的**：每个应用都可以在没有它的情况下运行。只有当你想在一个地方管理所有应用的用户、内容、滥用举报、设置和运行状况时，才需要它。
 
 它的功能：
 

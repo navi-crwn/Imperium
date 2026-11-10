@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · **Deutsch** · [Bahasa Indonesia](README.id.md) · [日本語](README.ja.md) · [Português (Brasil)](README.pt-BR.md) · [Español](README.es.md) · [Français](README.fr.md) · [Русский](README.ru.md)
 
-Das Admin-Panel und die Betriebskonsole für die HOP-App-Familie (LinkHop, BioHop, PixelHop, NoteHop, FileHop). Wie der Rest der Familie ist es Open Source und **optional**: Jede App läuft auch ohne. Du brauchst es nur, wenn du Nutzer, Inhalte, Missbrauchsmeldungen, Einstellungen und den Zustand all deiner Apps an einem Ort verwalten willst.
+Das Admin-Panel und die Betriebskonsole für die HOP-App-Familie (LinkHop, BioHop, PixelHop, NoteHop, FileHop, PayHop). Wie der Rest der Familie ist es Open Source und **optional**: Jede App läuft auch ohne. Du brauchst es nur, wenn du Nutzer, Inhalte, Missbrauchsmeldungen, Einstellungen und den Zustand all deiner Apps an einem Ort verwalten willst.
 
 Was es tut:
 

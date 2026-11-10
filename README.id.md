@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Deutsch](README.de.md) · **Bahasa Indonesia** · [日本語](README.ja.md) · [Português (Brasil)](README.pt-BR.md) · [Español](README.es.md) · [Français](README.fr.md) · [Русский](README.ru.md)
 
-Panel admin dan konsol operasional untuk keluarga aplikasi HOP (LinkHop, BioHop, PixelHop, NoteHop, FileHop). Seperti aplikasi lain dalam keluarga ini, Imperium bersifat open source dan **opsional**: setiap aplikasi tetap berjalan tanpanya. Kamu hanya membutuhkannya jika ingin satu tempat untuk mengelola pengguna, konten, laporan penyalahgunaan, pengaturan, dan kesehatan semua aplikasimu.
+Panel admin dan konsol operasional untuk keluarga aplikasi HOP (LinkHop, BioHop, PixelHop, NoteHop, FileHop, PayHop). Seperti aplikasi lain dalam keluarga ini, Imperium bersifat open source dan **opsional**: setiap aplikasi tetap berjalan tanpanya. Kamu hanya membutuhkannya jika ingin satu tempat untuk mengelola pengguna, konten, laporan penyalahgunaan, pengaturan, dan kesehatan semua aplikasimu.
 
 Yang dilakukannya:
 
