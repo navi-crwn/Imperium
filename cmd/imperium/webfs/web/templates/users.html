@@ -11,7 +11,7 @@
 {{if $bulk}}<form method="post" action="/users/actions" id="bulk-form">
 <input type="hidden" name="q" value="{{.Data.Q}}"><input type="hidden" name="status" value="{{.Data.Status}}"><input type="hidden" name="role" value="{{.Data.Role}}">
 {{end}}
-<div class="scroll-x"><table class="mt14 fit"><tr>{{if $bulk}}<th class="w-chk"><input type="checkbox" id="bulk-all" data-bulk-all aria-label="{{t "bulk.select_page"}}" title="{{t "bulk.select_page"}}"></th>{{end}}<th>{{t "col.account"}}</th><th>{{t "col.name"}}</th><th>{{t "col.email"}}</th><th>{{t "col.status"}}</th><th>{{t "col.links"}}</th><th>{{t "col.joined"}}</th><th>{{t "col.last_login"}}</th></tr>
+<div class="scroll-x"><table class="mt14 fit"><tr>{{if $bulk}}<th class="w-chk"><input type="checkbox" id="bulk-all" data-bulk-all aria-label="{{t "bulk.select_page"}}" title="{{t "bulk.select_page"}}"></th>{{end}}<th>{{t "col.account"}}</th><th class="w22">{{t "col.name"}}</th><th class="w22">{{t "col.email"}}</th><th>{{t "col.status"}}</th><th>{{t "col.links"}}</th><th>{{t "col.joined"}}</th><th>{{t "col.last_login"}}</th></tr>
 {{range .Data.Rows}}<tr>
   {{if $bulk}}<td>{{if or (eq .Sub $.Data.Me) (has .Roles "owner")}}<span class="muted small" title="{{t "bulk.user_locked"}}">—</span>{{else}}<input type="checkbox" class="bulk-pick" name="pick" value="{{.Sub}}" aria-label="{{t "bulk.pick_user"}} @{{.Username}}">{{end}}</td>{{end}}
   <td class="nw"><a href="/users/{{.Sub}}">@{{.Username}}</a> <span class="muted mono">#{{.Sub}}</span></td><td class="cut" title="{{.Name}}">{{.Name}}</td><td class="cut" title="{{.Email}}">{{.Email}}{{if not .Verified}} <span class="chip">{{t "chip.unverified"}}</span>{{end}}</td>

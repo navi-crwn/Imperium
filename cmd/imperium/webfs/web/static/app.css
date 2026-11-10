@@ -324,3 +324,8 @@ pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:320px; }
   .side { position:static; height:auto; overflow:visible; align-self:stretch; }
   .side > .tree { position:sticky; top:calc(var(--top) + 10px); max-height:calc(100vh - var(--top) - 20px); overflow:auto; }
 }
+table.fit td.wrapok { white-space:normal; min-width:12rem; }
+table.fit th.w22 { width:22%; }
+.filters .grow { flex:0 1 22rem; }
+.filters { justify-content:flex-start; }
+.bulk-panel .row { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }

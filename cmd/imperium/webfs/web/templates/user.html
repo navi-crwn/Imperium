@@ -8,12 +8,12 @@
     <table>
       <tr><th>{{t "login.hop_id"}}</th><td class="mono">{{$p.sub}}</td></tr>
       <tr><th>{{t "col.email"}}</th><td>{{$p.email}} {{if $p.verified}}<span class="chip active">{{t "chip.verified"}}</span>{{else}}<span class="chip">{{t "chip.unverified"}}</span>{{end}} {{if $p.mfa}}<span class="chip admin">{{t "login.mfa_chip"}}</span>{{end}}</td></tr>
-      <tr><th>{{t "col.bio"}}</th><td>{{$p.bio}}</td></tr>
-      <tr><th>{{t "user.website"}}</th><td>{{$p.website}}</td></tr>
-      <tr><th>{{t "user.location"}}</th><td>{{$p.location}}</td></tr>
+      {{if $p.bio}}<tr><th>{{t "col.bio"}}</th><td>{{$p.bio}}</td></tr>{{end}}
+      {{if $p.website}}<tr><th>{{t "user.website"}}</th><td>{{$p.website}}</td></tr>{{end}}
+      {{if $p.location}}<tr><th>{{t "user.location"}}</th><td>{{$p.location}}</td></tr>{{end}}
       <tr><th>{{t "user.show_owner"}}</th><td>{{if $p.show_owner}}{{t "yes"}}{{else}}{{t "no"}}{{end}}</td></tr>
-      <tr><th>{{t "user.profile_version"}}</th><td>{{$p.profile_version}}</td></tr>
-      <tr><th>{{t "col.joined"}}</th><td>{{datesz (print $p.created_at)}}</td></tr>
+      {{if $p.profile_version}}<tr><th>{{t "user.profile_version"}}</th><td>{{$p.profile_version}}</td></tr>{{end}}
+      {{if $p.created_at}}<tr><th>{{t "col.joined"}}</th><td>{{datesz (print $p.created_at)}}</td></tr>{{end}}
     </table>
   </div>
   <div class="card actions"><h2 class="card-title">{{t "user.actions"}}</h2>
