@@ -167,8 +167,7 @@ func (a *App) users(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	apps, _ := a.db.Apps(r.Context())
-	a.render(w, r, "users.html", a.Tr(r, "users.title"), map[string]any{"Rows": rows, "Err": errMsg, "Next": next, "Q": q.Get("q"), "Status": q.Get("status"), "Role": q.Get("role"),
-		"Cursor": q.Get("cursor"), "Filters": q, "IsAdmin": isAdmin(current(r)), "Me": current(r).Sub, "BulkActions": userBulkActions, "RoleFilter": roleOptions(apps, nil)})
+	a.render(w, r, "list.html", a.Tr(r, "users.title"), map[string]any{"P": a.usersPage(r, rows, errMsg, next, apps)})
 }
 
 // roleOptions are the roles a form offers: the hub-wide ones, admin:<app> for every registered app (HOP ID
@@ -264,15 +263,14 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 
 	apps, _ := a.db.Apps(r.Context())
-	a.render(w, r, "user.html", "@"+str(u.Profile["username"]), map[string]any{
-		"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)), "CanNote": canNote(current(r)),
-		"Protected": u.protected(),
-		"PixelUser": summaries["pixelhop"].User, "PixelErr": summaries["pixelhop"].Err,
-		"NoteUser": summaries["notehop"].User, "NoteErr": summaries["notehop"].Err,
-		"FileUser": summaries["filehop"].User, "FileErr": summaries["filehop"].Err,
-		"PayUser": summaries["payhop"].User, "PayErr": summaries["payhop"].Err,
-		"RoleOptions": roleOptions(apps, u.Roles),
-	})
+	tab := r.URL.Query().Get("tab")
+	if !contains([]string{"profile", "content", "sessions", "activity"}, tab) {
+		tab = "profile"
+	}
+	in := userDetailIn{ID: id, Raw: string(raw), Tab: tab, U: u, Protected: u.protected(), Admin: isAdmin(current(r)), Note: canNote(current(r)), Options: roleOptions(apps, u.Roles),
+		Pixel: summaries["pixelhop"].User, PixelErr: summaries["pixelhop"].Err, NoteU: summaries["notehop"].User, NoteErr: summaries["notehop"].Err,
+		File: summaries["filehop"].User, FileErr: summaries["filehop"].Err, Pay: summaries["payhop"].User, PayErr: summaries["payhop"].Err}
+	a.render(w, r, "detail.html", "@"+str(u.Profile["username"]), map[string]any{"P": a.userDetailPage(r, in)})
 }
 
 // canNote says whether the session may add a note to a hub user: every
@@ -297,6 +295,11 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 	action := r.FormValue("action")
 	reason := strings.TrimSpace(r.FormValue("reason"))
 	params := map[string]any{}
+	if needAck(action, r.FormValue("ack")) {
+		a.flashError(w, a.Tr(r, "err.need_ack"))
+		http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
+		return
+	}
 	switch action {
 	case "suspend", "activate", "revoke_sessions", "revoke_tokens", "delete", "set_roles":
 		if !isAdmin(s) {

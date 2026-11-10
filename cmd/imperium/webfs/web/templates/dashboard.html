@@ -1,57 +1,33 @@
 {{template "head" .}}{{template "top" .}}
 {{$d := .Data}}
-<div class="dash-head">
-  <div>
-    <h1 class="app-card-title"><img class="app-mark" src="{{appMark $d.App.Slug}}" alt="" width="40" height="40">{{$d.App.Name}}</h1>
-    <p class="small muted dash-meta"><span class="dot {{if eq $d.Health.Status "maint"}}maint{{else if $d.Health.OK}}ok{{else}}bad{{end}}"></span>{{if eq $d.Health.Status "maint"}}{{t "status.maint"}}{{else if $d.Health.OK}}{{t "status.ok"}} · {{t "dash.latency"}} {{$d.Health.Latency.Milliseconds}} ms{{if $d.Health.Version}} · {{t "dash.version"}} {{versionLabel $d.Health.Version}}{{end}}{{else}}{{t "status.down"}}{{if $d.Health.Detail}} · {{$d.Health.Detail}}{{end}}{{end}}
-      · <a href="{{$d.App.URL}}" target="_blank" rel="noopener">{{$d.App.URL}} ↗</a></p>
-  </div>
-</div>
-{{template "appnav" $d}}
+{{template "appshell" $d}}
 {{if $d.StatsErr}}<p class="flash err">{{t "err.hop"}}: {{$d.StatsErr}}</p>{{end}}
-{{if $d.Attention}}<h2>{{t "home.attention"}}</h2><div class="grid stats c6">
-{{range $d.Attention}}<div class="card"><div class="k">{{.Label}}</div><div class="v warn">{{.Value}}</div></div>{{end}}
-</div>{{end}}
-{{if $d.KPIs}}<h2>{{t "dash.kpi"}}</h2><div class="grid stats {{statCols (len $d.KPIs) 6}}">
+{{if $d.KPIs}}<div class="grid stats {{statCols (len $d.KPIs) 5}}">
 {{range $d.KPIs}}<div class="card"><div class="k">{{.Label}}</div><div class="v {{if .Warn}}warn{{end}}">{{.Value}}</div></div>{{end}}
 </div>{{end}}
-{{if $d.Series}}<h2>{{t "dash.series"}}</h2><div class="grid g2">
-{{range $d.Series}}{{template "chart" .}}{{end}}
-</div>{{end}}
-<div class="grid g2 dash-cols">
-  {{if $d.CT}}<section class="card span-all">
-    <h2 class="card-title">{{t "dash.latest"}} · {{$d.CT.Label}} <a class="small" href="/apps/{{$d.App.Slug}}/content?type={{$d.CT.Type}}">{{t "dash.all"}} →</a></h2>
-    {{if $d.LatestErr}}<p class="flash err">{{$d.LatestErr}}</p>{{end}}
-    <div class="scroll-x"><table class="tight fit"><tr><th></th><th>{{t "table.item"}}</th><th>{{t "table.owner"}}</th><th>{{t "table.status"}}</th><th>#</th></tr>
-    {{range $d.Latest}}<tr>
-      <td>{{if .Preview}}<img class="thumb" src="{{.Preview}}" alt="">{{end}}</td>
-      <td class="cut"><a href="/apps/{{$d.App.Slug}}/content/{{.Type}}/{{.ID}}">{{if .Title}}{{.Title}}{{else}}{{.ID}}{{end}}</a>{{if .URL}} <a class="muted" href="{{.URL}}" target="_blank" rel="noopener">↗</a>{{end}}<span class="muted small">{{range .Flags}}<span class="chip">{{.}}</span>{{end}}{{day .Created}}</span></td>
-      <td class="small nw">{{if .OwnerSub}}<a href="/users/{{.OwnerSub}}">{{.OwnerName}}</a>{{else}}<span class="muted">{{t "table.guest"}}</span>{{end}}</td>
-      <td class="nw"><span class="chip {{.Status}}">{{.Status}}</span></td>
-      <td class="small muted nw">{{if .Clicks}}{{n .Clicks}}{{else if .Views}}{{n .Views}}{{else if .Size}}{{bytes .Size}}{{end}}</td>
-    </tr>{{else}}<tr><td colspan="5" class="muted">{{t "content.none"}}</td></tr>{{end}}
-    </table></div>
-    <p class="small muted">{{t "dash.actions_hint"}}</p>
-  </section>{{end}}
-  {{if $d.HasReports}}<section class="card">
-    <h2 class="card-title">{{t "dash.reports"}} <a class="small" href="/apps/{{$d.App.Slug}}/reports">{{t "dash.all"}} →</a></h2>
-    {{if $d.ReportsErr}}<p class="flash err">{{$d.ReportsErr}}</p>{{end}}
-    <div class="scroll-x"><table class="tight"><tr><th>{{t "chart.date"}}</th><th>{{t "table.kind"}}</th><th>{{t "table.subject"}}</th><th></th></tr>
-    {{range $d.Reports}}<tr>
-      <td class="small muted nw">{{day (index . "created_at")}}{{day (index . "created")}}</td>
-      <td class="nw"><span class="chip">{{index . "kind"}}</span>{{with index . "score"}} <span class="chip locked">{{.}}</span>{{end}}</td>
-      <td class="small">{{with index . "subject"}}{{with index . "type"}}{{.}} {{end}}{{index . "id"}}{{end}}{{with index . "content"}}{{with index . "url"}}<a href="{{.}}" target="_blank" rel="noopener">{{.}}</a>{{end}}{{end}}<div class="muted">{{index . "reason"}} {{index . "summary"}} {{index . "note"}}</div></td>
-      <td>{{if $d.CanAct}}<form method="post" action="/apps/{{$d.App.Slug}}/reports/{{index . "id"}}/actions" class="row"><input type="hidden" name="kind" value="{{index . "kind"}}">
-        {{range $d.M.ReportActions (index . "kind")}}<button class="btn sm {{if confirmAction .}}danger{{end}}" name="action" value="{{.}}">{{actionLabel .}}</button>{{end}}</form>{{end}}</td>
-    </tr>{{else}}<tr><td colspan="4" class="muted">{{t "dash.no_reports"}}</td></tr>{{end}}
-    </table></div>
-  </section>{{end}}
-  {{range $d.Ops}}<section class="card">
-    <h2 class="card-title">{{t "dash.ops"}} · {{.Label}} <a class="small" href="/apps/{{$d.App.Slug}}/x/{{.Ext}}">{{t "dash.all"}} →</a></h2>
-    {{if .Err}}<p class="flash err">{{.Err}}</p>{{end}}
-    {{if or .KV (not .Tables)}}<table class="tight">{{range .KV}}<tr><th>{{.Key}}</th><td class="mono">{{if .Value}}{{.Value}}{{else}}<span class="muted">—</span>{{end}}</td></tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}</table>{{end}}
-    {{range .Tables}}<h3 class="small muted mono">{{.Name}}</h3><div class="scroll-x"><table class="tight"><tr>{{range .Cols}}<th>{{.}}</th>{{end}}</tr>{{range .Rows}}<tr>{{range .}}<td class="small">{{.}}</td>{{end}}</tr>{{end}}</table></div>{{end}}
-  </section>{{end}}
-
-</div>
+{{if $d.Series}}<div class="grid g1">{{range $d.Series}}{{template "chart" .}}{{end}}</div>{{end}}
+{{if $d.CT}}<section class="sect">
+  <h2 class="sect-title">{{t "dash.latest"}} · {{$d.CT.Label}} <a class="small" href="/apps/{{$d.App.Slug}}/content?type={{$d.CT.Type}}">{{t "dash.all"}} →</a></h2>
+  {{if $d.LatestErr}}<p class="flash err">{{$d.LatestErr}}</p>{{end}}
+  <div class="scroll-x"><table class="fit"><tr><th>{{t "table.item"}}</th><th>{{t "table.owner"}}</th><th>{{t "table.status"}}</th><th></th><th>{{t "chart.date"}}</th></tr>
+  {{range $d.Latest}}<tr>
+    <td class="cut">{{if .Preview}}<img class="thumb sm" src="{{.Preview}}" alt=""> {{end}}<a href="/apps/{{$d.App.Slug}}/content/{{.Type}}/{{.ID}}">{{if .Title}}{{.Title}}{{else}}{{.ID}}{{end}}</a></td>
+    <td class="small nw">{{if .OwnerSub}}<a href="/users/{{.OwnerSub}}">{{.OwnerName}}</a>{{else}}<span class="muted">{{t "table.guest"}}</span>{{end}}</td>
+    <td class="nw"><span class="chip {{.Status}}">{{.Status}}</span>{{range .Flags}}<span class="chip">{{.}}</span>{{end}}</td>
+    <td class="small muted nw">{{if .Clicks}}{{n .Clicks}}{{else if .Views}}{{n .Views}}{{else if .Size}}{{bytes .Size}}{{end}}</td>
+    <td class="small muted nw">{{day .Created}}</td>
+  </tr>{{else}}<tr><td colspan="5" class="muted">{{t "content.none"}}</td></tr>{{end}}
+  </table></div>
+</section>{{end}}
+{{if $d.HasReports}}<section class="sect">
+  <h2 class="sect-title">{{t "dash.reports"}} <a class="small" href="/apps/{{$d.App.Slug}}/reports">{{t "dash.all"}} →</a></h2>
+  {{if $d.ReportsErr}}<p class="flash err">{{$d.ReportsErr}}</p>{{end}}
+  <div class="scroll-x"><table class="fit"><tr><th>{{t "chart.date"}}</th><th>{{t "table.kind"}}</th><th>{{t "table.subject"}}</th></tr>
+  {{range $d.Reports}}<tr>
+    <td class="small muted nw">{{day (index . "created_at")}}{{day (index . "created")}}</td>
+    <td class="nw"><span class="chip">{{index . "kind"}}</span>{{with index . "score"}} <span class="chip locked">{{.}}</span>{{end}}</td>
+    <td class="small cut"><a href="/apps/{{$d.App.Slug}}/reports">{{with index . "subject"}}{{with index . "type"}}{{.}} {{end}}{{index . "id"}}{{end}}{{with index . "content"}}{{with index . "url"}}{{.}}{{end}}{{end}}</a> <span class="muted">{{index . "reason"}} {{index . "summary"}} {{index . "note"}}</span></td>
+  </tr>{{else}}<tr><td colspan="3" class="muted">{{t "dash.no_reports"}}</td></tr>{{end}}
+  </table></div>
+</section>{{end}}
 {{template "foot" .}}

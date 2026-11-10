@@ -52,15 +52,11 @@ func TestStatColsLeavesNoLoneCard(t *testing.T) {
 	}
 }
 
-// Three or more extension pages go under "More"; one or two stay in the tab bar.
+// Every extension page goes under "More"; the other tabs stay.
 func TestExtensionTabsGroupUnderMore(t *testing.T) {
-	items := []navItem{{Label: "Dashboard", Kind: "dash"}, {Label: "Links", Kind: "content"}, {Label: "IP", Kind: "ext"}, {Label: "Queue", Kind: "ext"}}
-	if m, more := splitTabs(items); len(more) != 0 || len(m) != 4 {
-		t.Errorf("two extensions stay inline: main=%d more=%d", len(m), len(more))
-	}
-	items = append(items, navItem{Label: "Domains", Kind: "ext"})
-	if m, more := splitTabs(items); len(more) != 3 || len(m) != 2 {
-		t.Errorf("three extensions go under More: main=%d more=%d", len(m), len(more))
+	items := []navItem{{Label: "Dashboard", Kind: "dash"}, {Label: "Content", Kind: "content"}, {Label: "IP", Kind: "ext"}, {Label: "Queue", Kind: "ext"}}
+	if m, more := splitTabs(items); len(more) != 2 || len(m) != 2 {
+		t.Errorf("extensions go under More: main=%d more=%d", len(m), len(more))
 	}
 }
 

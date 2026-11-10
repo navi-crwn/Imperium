@@ -71,7 +71,7 @@ func keyLabel(l, k string) string {
 }
 
 // splitTabs separates the tabs of an app: the main ones, and the extension tabs that go
-// under "More" once there are three or more of them.
+// under "More".
 func splitTabs(items []navItem) (main, more []navItem) {
 	n := 0
 	for _, it := range items {
@@ -80,7 +80,7 @@ func splitTabs(items []navItem) (main, more []navItem) {
 		}
 	}
 	for _, it := range items {
-		if it.Kind == "ext" && n >= 3 {
+		if it.Kind == "ext" {
 			more = append(more, it)
 		} else {
 			main = append(main, it)
@@ -121,9 +121,10 @@ func (a *App) appItems(r *http.Request, slug string, m *Manifest, path, typ stri
 	if m == nil {
 		return items
 	}
-	for i, ct := range m.ContentTypes {
-		on := strings.HasPrefix(path, base+"/content") && (typ == ct.Type || (typ == "" && i == 0))
-		items = append(items, navItem{Label: ct.Label, Href: base + "/content?type=" + url.QueryEscape(ct.Type), Kind: "content", On: on})
+	// One fixed set of tabs for every app: Dashboard, Content, Reports, Settings, More. The kinds of
+	// content (Images, Albums, Links, …) are picked inside Content; every extension is under More.
+	if len(m.ContentTypes) > 0 {
+		items = append(items, navItem{Label: tl(l, "mod.content"), Href: base + "/content", Kind: "content", On: strings.HasPrefix(path, base+"/content")})
 	}
 	if m.HasReports() {
 		items = append(items, navItem{Label: a.Tr(r, "mod.reports"), Href: base + "/reports", Kind: "reports", On: strings.HasPrefix(path, base+"/reports")})
@@ -436,9 +437,14 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 		kpiMap = st.Totals
 	}
 	all, attention := a.kpis(a.langOf(r), ap.Slug, kpiMap)
+	all = topNumbers(all, 5)
+	seriesAll := a.seriesViews(a.langOf(r), st.Series)
+	if len(seriesAll) > 1 {
+		seriesAll = seriesAll[:1]
+	}
 	a.render(w, r, "dashboard.html", ap.Name, map[string]any{
 		"App": ap, "M": m, "Health": health, "Items": a.appItems(r, ap.Slug, m, r.URL.Path, ""),
-		"KPIs": all, "Attention": attention, "Series": a.seriesViews(a.langOf(r), st.Series), "StatsErr": statsErr,
+		"KPIs": all, "Attention": attention, "Series": seriesAll, "StatsErr": statsErr,
 		"CT": firstCT, "Latest": latest, "LatestErr": latestErr,
 		"Reports": reports, "ReportsErr": reportsErr, "HasReports": m.HasReports(),
 		"Ops": ops, "CanAct": canActIn(s, ap.Slug),
@@ -454,4 +460,24 @@ func statCols(n, max int) string {
 	rows := (n + max - 1) / max
 	cols := (n + rows - 1) / rows
 	return "c" + strconv.Itoa(cols)
+}
+
+// topNumbers keeps at most n numbers for the dashboard row: the ones that need attention first, then the
+// app's own order.
+func topNumbers(all []kpi, n int) []kpi {
+	if len(all) <= n {
+		return all
+	}
+	var out []kpi
+	for _, k := range all {
+		if k.Warn && len(out) < n {
+			out = append(out, k)
+		}
+	}
+	for _, k := range all {
+		if !k.Warn && len(out) < n {
+			out = append(out, k)
+		}
+	}
+	return out
 }

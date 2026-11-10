@@ -1,0 +1,15 @@
+{{template "head" .}}{{template "top" .}}
+{{$p := .Data.P}}
+{{if .Data.App}}{{template "appshell" .Data}}{{end}}
+<p class="crumb"><a href="{{$p.Back}}">← {{$p.BackLabel}}</a></p>
+<div class="page-head"><h1>{{$p.Title}} {{range $p.Chips}}<span class="chip {{.Class}}">{{.Label}}</span>{{end}}</h1>
+  <div class="head-actions">{{if $p.Link}}<a class="btn ghost" href="{{$p.Link}}" target="_blank" rel="noopener">↗</a>{{end}}{{template "actionmenu" $p.Actions}}</div></div>
+{{if $p.Tabs}}<nav class="tabs" aria-label="{{$p.Title}}">{{range $p.Tabs}}<a class="tab{{if .On}} on{{end}}" href="{{.Href}}"{{if .On}} aria-current="page"{{end}}>{{.Label}}</a>{{end}}</nav>{{end}}
+{{if $p.Err}}<p class="flash err">{{$p.Err}}</p>{{end}}
+{{range $p.Sections}}<section class="sect">{{if .Title}}<h2>{{.Title}}</h2>{{end}}
+  {{if .KV}}<table class="kv-table">{{range .KV}}<tr><th>{{.K}}</th><td>{{.V}}</td></tr>{{end}}</table>{{end}}
+  {{if .Table}}<div class="scroll-x"><table class="fit">{{if .Table.Cols}}<tr>{{range .Table.Cols}}<th>{{.}}</th>{{end}}</tr>{{end}}{{range .Table.Rows}}<tr>{{range .}}<td class="small cut">{{.}}</td>{{end}}</tr>{{end}}</table></div>{{end}}
+  {{if .HTML}}{{.HTML}}{{end}}
+  {{if .Empty}}<p class="muted">{{.Empty}}</p>{{end}}</section>{{end}}
+{{template "dialogs" $p.Actions}}
+{{template "foot" .}}

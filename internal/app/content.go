@@ -308,9 +308,7 @@ func (a *App) content(w http.ResponseWriter, r *http.Request) {
 			next, total = env.Page.Next, env.Page.Total
 		}
 	}
-	a.render(w, r, "content.html", ap.Name+" · "+typ, map[string]any{"App": ap, "M": m, "Type": typ, "CT": ct, "Rows": rows, "Err": errMsg, "Next": next, "Total": total,
-		"Q": q.Get("q"), "Status": status, "Owner": q.Get("owner"), "Statuses": pixelHopStatuses, "Cursor": q.Get("cursor"), "Filters": q, "ListPath": "/apps/" + ap.Slug + "/content",
-		"CanAct": canActIn(current(r), ap.Slug), "BulkActions": bulkContentActions(ct)})
+	a.render(w, r, "list.html", ap.Name+" · "+typ, map[string]any{"App": ap, "M": m, "P": a.contentPage(r, ap, m, typ, ct, rows, errMsg, next, total, status, pixelHopStatuses, canActIn(current(r), ap.Slug))})
 }
 
 // GET /apps/{app}/content/{type}/{id}
@@ -335,7 +333,7 @@ func (a *App) item(w http.ResponseWriter, r *http.Request) {
 			a.aliasOwner(o)
 		}
 	}
-	a.render(w, r, "item.html", ap.Name+" · "+typ+" "+id, map[string]any{"App": ap, "M": m, "Type": typ, "ID": id, "CT": m.ContentType(typ), "It": it, "Raw": jsonPretty(pretty), "CanAct": canActIn(current(r), ap.Slug)})
+	a.render(w, r, "detail.html", ap.Name+" · "+typ+" "+id, map[string]any{"App": ap, "M": m, "P": a.itemDetailPage(r, ap, m, typ, id, it, jsonPretty(pretty), canActIn(current(r), ap.Slug))})
 }
 
 // POST /apps/{app}/content/{type}/{id}/actions
@@ -349,6 +347,11 @@ func (a *App) itemAction(w http.ResponseWriter, r *http.Request) {
 	back := "/apps/" + ap.Slug + "/content/" + url.PathEscape(typ) + "/" + url.PathEscape(id)
 	_ = r.ParseForm()
 	action := r.FormValue("action")
+	if needAck(action, r.FormValue("ack")) {
+		a.flashError(w, a.Tr(r, "err.need_ack"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
 	ct := m.ContentType(typ)
 	if !canActIn(s, ap.Slug) || ct == nil || !contains(ct.Actions, action) {
 		a.flashError(w, a.Tr(r, "err.forbidden"))
@@ -373,6 +376,10 @@ func (a *App) itemAction(w http.ResponseWriter, r *http.Request) {
 			back = "/apps/" + ap.Slug + "/content?type=" + typ
 		}
 	}
+	if action == "delete" || action == "purge" {
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
 	http.Redirect(w, r, returnTo(r, back), http.StatusFound)
 }
 
@@ -391,7 +398,7 @@ func (a *App) reports(w http.ResponseWriter, r *http.Request) {
 	if err := a.call(r.Context(), current(r), ap, "GET", "/reports?status="+url.QueryEscape(status)+"&limit=100", nil, &rows); err != nil {
 		errMsg = err.Error()
 	}
-	a.render(w, r, "reports.html", ap.Name+" · reports", map[string]any{"App": ap, "M": m, "Rows": rows, "Err": errMsg, "Status": status, "CanAct": canActIn(current(r), ap.Slug), "Actions": reportActionChoices(m, rows)})
+	a.render(w, r, "list.html", ap.Name+" · reports", map[string]any{"App": ap, "M": m, "P": a.reportsPage(r, ap, m, rows, errMsg, status, canActIn(current(r), ap.Slug), reportActionChoices(m, rows))})
 }
 
 // POST /apps/{app}/reports/{id}/actions  (form field kind = report|flag|"" picks the upstream path)
@@ -403,6 +410,11 @@ func (a *App) reportAction(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = r.ParseForm()
 	id, kind, action := r.PathValue("id"), r.FormValue("kind"), r.FormValue("action")
+	if needAck(action, r.FormValue("ack")) {
+		a.flashError(w, a.Tr(r, "err.need_ack"))
+		http.Redirect(w, r, "/apps/"+ap.Slug+"/reports", http.StatusFound)
+		return
+	}
 	back := "/apps/" + ap.Slug + "/reports"
 	if !canActIn(s, ap.Slug) || action == "" {
 		a.flashError(w, a.Tr(r, "err.forbidden"))

@@ -105,6 +105,8 @@ func (a *App) funcs(l string) template.FuncMap {
 		"cursorURL":     cursorURL,
 		"utcz":          func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
 		"n":             humanAny,
+		"healthOf":      func(slug string) Health { return a.healthSnapshot()[slug] },
+		"reQuote":       reQuote,
 		"has":           func(list []string, x string) bool { return contains(list, x) },
 		"json":          jsonPretty,
 		"lower":         strings.ToLower,

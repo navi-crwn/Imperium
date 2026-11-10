@@ -331,17 +331,14 @@ func TestLinkHopDashboardShowsTheGuestDigest(t *testing.T) {
 	body(login(t, c, srv))
 
 	_, b := get(t, c, srv.URL+"/apps/linkhop")
-	for _, want := range []string{"heartbeat_at", "Operations · Queue", "Operations · Guest link digest", `href="/apps/linkhop/x/guest_digest"`, "guest_links", ">99<", "spike_threshold",
-		"site-00.example", "site-09.example", `<th>spikes</th>`, `<th>domain</th>`, `<th>links</th>`} {
+	// The extensions are under More; their data is on their own pages, not on the dashboard.
+	for _, want := range []string{`href="/apps/linkhop/x/guest_digest"`, `href="/apps/linkhop/x/queue"`} {
 		if !strings.Contains(b, want) {
 			t.Errorf("dashboard lacks %q", want)
 		}
 	}
-	if strings.Contains(b, "site-10.example") {
-		t.Error("the dashboard shows at most ten domains")
-	}
 	_, b = get(t, c, srv.URL+"/apps/linkhop/x/guest_digest")
-	for _, want := range []string{"site-00.example", "site-11.example", ">99<", "Guest link digest"} {
+	for _, want := range []string{"site-00.example", "site-11.example", ">99<", "Guest link digest", "Spike threshold", "<th>Spikes</th>", "<th>Domain</th>"} {
 		if !strings.Contains(b, want) {
 			t.Errorf("extension page lacks %q", want)
 		}

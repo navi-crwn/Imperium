@@ -436,7 +436,7 @@ func TestHomeUserActionsAudit(t *testing.T) {
 		t.Fatalf("forwarded action: %+v", hop.actions)
 	}
 	// a refused action shows the error and is logged as failed
-	res, _ = c.PostForm(srv.URL+"/users/26/actions", url.Values{"action": {"delete"}, "confirm": {"rani"}})
+	res, _ = c.PostForm(srv.URL+"/users/26/actions", url.Values{"action": {"delete"}, "confirm": {"rani"}, "ack": {"yes"}})
 	if b := body(res); !strings.Contains(b, "owner_protected") {
 		t.Fatal("refusal should be shown")
 	}
@@ -717,8 +717,8 @@ func TestSidebarAndAppDashboards(t *testing.T) {
 	// PixelHop dashboard: KPIs (bytes humanised), attention, series, latest images, open reports with the manifest's report actions
 	res, _ = c.Get(srv.URL + "/apps/pixelhop")
 	b = body(res)
-	for _, want := range []string{"1.0 GB", ">1.234<", "Open reports", "Uploads today", "Bytes uploaded", `class="h100"`, "cat.jpg", "/apps/pixelhop/content/image/img1", "@rani", "nudity", `value="dismiss"`, `value="resolve"`,
-		`class="chip active" href="/apps/pixelhop"`, `href="/apps/pixelhop/content?type=image"`, `href="/apps/pixelhop/content?type=album"`, `href="/apps/pixelhop/reports"`, `href="/apps/pixelhop/settings"`, "3.7.0"} {
+	for _, want := range []string{">1.234<", "Open reports", "Bytes uploaded", `class="h100"`, "cat.jpg", "/apps/pixelhop/content/image/img1", "@rani", "nudity",
+		`class="tab on" href="/apps/pixelhop"`, `href="/apps/pixelhop/content?type=image"`, `href="/apps/pixelhop/content"`, `href="/apps/pixelhop/reports"`, `href="/apps/pixelhop/settings"`, "3.7.0"} {
 		if !strings.Contains(b, want) {
 			t.Errorf("pixelhop dashboard missing %q", want)
 		}
@@ -735,7 +735,7 @@ func TestSidebarAndAppDashboards(t *testing.T) {
 	// LinkHop dashboard: queue worker on the dashboard, extension labels in the sidebar, users under the app
 	res, _ = c.Get(srv.URL + "/apps/linkhop")
 	b = body(res)
-	for _, want := range []string{">74<", "phishing words", `value="confirm"`, "heartbeat_at", "stale", `href="/apps/linkhop/x/queue"`, `href="/apps/linkhop/x/names"`, `href="/users"`, "Bio pages", ">spam<"} {
+	for _, want := range []string{">74<", "phishing words", `href="/apps/linkhop/x/queue"`, `href="/apps/linkhop/x/names"`, `href="/users"`, ">spam<"} {
 		if !strings.Contains(b, want) {
 			t.Errorf("linkhop dashboard missing %q", want)
 		}
@@ -855,7 +855,7 @@ func TestBioHopAppDashboard(t *testing.T) {
 
 	res, _ := c.Get(srv.URL + "/apps/biohop")
 	b := body(res)
-	for _, want := range []string{"BioHop", ">41<", "Published pages", "Draft pages", "Adult pages", "Blocks", "Total views", "Total clicks", "Pages created", "Rani Bio", "/apps/biohop/content/page/7", `href="/apps/biohop/content?type=page"`, `href="/apps/biohop/content?type=block"`, "adult keywords"} {
+	for _, want := range []string{"BioHop", ">41<", "Published pages", "Draft pages", "Adult pages", "Pages created", "Rani Bio", "/apps/biohop/content/page/7", `href="/apps/biohop/content?type=page"`, "adult keywords"} {
 		if !strings.Contains(b, want) {
 			t.Errorf("biohop dashboard missing %q", want)
 		}
@@ -868,7 +868,7 @@ func TestBioHopAppDashboard(t *testing.T) {
 	if b := body(res); !strings.Contains(b, `value="clear_custom_css"`) || !strings.Contains(b, `value="mark_nsfw"`) {
 		t.Fatal("biohop page detail should offer bio page moderation actions")
 	}
-	res, _ = c.PostForm(srv.URL+"/apps/biohop/content/page/7/actions", url.Values{"action": {"clear_custom_css"}, "reason": {"broken layout"}})
+	res, _ = c.PostForm(srv.URL+"/apps/biohop/content/page/7/actions", url.Values{"action": {"clear_custom_css"}, "reason": {"broken layout"}, "ack": {"yes"}})
 	body(res)
 	if len(bhActions) != 1 || bhActions[0]["action"] != "clear_custom_css" {
 		t.Fatalf("biohop action not forwarded: %+v", bhActions)
@@ -923,7 +923,7 @@ func TestUser360AppSummaries(t *testing.T) {
 	c := client(t)
 	login(t, c, srv)
 
-	res, err := c.Get(srv.URL + "/users/26")
+	res, err := c.Get(srv.URL + "/users/26?tab=content")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -943,7 +943,7 @@ func TestUser360AppSummaries(t *testing.T) {
 		w.WriteHeader(500)
 		_, _ = w.Write([]byte(`{"ok":false,"error":"db_locked"}`))
 	})
-	res, err = c.Get(srv.URL + "/users/27")
+	res, err = c.Get(srv.URL + "/users/27?tab=content")
 	if err != nil {
 		t.Fatal(err)
 	}

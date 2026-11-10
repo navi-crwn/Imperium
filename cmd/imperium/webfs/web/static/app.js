@@ -129,9 +129,11 @@ document.querySelectorAll('.dash-tabs').forEach(nav => {
     const apply = document.querySelector('[data-bulk-apply]');
     const action = document.querySelector('[data-bulk-action]');
     const bar = document.querySelector('[data-bulk-bar]');
+    const reason = document.getElementById('bulk-reason');
+    const confirmBox = document.querySelector('[data-bulk-confirm]');
     const count = document.querySelector('[data-bulk-count]');
     if (!form) return;
-    const picks = () => [...form.querySelectorAll('input.bulk-pick')];
+    const picks = () => [...document.querySelectorAll('input.bulk-pick')];
     if (apply && !apply.dataset.label) apply.dataset.label = apply.textContent.trim();
     const sync = () => {
         const boxes = picks();
@@ -156,14 +158,30 @@ document.querySelectorAll('.dash-tabs').forEach(nav => {
         picks().forEach(b => { b.checked = all.checked; });
         sync();
     });
-    form.addEventListener('change', event => {
-        if (event.target.classList.contains('bulk-pick')) sync();
+    document.addEventListener('change', event => {
+        if (event.target.classList && event.target.classList.contains('bulk-pick')) sync();
         if (event.target === action) sync();
     });
     // A form submitted with the keyboard (Enter) never clicks the button: keep the
     // server-side refusal as the second line, this one as the first.
+    let approved = false;
     form.addEventListener('submit', event => {
-        if (picks().every(b => !b.checked)) event.preventDefault();
+        if (picks().every(b => !b.checked)) { event.preventDefault(); return; }
+        if (approved || !bar || !action || action.value === '') return; // no action chosen: the server says so
+        event.preventDefault();
+        const text = (bar.dataset.confirmTitle || '').replace('{action}', action.options[action.selectedIndex].text).replace('{count}', String(picks().filter(b => b.checked).length));
+        const dlg = document.createElement('dialog');
+        dlg.className = 'confirm';
+        const f = document.createElement('form'); f.method = 'dialog';
+        const h = document.createElement('h2'); h.textContent = text; f.append(h);
+        const lab = document.createElement('label'); lab.textContent = bar.dataset.reason || ''; lab.htmlFor = 'bulk-dlg-reason'; f.append(lab);
+        const inp = document.createElement('input'); inp.type = 'text'; inp.id = 'bulk-dlg-reason'; inp.required = true; inp.maxLength = 255; inp.value = reason ? reason.value : ''; f.append(inp);
+        const row = document.createElement('div'); row.className = 'dlg-actions';
+        const no = document.createElement('button'); no.type = 'button'; no.className = 'btn ghost'; no.textContent = bar.dataset.cancel || 'Cancel'; no.addEventListener('click', () => dlg.close());
+        const ok = document.createElement('button'); ok.type = 'submit'; ok.className = 'btn destructive'; ok.textContent = bar.dataset.ok || 'OK'; row.append(no, ok); f.append(row); dlg.append(f);
+        f.addEventListener('submit', e => { e.preventDefault(); if (!inp.value.trim()) { inp.focus(); return; } if (reason) reason.value = inp.value; if (confirmBox) confirmBox.checked = true; approved = true; dlg.close(); form.requestSubmit(apply); });
+        dlg.addEventListener('close', () => dlg.remove());
+        document.body.append(dlg); dlg.showModal(); inp.focus();
     });
     sync();
 })();
@@ -209,4 +227,20 @@ document.querySelectorAll('.dash-tabs').forEach(nav => {
         const f = d.querySelector('.pop-item[aria-current="true"], .pop-item');
         if (f && d.classList.contains('lang-menu')) f.focus();
     }));
+})();
+// Marks the page as scripted (CSS hides the no-JavaScript fallbacks), and opens the confirmation dialogs
+// that the Actions menus link to. Without JavaScript the same links show the dialog through :target.
+(() => {
+    document.documentElement.classList.add('js');
+    document.addEventListener('click', (e) => {
+        const t = e.target.closest ? e.target.closest('[data-dialog], [data-dialog-close]') : null;
+        if (!t) return;
+        e.preventDefault();
+        if (t.hasAttribute('data-dialog-close')) { const d = t.closest('dialog'); if (d) d.close(); if (location.hash) history.replaceState(null, '', location.pathname + location.search); return; }
+        const d = document.getElementById(t.getAttribute('data-dialog'));
+        if (!d || typeof d.showModal !== 'function') return;
+        const menu = t.closest('details'); if (menu) menu.removeAttribute('open');
+        d.showModal();
+        const first = d.querySelector('input[type=text]'); if (first) first.focus();
+    });
 })();
