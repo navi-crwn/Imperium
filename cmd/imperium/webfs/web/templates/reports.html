@@ -5,7 +5,19 @@
 {{if .Data.Err}}<p class="flash err">{{.Data.Err}}</p>{{end}}
 {{if .Data.CanAct}}<form method="post" action="/apps/{{.Data.App.Slug}}/reports/actions" id="bulk-form">
 <input type="hidden" name="status" value="{{.Data.Status}}">{{end}}
-<div class="scroll-x"><table class="fit"><tr>{{if .Data.CanAct}}<th class="w-chk"><input type="checkbox" id="bulk-all" data-bulk-all aria-label="{{t "bulk.select_page"}}" title="{{t "bulk.select_page"}}"></th>{{end}}<th>{{t "col.when"}}</th><th>{{t "col.kind"}}</th><th>{{t "col.subject"}}</th><th>{{t "col.summary"}}</th><th>{{t "col.status"}}</th><th></th></tr>
+{{if .Data.CanAct}}<div class="bulk-bar" data-bulk-bar role="group" aria-label="{{t "bulk.title"}}">
+  <span class="bulk-count"><b data-bulk-count>0</b> {{t "bulk.selected"}}</span>
+  <label for="bulk-action" class="sr">{{t "bulk.action"}}</label>
+  <select id="bulk-action" name="action" form="bulk-form" data-bulk-action>
+    <option value="" selected>{{t "bulk.choose"}}</option>
+    {{range .Data.Actions}}<option value="{{.}}">{{actionLabel .}}</option>{{end}}
+  </select>
+  <label for="bulk-reason" class="sr">{{t "bulk.reason"}}</label>
+  <input id="bulk-reason" type="text" name="reason" form="bulk-form" maxlength="255" placeholder="{{t "bulk.reason"}}">
+  <input type="checkbox" id="bulk-confirm" name="confirm" value="yes" form="bulk-form" data-bulk-confirm>
+  <label for="bulk-confirm" class="small bulk-sure" title="{{t "bulk.limit"}}">{{t "bulk.confirm"}}</label>
+  <button class="btn sm danger" type="submit" form="bulk-form" data-bulk-apply disabled>{{t "bulk.apply"}}</button>
+</div>{{end}}<div class="scroll-x"><table class="fit"><tr>{{if .Data.CanAct}}<th class="w-chk"><input type="checkbox" id="bulk-all" data-bulk-all aria-label="{{t "bulk.select_page"}}" title="{{t "bulk.select_page"}}"></th>{{end}}<th>{{t "col.when"}}</th><th>{{t "col.kind"}}</th><th>{{t "col.subject"}}</th><th>{{t "col.summary"}}</th><th>{{t "col.status"}}</th><th></th></tr>
 {{range $row := .Data.Rows}}<tr>
   {{$id := index $row "id"}}{{$kind := index $row "kind"}}
   {{if $.Data.CanAct}}<td><input type="checkbox" class="bulk-pick" name="pick" value="{{$id}}|{{$kind}}" form="bulk-form" aria-label="{{t "bulk.pick"}} {{$kind}} {{$id}}"></td>{{end}}
@@ -18,22 +30,6 @@
 </tr>{{else}}<tr><td colspan="{{if .Data.CanAct}}7{{else}}6{{end}}" class="muted">{{t "content.none"}}</td></tr>{{end}}
 </table></div>
 {{if .Data.CanAct}}
-<div class="bulk-panel mt14">
-  <p class="small muted">{{t "bulk.title"}} {{t "bulk.hint"}}</p>
-  <div class="row">
-    <label for="bulk-action" class="small">{{t "bulk.action"}}</label>
-    <select id="bulk-action" name="action" form="bulk-form" data-bulk-action>
-      <option value="" selected>{{t "bulk.choose"}}</option>
-      {{range .Data.Actions}}<option value="{{.}}">{{actionLabel .}}</option>{{end}}
-    </select>
-    <label for="bulk-reason" class="small">{{t "bulk.reason"}}</label>
-    <input id="bulk-reason" type="text" name="reason" form="bulk-form" maxlength="255">
-    <input type="checkbox" id="bulk-confirm" name="confirm" value="yes" form="bulk-form" data-bulk-confirm>
-    <label for="bulk-confirm" class="small">{{t "bulk.confirm"}}</label>
-  </div>
-  <p class="mt12"><button class="btn danger" type="submit" form="bulk-form" data-bulk-apply disabled>{{t "bulk.apply"}}</button>
-  <span class="muted small">{{t "bulk.limit"}}</span></p>
-</div>
 </form>
 {{range $row := .Data.Rows}}{{$id := index $row "id"}}<form method="post" id="row-{{$id}}" action="/apps/{{$.Data.App.Slug}}/reports/{{$id}}/actions"><input type="hidden" name="kind" value="{{index $row "kind"}}"></form>
 {{end}}{{end}}

@@ -329,3 +329,35 @@ table.fit th.w22 { width:22%; }
 .filters .grow { flex:0 1 22rem; }
 .filters { justify-content:flex-start; }
 .bulk-panel .row { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+
+/* Actions where the work is: a bulk bar that appears over the table once rows are ticked, a
+   menu on every row, a pager at the top. Quiet red for destructive buttons. */
+.bulk-bar { position:sticky; top:calc(var(--top) + 8px); z-index:6; display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 12px; margin:0 0 10px; border:1px solid var(--line); border-radius:12px; background:var(--panel2); box-shadow:0 8px 24px -12px rgb(0 0 0 / .4); }
+.bulk-bar.is-idle { display:none; }
+.bulk-bar .bulk-count { font-size:14px; margin-inline-end:4px; white-space:nowrap; }
+.bulk-bar select { width:auto; min-width:11rem; height:var(--hop-ctl-h-sm); }
+.bulk-bar input[type=text] { flex:1 1 12rem; max-width:20rem; height:var(--hop-ctl-h-sm); }
+.bulk-bar .bulk-sure { display:inline-flex; margin:0; font-size:13px; }
+.pager { display:flex; justify-content:flex-end; gap:8px; margin:0 0 10px; }
+table.fit th.w-act, table.fit td.w-act { width:52px; text-align:end; }
+.row-menu { display:inline-block; }
+.row-menu > summary { height:var(--hop-ctl-h-sm); width:var(--hop-ctl-h-sm); min-width:var(--hop-ctl-h-sm); font-size:18px; }
+.row-menu .pop-menu { min-width:12rem; }
+.scroll-x:has(.row-menu[open]) { overflow:visible; }
+.pop-item.danger { color:#ff9b9b; }
+:root[data-theme="light"] .pop-item.danger { color:#b42323; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pop-item.danger { color:#b42323; } }
+.actions .btn.sm.danger { background:transparent; color:#ff9b9b; border:1px solid #7a2a2a; margin:0; }
+.actions .btn.sm.danger:hover { background:#5a1f1f; filter:none; }
+:root[data-theme="light"] .actions .btn.sm.danger { color:#b42323; border-color:#e1a3a3; }
+:root[data-theme="light"] .actions .btn.sm.danger:hover { background:#fcdcdc; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .actions .btn.sm.danger { color:#b42323; border-color:#e1a3a3; } :root:not([data-theme="dark"]) .actions .btn.sm.danger:hover { background:#fcdcdc; } }
+.actions form, .actions form:has(.danger) { margin:0 0 12px; padding-top:0; border-top:0; }
+.act-form { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.act-form input[type=text] { flex:1 1 12rem; max-width:none; height:var(--hop-ctl-h-sm); }
+.more-act { border-top:1px solid var(--line); padding:8px 0; }
+.more-act > summary { font-size:14px; color:var(--ink); }
+.more-act form { margin:10px 0 0; }
+.role-checks { display:flex; flex-wrap:wrap; gap:4px 14px; }
+.role-checks label.inline { margin:0; font-size:13px; }
+.notes { margin:0 0 12px; padding-inline-start:18px; }

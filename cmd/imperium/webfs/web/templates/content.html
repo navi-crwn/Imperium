@@ -11,9 +11,22 @@
 {{if .Data.Err}}<p class="flash err mt14">{{.Data.Err}}</p>{{end}}
 {{$bulk := and .Data.CanAct .Data.BulkActions .Data.Rows}}
 {{if $bulk}}<form method="post" action="/apps/{{.Data.App.Slug}}/content/actions" id="bulk-form">
-<input type="hidden" name="type" value="{{.Data.Type}}"><input type="hidden" name="q" value="{{.Data.Q}}"><input type="hidden" name="status" value="{{.Data.Status}}"><input type="hidden" name="owner" value="{{.Data.Owner}}">{{end}}
-<div class="scroll-x"><table class="mt14 fit"><tr>{{if $bulk}}<th class="w-chk"><input type="checkbox" id="bulk-all" data-bulk-all aria-label="{{t "bulk.select_page"}}" title="{{t "bulk.select_page"}}"></th>{{end}}<th></th><th>{{t "table.item"}}</th><th>{{t "table.owner"}}</th><th>{{t "table.status"}}</th><th>#</th><th>{{t "chart.date"}}</th></tr>
-{{range .Data.Rows}}<tr>
+<input type="hidden" name="type" value="{{.Data.Type}}"><input type="hidden" name="q" value="{{.Data.Q}}"><input type="hidden" name="status" value="{{.Data.Status}}"><input type="hidden" name="owner" value="{{.Data.Owner}}"><input type="hidden" name="back" value="{{.Next}}">{{end}}
+{{if or .Data.Cursor .Data.Next}}<nav class="pager" aria-label="{{t "page.navigation"}}">{{if .Data.Cursor}}<a class="btn sm" href="{{pageURL .Data.ListPath .Data.Filters "cursor"}}">{{t "page.first"}}</a>{{end}}{{if .Data.Next}}<a class="btn sm" href="{{cursorURL .Data.ListPath .Data.Filters .Data.Next}}">{{t "page.next"}} ›</a>{{end}}</nav>
+{{end}}{{if $bulk}}<div class="bulk-bar" data-bulk-bar role="group" aria-label="{{t "bulk.title"}}">
+  <span class="bulk-count"><b data-bulk-count>0</b> {{t "bulk.selected"}}</span>
+  <label for="bulk-action" class="sr">{{t "bulk.action"}}</label>
+  <select id="bulk-action" name="action" form="bulk-form" data-bulk-action>
+    <option value="" selected>{{t "bulk.choose"}}</option>
+    {{range .Data.BulkActions}}<option value="{{.}}">{{actionLabel .}}</option>{{end}}
+  </select>
+  <label for="bulk-reason" class="sr">{{t "bulk.reason"}}</label>
+  <input id="bulk-reason" type="text" name="reason" form="bulk-form" maxlength="255" placeholder="{{t "bulk.reason"}}">
+  <input type="checkbox" id="bulk-confirm" name="confirm" value="yes" form="bulk-form" data-bulk-confirm>
+  <label for="bulk-confirm" class="small bulk-sure" title="{{t "bulk.limit"}} {{t "bulk.params_hint"}}">{{t "bulk.confirm"}}</label>
+  <button class="btn sm danger" type="submit" form="bulk-form" data-bulk-apply disabled>{{t "bulk.apply"}}</button>
+</div>{{end}}<div class="scroll-x"><table class="mt14 fit"><tr>{{if $bulk}}<th class="w-chk"><input type="checkbox" id="bulk-all" data-bulk-all aria-label="{{t "bulk.select_page"}}" title="{{t "bulk.select_page"}}"></th>{{end}}<th></th><th>{{t "table.item"}}</th><th>{{t "table.owner"}}</th><th>{{t "table.status"}}</th><th>#</th><th>{{t "chart.date"}}</th>{{if $bulk}}<th class="w-act"></th>{{end}}</tr>
+{{range $row := .Data.Rows}}<tr>
   {{if $bulk}}<td><input type="checkbox" class="bulk-pick" name="pick" value="{{.ID}}" form="bulk-form" aria-label="{{t "bulk.pick_item"}} {{if .Title}}{{.Title}}{{else}}{{.ID}}{{end}}"></td>{{end}}
   <td>{{if .Preview}}<img class="thumb" src="{{.Preview}}" alt="">{{end}}</td>
   <td class="cut"><a href="/apps/{{$.Data.App.Slug}}/content/{{.Type}}/{{.ID}}" title="{{if .Title}}{{.Title}}{{else}}{{.ID}}{{end}}">{{if .Title}}{{.Title}}{{else}}{{.ID}}{{end}}</a> <span class="muted small mono">{{.ID}}{{if .URL}} · <a href="{{.URL}}" target="_blank" rel="noopener">↗</a>{{end}}</span></td>
@@ -21,26 +34,11 @@
   <td class="nw"><span class="chip {{.Status}}">{{.Status}}</span>{{range .Flags}}<span class="chip">{{.}}</span>{{end}}</td>
   <td class="small nw">{{if .Clicks}}{{n .Clicks}} clicks{{else if .Views}}{{n .Views}} views{{else if .Size}}{{bytes .Size}}{{end}}</td>
   <td class="small muted nw">{{day .Created}}</td>
-</tr>{{else}}<tr><td colspan="6" class="muted">{{t "content.none"}}</td></tr>{{end}}
+  {{if $bulk}}<td class="w-act"><details class="pop row-menu"><summary class="ctl ctl-icon" aria-label="{{t "user.actions"}}" title="{{t "user.actions"}}"><span aria-hidden="true">⋯</span></summary>
+    <div class="pop-menu">{{range $.Data.BulkActions}}<button class="pop-item {{if confirmAction .}}danger{{end}}" type="submit" formaction="/apps/{{$.Data.App.Slug}}/content/{{$.Data.Type}}/{{$row.ID}}/actions" name="action" value="{{.}}">{{actionLabel .}}</button>{{end}}</div></details></td>{{end}}
+</tr>{{else}}<tr><td colspan="8" class="muted">{{t "content.none"}}</td></tr>{{end}}
 </table></div>
 {{if $bulk}}
-<div class="bulk-panel mt14">
-  <p class="small muted">{{t "bulk.title"}} {{t "bulk.hint"}}</p>
-  <div class="row">
-    <label for="bulk-action" class="small">{{t "bulk.action"}}</label>
-    <select id="bulk-action" name="action" form="bulk-form" data-bulk-action>
-      <option value="" selected>{{t "bulk.choose"}}</option>
-      {{range .Data.BulkActions}}<option value="{{.}}">{{actionLabel .}}</option>{{end}}
-    </select>
-    <label for="bulk-reason" class="small">{{t "bulk.reason"}}</label>
-    <input id="bulk-reason" type="text" name="reason" form="bulk-form" maxlength="255">
-    <input type="checkbox" id="bulk-confirm" name="confirm" value="yes" form="bulk-form" data-bulk-confirm>
-    <label for="bulk-confirm" class="small">{{t "bulk.confirm"}}</label>
-  </div>
-  <p class="mt12"><button class="btn danger" type="submit" form="bulk-form" data-bulk-apply disabled>{{t "bulk.apply"}}</button>
-  <span class="muted small">{{t "bulk.limit"}} {{t "bulk.params_hint"}}</span></p>
-</div>
 </form>
 {{end}}
-<nav class="row mt12" aria-label="{{t "page.navigation"}}">{{if .Data.Cursor}}<a class="btn" href="{{pageURL .Data.ListPath .Data.Filters "cursor"}}">{{t "page.first"}}</a>{{end}}{{if .Data.Next}}<a class="btn" href="{{cursorURL .Data.ListPath .Data.Filters .Data.Next}}">{{t "more"}}</a>{{end}}</nav>
 {{template "foot" .}}

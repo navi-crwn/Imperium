@@ -9,34 +9,32 @@
 {{if .Data.Err}}<p class="flash err mt14">{{t "err.hop"}}: {{.Data.Err}}</p>{{end}}
 {{$bulk := and .Data.IsAdmin .Data.Rows}}
 {{if $bulk}}<form method="post" action="/users/actions" id="bulk-form">
-<input type="hidden" name="q" value="{{.Data.Q}}"><input type="hidden" name="status" value="{{.Data.Status}}"><input type="hidden" name="role" value="{{.Data.Role}}">
+<input type="hidden" name="q" value="{{.Data.Q}}"><input type="hidden" name="status" value="{{.Data.Status}}"><input type="hidden" name="role" value="{{.Data.Role}}"><input type="hidden" name="back" value="{{.Next}}">
 {{end}}
-<div class="scroll-x"><table class="mt14 fit"><tr>{{if $bulk}}<th class="w-chk"><input type="checkbox" id="bulk-all" data-bulk-all aria-label="{{t "bulk.select_page"}}" title="{{t "bulk.select_page"}}"></th>{{end}}<th>{{t "col.account"}}</th><th class="w22">{{t "col.name"}}</th><th class="w22">{{t "col.email"}}</th><th>{{t "col.status"}}</th><th>{{t "col.links"}}</th><th>{{t "col.joined"}}</th><th>{{t "col.last_login"}}</th></tr>
+{{if or .Data.Cursor .Data.Next}}<nav class="pager" aria-label="{{t "page.navigation"}}">{{if .Data.Cursor}}<a class="btn sm" href="{{pageURL "/users" .Data.Filters "cursor"}}">{{t "page.first"}}</a>{{end}}{{if .Data.Next}}<a class="btn sm" href="{{cursorURL "/users" .Data.Filters .Data.Next}}">{{t "page.next"}} ›</a>{{end}}</nav>
+{{end}}{{if $bulk}}<div class="bulk-bar" data-bulk-bar role="group" aria-label="{{t "bulk.title"}}">
+  <span class="bulk-count"><b data-bulk-count>0</b> {{t "bulk.selected"}}</span>
+  <label for="bulk-action" class="sr">{{t "bulk.action"}}</label>
+  <select id="bulk-action" name="action" data-bulk-action>
+    <option value="" selected>{{t "bulk.choose"}}</option>
+    {{range .Data.BulkActions}}<option value="{{.}}">{{actionLabel .}}</option>{{end}}
+  </select>
+  <label for="bulk-reason" class="sr">{{t "bulk.reason"}}</label>
+  <input id="bulk-reason" type="text" name="reason" maxlength="255" placeholder="{{t "bulk.reason"}}">
+  <input type="checkbox" id="bulk-confirm" name="confirm" value="yes" data-bulk-confirm>
+  <label for="bulk-confirm" class="small bulk-sure" title="{{t "bulk.limit"}} {{t "bulk.users_hint"}}">{{t "bulk.confirm"}}</label>
+  <button class="btn sm danger" type="submit" data-bulk-apply disabled>{{t "bulk.apply"}}</button>
+</div>{{end}}<div class="scroll-x"><table class="mt14 fit"><tr>{{if $bulk}}<th class="w-chk"><input type="checkbox" id="bulk-all" data-bulk-all aria-label="{{t "bulk.select_page"}}" title="{{t "bulk.select_page"}}"></th>{{end}}<th>{{t "col.account"}}</th><th class="w22">{{t "col.name"}}</th><th class="w22">{{t "col.email"}}</th><th>{{t "col.status"}}</th><th>{{t "col.links"}}</th><th>{{t "col.joined"}}</th><th>{{t "col.last_login"}}</th>{{if $bulk}}<th class="w-act"></th>{{end}}</tr>
 {{range .Data.Rows}}<tr>
   {{if $bulk}}<td>{{if or (eq .Sub $.Data.Me) (has .Roles "owner")}}<span class="muted small" title="{{t "bulk.user_locked"}}">—</span>{{else}}<input type="checkbox" class="bulk-pick" name="pick" value="{{.Sub}}" aria-label="{{t "bulk.pick_user"}} @{{.Username}}">{{end}}</td>{{end}}
   <td class="nw"><a href="/users/{{.Sub}}">@{{.Username}}</a> <span class="muted mono">#{{.Sub}}</span></td><td class="cut" title="{{.Name}}">{{.Name}}</td><td class="cut" title="{{.Email}}">{{.Email}}{{if not .Verified}} <span class="chip">{{t "chip.unverified"}}</span>{{end}}</td>
   <td class="nw"><span class="chip {{.Status}}">{{.Status}}</span>{{range .Roles}}<span class="chip {{.}}">{{.}}</span>{{end}}</td>
   <td>{{.Links}}</td><td class="small muted nw">{{datesz .CreatedAt}}</td><td class="small muted nw">{{datesz .LastLoginAt}}</td>
-</tr>{{else}}<tr><td colspan="8" class="muted">{{t "users.none"}}</td></tr>{{end}}
+{{if $bulk}}<td class="w-act">{{if or (eq .Sub $.Data.Me) (has .Roles "owner")}}{{else}}<details class="pop row-menu"><summary class="ctl ctl-icon" aria-label="{{t "user.actions"}} @{{.Username}}" title="{{t "user.actions"}}"><span aria-hidden="true">⋯</span></summary>
+    <div class="pop-menu">{{if eq .Status "suspended"}}<button class="pop-item" type="submit" formaction="/users/{{.Sub}}/actions" name="action" value="activate">{{actionLabel "activate"}}</button>{{else}}<button class="pop-item danger" type="submit" formaction="/users/{{.Sub}}/actions" name="action" value="suspend">{{actionLabel "suspend"}}</button>{{end}}<button class="pop-item danger" type="submit" formaction="/users/{{.Sub}}/actions" name="action" value="revoke_sessions">{{actionLabel "revoke_sessions"}}</button><button class="pop-item danger" type="submit" formaction="/users/{{.Sub}}/actions" name="action" value="revoke_tokens">{{actionLabel "revoke_tokens"}}</button></div></details>{{end}}</td>{{end}}
+</tr>{{else}}<tr><td colspan="9" class="muted">{{t "users.none"}}</td></tr>{{end}}
 </table></div>
 {{if $bulk}}
-<div class="bulk-panel mt14">
-  <p class="small muted">{{t "bulk.title"}} {{t "bulk.hint"}}</p>
-  <div class="row">
-    <label for="bulk-action" class="small">{{t "bulk.action"}}</label>
-    <select id="bulk-action" name="action" data-bulk-action>
-      <option value="" selected>{{t "bulk.choose"}}</option>
-      {{range .Data.BulkActions}}<option value="{{.}}">{{actionLabel .}}</option>{{end}}
-    </select>
-    <label for="bulk-reason" class="small">{{t "bulk.reason"}}</label>
-    <input id="bulk-reason" type="text" name="reason" maxlength="255">
-    <input type="checkbox" id="bulk-confirm" name="confirm" value="yes" data-bulk-confirm>
-    <label for="bulk-confirm" class="small">{{t "bulk.confirm"}}</label>
-  </div>
-  <p class="mt12"><button class="btn danger" type="submit" data-bulk-apply disabled>{{t "bulk.apply"}}</button>
-  <span class="muted small">{{t "bulk.limit"}} {{t "bulk.users_hint"}}</span></p>
-</div>
 </form>
 {{end}}
-<nav class="row mt12" aria-label="{{t "page.navigation"}}">{{if .Data.Cursor}}<a class="btn" href="{{pageURL "/users" .Data.Filters "cursor"}}">{{t "page.first"}}</a>{{end}}{{if .Data.Next}}<a class="btn" href="{{cursorURL "/users" .Data.Filters .Data.Next}}">{{t "more"}}</a>{{end}}</nav>
 {{template "foot" .}}

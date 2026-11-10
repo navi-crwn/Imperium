@@ -347,7 +347,7 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/users", http.StatusFound)
 		return
 	}
-	http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
+	http.Redirect(w, r, returnTo(r, "/users/"+url.PathEscape(id)), http.StatusFound)
 }
 
 // userBulkActions are the account actions offered for many users at once. Delete

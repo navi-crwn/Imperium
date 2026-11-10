@@ -128,6 +128,8 @@ document.querySelectorAll('.dash-tabs').forEach(nav => {
     const all = document.querySelector('[data-bulk-all]');
     const apply = document.querySelector('[data-bulk-apply]');
     const action = document.querySelector('[data-bulk-action]');
+    const bar = document.querySelector('[data-bulk-bar]');
+    const count = document.querySelector('[data-bulk-count]');
     if (!form) return;
     const picks = () => [...form.querySelectorAll('input.bulk-pick')];
     if (apply && !apply.dataset.label) apply.dataset.label = apply.textContent.trim();
@@ -139,6 +141,8 @@ document.querySelectorAll('.dash-tabs').forEach(nav => {
             all.checked = boxes.length > 0 && on.length === boxes.length;
             all.indeterminate = on.length > 0 && on.length < boxes.length;
         }
+        if (bar) bar.classList.toggle('is-idle', on.length === 0);
+        if (count) count.textContent = String(on.length);
         const chosen = !action || action.value !== '';
         if (action) action.classList.toggle('need-choice', !chosen);
         if (apply) {
@@ -159,6 +163,7 @@ document.querySelectorAll('.dash-tabs').forEach(nav => {
     // A form submitted with the keyboard (Enter) never clicks the button: keep the
     // server-side refusal as the second line, this one as the first.
     form.addEventListener('submit', event => {
+        if (event.submitter && event.submitter.hasAttribute('formaction')) return; // a row's own action
         if (picks().every(b => !b.checked)) event.preventDefault();
     });
     sync();

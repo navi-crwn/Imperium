@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -171,4 +172,13 @@ func dayOf(v any) string {
 		return s[:10]
 	}
 	return s
+}
+
+// returnTo is where an action sends the browser afterwards: the page it was started from when the form
+// names one (a row action on a list goes back to the list), else def. Only local paths are followed.
+func returnTo(r *http.Request, def string) string {
+	if b := r.FormValue("back"); b != "" {
+		return safeNext(b)
+	}
+	return def
 }

@@ -373,7 +373,7 @@ func (a *App) itemAction(w http.ResponseWriter, r *http.Request) {
 			back = "/apps/" + ap.Slug + "/content?type=" + typ
 		}
 	}
-	http.Redirect(w, r, back, http.StatusFound)
+	http.Redirect(w, r, returnTo(r, back), http.StatusFound)
 }
 
 // GET /apps/{app}/reports?status=
