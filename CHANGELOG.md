@@ -4,6 +4,9 @@ All notable changes to Imperium are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Changed
+- The BioHop mark is the new 8x8 page mark from hop-assets v8 (the embedded manifest and the floating-tile copy); the sync script now reads v8.
+
 ## [1.0.0] - 2026-11-10
 
 ### Added
