@@ -27,7 +27,7 @@
     // FileHop (v4, same map as its mark): a pixel document with a folded corner and a downward arrow cut out of it.
     filehop: { box: '0 0 32 32', crisp: true, fill: 'M0 0h24v4H0zM0 4h12v4H0zM20 4h8v4H20zM0 8h12v4H0zM20 8h12v4H20zM0 12h12v4H0zM20 12h12v4H20zM0 16h4v4H0zM28 16h4v4H28zM0 20h8v4H0zM24 20h8v4H24zM0 24h12v4H0zM20 24h12v4H20zM0 28h32v4H0z' },
     linkhop: { box: '0 0 32 32', crisp: true, fill: 'M4 0h4v4H4zM24 0h4v4H24zM4 4h4v4H4zM24 4h4v4H24zM4 8h4v4H4zM24 8h4v4H24zM4 12h24v4H4zM0 16h8v4H0zM24 16h8v4H24zM0 20h8v4H0zM24 20h8v4H24zM0 24h8v4H0zM24 24h8v4H24zM4 28h24v4H4z' },
-    biohop: { box: '0 0 36 36', crisp: true, fill: 'M4 0h28v4H4zM0 4h36v4H0zM0 8h8v4H0zM28 8h8v4H28zM0 12h36v4H0zM0 16h8v4H0zM28 16h8v4H28zM0 20h36v4H0zM0 24h8v4H0zM20 24h16v4H20zM0 28h36v4H0zM4 32h28v4H4z' },
+    biohop: { box: '0 0 32 32', crisp: true, fill: 'M0 0h24v4H0zM0 4h28v4H0zM0 8h4v4H0zM28 8h4v4H28zM0 12h32v4H0zM0 16h4v4H0zM28 16h4v4H28zM0 20h32v4H0zM0 24h4v4H0zM16 24h16v4H16zM4 28h28v4H4z' },
     remotehop: { box: '0 0 24 24', stroke: ['M4.5 9.5a11 11 0 0 1 15 0', 'M7.5 13a7 7 0 0 1 9 0', 'M10.5 16.3a3 3 0 0 1 3 0'], dot: [12, 19.5, 1] },
     imperium: { box: '0 0 64 64', strokeShield: 'M32 11.5 17 17v12c0 9.6 6 16.4 15 21.5 9-5.1 15-11.9 15-21.5V17Z', fill: 'M27 23.5h3v2.5h4v-2.5h3V34h3v-2.5h3V40h-3v3H25v-3h-3v-8.5h3V34h2Zm2.5 19.5h5v-4.5a2.5 2.5 0 0 0-5 0Z', evenodd: true }
   };
