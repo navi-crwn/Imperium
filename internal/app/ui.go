@@ -44,6 +44,15 @@ type uiRow struct {
 type uiFilter struct {
 	Kind, Name, Label, Value, Class string
 	Options                         []string
+	Labels                          map[string]string // shown text of an option when it differs from its value
+}
+
+// Text is what an option of a select shows: its translated label, else the value itself.
+func (f uiFilter) Text(v string) string {
+	if t, ok := f.Labels[v]; ok {
+		return t
+	}
+	return v
 }
 
 type uiChip struct{ Label, Class string }
@@ -64,6 +73,8 @@ type listPage struct {
 	First, Next  string
 	Back         string
 	HasMenu      bool
+	New          string // a primary button next to the title, for example "New announcement"
+	NewLabel     string
 }
 
 type uiKV struct {
@@ -94,6 +105,8 @@ type detailPage struct {
 	Sections               []uiSection
 	Err                    string
 	Dialogs                []uiAction
+	Edit                   string // a secondary link next to the Actions menu
+	EditLabel              string
 }
 
 // destructiveAction is an action that cannot be taken back; it lives at the bottom of a menu and is

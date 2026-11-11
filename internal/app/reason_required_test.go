@@ -107,7 +107,8 @@ func TestUserRowActionNeedsAReason(t *testing.T) {
 	vals.Set("reason", "abuse report 7")
 	res, _ = c.PostForm(srv.URL+post, vals)
 	body(res)
-	if len(hop.actions) != 1 || hop.actions[0]["action"] != "suspend" || hop.actions[0]["reason"] != "abuse report 7" {
+	// Suspending also revokes the API tokens (HOP ID's own page does both), with the same reason.
+	if len(hop.actions) != 2 || hop.actions[0]["action"] != "suspend" || hop.actions[0]["reason"] != "abuse report 7" || hop.actions[1]["action"] != "revoke_tokens" || hop.actions[1]["reason"] != "abuse report 7" {
 		t.Fatalf("forwarded = %+v", hop.actions)
 	}
 	n, detail, target := auditCount(t, a, "user.suspend")

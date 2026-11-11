@@ -117,6 +117,9 @@ func (a *App) appItems(r *http.Request, slug string, m *Manifest, path, typ stri
 	items := []navItem{{Label: a.Tr(r, "dash.title"), Href: base, Kind: "dash", On: path == base}}
 	if slug == "hub" {
 		items = append(items, navItem{Label: a.Tr(r, "nav.users"), Href: "/users", Kind: "users", On: path == "/users" || strings.HasPrefix(path, "/users/")})
+		if globalRole(current(r)) {
+			items = append(items, navItem{Label: a.Tr(r, "nav.announcements"), Href: "/announcements", Kind: "announcements", On: path == "/announcements" || strings.HasPrefix(path, "/announcements/")})
+		}
 	}
 	if m == nil {
 		return items

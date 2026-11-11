@@ -232,10 +232,10 @@ func TestUsersBulkSkipsSelfAndSuperadmin(t *testing.T) {
 		t.Errorf("should return to the filtered list, got %s", got)
 	}
 	// 26 goes to fakeHop's own handler (more specific pattern), 28 to ours.
-	if len(hop.actions) != 1 || hop.actions[0]["action"] != "suspend" || hop.actions[0]["reason"] != "spam wave" {
+	if len(hop.actions) != 2 || hop.actions[0]["action"] != "suspend" || hop.actions[0]["reason"] != "spam wave" || hop.actions[1]["action"] != "revoke_tokens" {
 		t.Errorf("user 26 not suspended once: %+v", hop.actions)
 	}
-	if strings.Join(*acted, ",") != "28:suspend" {
+	if strings.Join(*acted, ",") != "28:suspend,28:revoke_tokens" {
 		t.Errorf("only 28 should reach the generic handler, got %v", *acted)
 	}
 	audits, _ := a.db.Audits(t.Context(), 0, 20)

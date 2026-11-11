@@ -457,3 +457,21 @@ html.js .bulk-sure { display:none; }
 .grid.mt14 { margin-bottom:16px; }
 .row-menu > summary span { font-size:20px; line-height:1; }
 .pager { margin:-6px 0 10px; }
+
+/* Announcements (hub section): state and level chips, the form, long notice text. Static; no motion. */
+.chip.ann-live, .chip.ann-info { background:color-mix(in srgb, var(--ok) 22%, transparent); color:var(--ink); }
+.chip.ann-scheduled { background:color-mix(in srgb, var(--accent) 22%, transparent); color:var(--ink); }
+.chip.ann-warning { background:color-mix(in srgb, var(--warn) 28%, transparent); color:var(--ink); }
+.chip.ann-critical { background:color-mix(in srgb, var(--bad) 30%, transparent); color:var(--ink); }
+.chip.ann-draft, .chip.ann-expired { background:var(--panel2); color:var(--muted); }
+.pre-wrap { white-space:pre-wrap; overflow-wrap:anywhere; max-width:72ch; margin:0; }
+.ann-form { max-width:44rem; display:grid; gap:4px; }
+.ann-form .ann-field { min-width:0; }
+.ann-form input:not([type=checkbox]), .ann-form textarea, .ann-form select { max-width:none; }
+.ann-form .ann-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(14rem, 1fr)); gap:0 16px; }
+.ann-form .check { display:flex; align-items:center; gap:8px; margin:10px 0 0; color:var(--ink); }
+.field-err { color:color-mix(in srgb, var(--bad) 65%, var(--ink)); font-size:13px; margin:6px 0 0; }
+.ann-form [aria-invalid="true"] { border-color:var(--bad); }
+.ann-form .dlg-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:14px; }
+.ann-title { min-width:16rem; white-space:normal; overflow-wrap:anywhere; }
+#roles-reason { margin-bottom:10px; }

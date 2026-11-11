@@ -225,7 +225,7 @@ func (a *App) rolesForm(l, id string, options, held []string, admin bool) templa
 			desc = tl(l, "role."+o)
 		}
 		dis := ""
-		if !admin {
+		if !admin || o == "owner" { // ownership is set on HOP ID, never here
 			dis = " disabled"
 		}
 		chk := ""
@@ -236,7 +236,7 @@ func (a *App) rolesForm(l, id string, options, held []string, admin bool) templa
 	}
 	b.WriteString(`</div>`)
 	if admin {
-		b.WriteString(`<p class="muted small">` + esc(tl(l, "user.roles_hint")) + `</p><button class="btn" type="submit">` + esc(tl(l, "action.set_roles")) + `</button></form>`)
+		b.WriteString(`<p class="muted small">` + esc(tl(l, "user.roles_hint")) + `</p><label for="roles-reason">` + esc(tl(l, "action.reason")) + `</label><input id="roles-reason" type="text" name="reason" required maxlength="255"><button class="btn" type="submit">` + esc(tl(l, "action.set_roles")) + `</button></form>`)
 	}
 	return template.HTML(b.String())
 }
@@ -277,7 +277,7 @@ func appSummarySection(l, name string, u map[string]any, errText string, kind st
 type userDetailIn struct {
 	ID, Raw, Tab                       string
 	U                                  user360
-	Protected, Admin, Note             bool
+	Protected, Admin, Owner, Note      bool
 	Options                            []string
 	Pixel, NoteU, File, Pay            map[string]any
 	PixelErr, NoteErr, FileErr, PayErr string
@@ -341,6 +341,16 @@ func (a *App) userDetailPage(r *http.Request, in userDetailIn) detailPage {
 			t.Rows = append(t.Rows, []template.HTML{datesz(l, fmt.Sprint(row["at"])), txt(str(row["ip"])), txt(dev)})
 		}
 		d.Sections = append(d.Sections, uiSection{Title: tl(l, "user.logins"), Table: t, Empty: map[bool]string{true: tl(l, "none")}[len(t.Rows) == 0]})
+		// The API tokens of the account: name and last use only; HOP ID never sends the token itself.
+		tt := &uiTable{Cols: []string{tl(l, "col.name"), tl(l, "lbl.last_activity"), tl(l, "lbl.created_at")}}
+		for _, tok := range u.Tokens {
+			last := "–"
+			if v := str(tok["last_used_at"]); v != "" {
+				last = string(datesz(l, v))
+			}
+			tt.Rows = append(tt.Rows, []template.HTML{txt(str(tok["name"])), template.HTML(last), datesz(l, str(tok["created_at"]))})
+		}
+		d.Sections = append(d.Sections, uiSection{Title: tl(l, "lbl.api_tokens"), Table: tt, Empty: map[bool]string{true: tl(l, "none")}[len(tt.Rows) == 0]})
 	case "activity":
 		t := &uiTable{Cols: []string{tl(l, "col.when"), tl(l, "col.action"), tl(l, "col.detail")}}
 		for _, row := range u.Activity {
@@ -381,7 +391,7 @@ func (a *App) userDetailPage(r *http.Request, in userDetailIn) detailPage {
 		if in.Protected {
 			d.Sections = append(d.Sections, uiSection{HTML: template.HTML(`<p role="status">` + esc(tl(l, "user.superadmin_locked")) + `</p>`)})
 		}
-		d.Sections = append(d.Sections, uiSection{Title: tl(l, "user.roles"), HTML: a.rolesForm(l, in.ID, in.Options, u.Roles, in.Admin && !in.Protected)})
+		d.Sections = append(d.Sections, uiSection{Title: tl(l, "user.roles"), HTML: a.rolesForm(l, in.ID, in.Options, u.Roles, in.Owner && !in.Protected)})
 	}
 	return d
 }

@@ -21,7 +21,7 @@ func TestRoleOptions(t *testing.T) {
 
 // The role form offered only the four hub-wide roles, so admin:<app> could be given only from a console on
 // the hub (dashboard test 2026-11-08, finding #10). The form lists admin:<app> for every registered app;
-// saving sends it to HOP ID, and only an owner or admin may save.
+// saving sends it to HOP ID, and only an owner may save (HOP ID's own page says the same).
 func TestScopedAdminRoleCanBeGivenFromTheUserPage(t *testing.T) {
 	hop := newFakeHop(t)
 	_, srv := newApp(t, hop)
@@ -41,7 +41,7 @@ func TestScopedAdminRoleCanBeGivenFromTheUserPage(t *testing.T) {
 	}
 
 	hop.actions = nil
-	res, err := c.PostForm(srv.URL+"/users/26/actions", url.Values{"action": {"set_roles"}, "roles": {"moderator", "admin:pixelhop"}})
+	res, err := c.PostForm(srv.URL+"/users/26/actions", url.Values{"action": {"set_roles"}, "roles": {"moderator", "admin:pixelhop"}, "reason": {"new moderator"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,8 +54,8 @@ func TestScopedAdminRoleCanBeGivenFromTheUserPage(t *testing.T) {
 		t.Errorf("roles sent to HOP ID: %s, want [moderator admin:pixelhop]", got)
 	}
 
-	// Not for the roles below admin, and not for an admin of one app.
-	for _, role := range []string{"moderator", "support", "admin:pixelhop"} {
+	// Not for an admin either (HOP ID's own page is for owners only), nor the roles below, nor an admin of one app.
+	for _, role := range []string{"admin", "moderator", "support", "admin:pixelhop"} {
 		hop.ticket = scopedTicket("27", "dewi", role)
 		c := client(t)
 		body(login(t, c, srv))

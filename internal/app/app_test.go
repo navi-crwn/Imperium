@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -11,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -18,8 +20,11 @@ import (
 
 	"github.com/navi-crwn/imperium/cmd/imperium/webfs"
 	"github.com/navi-crwn/imperium/internal/db"
+	"github.com/navi-crwn/imperium/internal/fakehub"
 	"github.com/navi-crwn/imperium/internal/hopproto"
 )
+
+var actorShape = regexp.MustCompile(`^([1-9]\d{0,17})(?::[^ -]*)?$`)
 
 const secret = "imperium-secret-that-is-long-enough-1234"
 const pxSecret = "px-secret-that-is-long-enough-123456789"
@@ -42,6 +47,8 @@ type fakeHop struct {
 	searchLabel    string                         // overrides the label of the user hit in /api/hop/search
 	memberCalls    []string                       // the subs Imperium asked about
 	statsCalls     int                            // how often HOP ID's /stats was asked
+	failAction     string                         // an action name HOP ID refuses with a 500 (empty: none)
+	ann            *fakehub.Store                 // HOP ID's announcements (the contract in docs/announcements-contract.md)
 
 	// mu guards the fields below. The handlers run on the fake servers'
 	// goroutines (including the sign-in's background registry sync) while the
@@ -163,6 +170,8 @@ func newFakeHop(t *testing.T) *fakeHop {
 		f.countRegistryRead()
 		_, _ = w.Write([]byte(`{"ok":true,"data":[{"slug":"linkhop","name":"LinkHop","url":"` + f.srv.URL + `","status":"active","capabilities":["admin_api"],"secret":"` + lhOwnSecret + `"},{"slug":"pixelhop","name":"PixelHop","url":"` + f.px.URL + `","status":"active","capabilities":["account_api","admin_api"],"secret":"` + pxSecret + `"},{"slug":"imperium","name":"Imperium","url":"x","status":"active","hidden":true}]}`))
 	}))
+	f.ann = fakehub.New("linkhop", "pixelhop")
+	f.ann.Register(mux, "/api/hop", func(h fakehub.Handler) http.HandlerFunc { return api(h) })
 	f.srv = httptest.NewServer(mux)
 	// PixelHop's admin API (prefix /hop), signed with its own secret, on its own server.
 	pxmux := http.NewServeMux()
@@ -244,7 +253,7 @@ func newFakeHop(t *testing.T) *fakeHop {
 			_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"26","username":"rani","status":"active","owner":true},"roles":["owner"]}}`))
 			return
 		}
-		_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"26","username":"rani","name":"Rani","email":"r@x","status":"active","verified":true},"counts":{"links":3},"sessions":{"count":1},"logins":[],"activity":[],"roles":[],"notes":[],"recent_links":[]}}`))
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"26","username":"rani","name":"Rani","email":"r@x","status":"active","verified":true},"counts":{"links":3},"sessions":{"count":1},"logins":[],"tokens":[{"id":"7","name":"deploy script","last_used_at":"2026-11-10T08:00:00Z","created_at":"2026-10-01T09:00:00Z"},{"id":"8","name":"never used","last_used_at":null,"created_at":"2026-10-02T09:00:00Z"}],"activity":[],"roles":[],"notes":[],"recent_links":[]}}`))
 	}))
 	mux.HandleFunc("GET /api/hop/users/27", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
 		_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"27","username":"budi","name":"Budi","email":"b@x","status":"active","verified":true},"counts":{},"sessions":{"count":0},"logins":[],"activity":[],"roles":[],"notes":[],"recent_links":[]}}`))
@@ -264,6 +273,26 @@ func newFakeHop(t *testing.T) *fakeHop {
 		_ = json.Unmarshal(body, &m)
 		m["actor"] = r.Header.Get("X-HOP-Actor")
 		f.actions = append(f.actions, m)
+		// HOP ID: suspend, delete and set_roles need X-HOP-Actor to name an existing account (a number without
+		// leading zeros, optionally ":<username>" with no space or hyphen); nobody suspends or deletes themselves.
+		if act := fmt.Sprint(m["action"]); act == "suspend" || act == "delete" || act == "set_roles" {
+			g := actorShape.FindStringSubmatch(r.Header.Get("X-HOP-Actor"))
+			if g == nil {
+				w.WriteHeader(403)
+				_, _ = w.Write([]byte(`{"ok":false,"error":"forbidden","message":"This action needs X-HOP-Actor to name an existing account (<id>:<username>)."}`))
+				return
+			}
+			if g[1] == "26" && act != "set_roles" {
+				w.WriteHeader(403)
+				_, _ = w.Write([]byte(`{"ok":false,"error":"forbidden","message":"An account cannot ` + act + ` itself."}`))
+				return
+			}
+		}
+		if f.failAction != "" && m["action"] == f.failAction {
+			w.WriteHeader(500)
+			_, _ = w.Write([]byte(`{"ok":false,"error":"server_error"}`))
+			return
+		}
 		if m["action"] == "delete" {
 			w.WriteHeader(403)
 			_, _ = w.Write([]byte(`{"ok":false,"error":"owner_protected"}`))
@@ -432,7 +461,8 @@ func TestHomeUserActionsAudit(t *testing.T) {
 	if b := body(res); !strings.Contains(b, "Done.") {
 		t.Fatalf("action flash missing: %s", b[:300])
 	}
-	if len(hop.actions) != 1 || hop.actions[0]["action"] != "suspend" || hop.actions[0]["reason"] != "spam" || hop.actions[0]["actor"] != "1:boss" {
+	// Suspending also takes the API tokens (HOP ID's own page does both).
+	if len(hop.actions) != 2 || hop.actions[0]["action"] != "suspend" || hop.actions[0]["reason"] != "spam" || hop.actions[0]["actor"] != "1:boss" || hop.actions[1]["action"] != "revoke_tokens" {
 		t.Fatalf("forwarded action: %+v", hop.actions)
 	}
 	// a refused action shows the error and is logged as failed

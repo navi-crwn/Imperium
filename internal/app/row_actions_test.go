@@ -150,8 +150,8 @@ func TestUsersRowActionIsItsOwnForm(t *testing.T) {
 		t.Fatal(err)
 	}
 	body(res)
-	if len(hop.actions) != 1 || hop.actions[0]["action"] != "suspend" || hop.actions[0]["reason"] != "abuse" {
-		t.Fatalf("forwarded = %+v, want only suspend on 26 with the reason typed in its own dialog", hop.actions)
+	if len(hop.actions) != 2 || hop.actions[0]["action"] != "suspend" || hop.actions[0]["reason"] != "abuse" || hop.actions[1]["action"] != "revoke_tokens" {
+		t.Fatalf("forwarded = %+v, want suspend then revoke_tokens on 26 with the reason typed in its own dialog", hop.actions)
 	}
 }
 
