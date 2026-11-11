@@ -63,7 +63,7 @@ func appMark(slug string) string {
 	switch slug {
 	case "hub":
 		return "/static/hop/apps/hub/rabbit-mark.png"
-	case "linkhop", "biohop", "pixelhop", "notehop", "filehop":
+	case "linkhop", "biohop", "pixelhop", "notehop", "filehop", "payhop":
 		return "/static/hop/apps/" + slug + "/mark.svg"
 	}
 	return "/static/imperium.svg"
@@ -72,20 +72,41 @@ func appMark(slug string) string {
 // funcs are the template helpers bound to one language; New parses one template set per language.
 func (a *App) funcs(l string) template.FuncMap {
 	return template.FuncMap{
-		"t":             func(k string) string { return tl(l, k) },
-		"partOf":        partOf,
-		"lang":          func() string { return l },
-		"langOptions":   langOptions,
-		"langShort":     langShort,
-		"since":         func(t time.Time) string { return since(l, t) },
-		"date":          func(t time.Time) string { return t.Local().Format("2006-01-02 15:04") },
-		"datez":         func(t time.Time) template.HTML { return dateWithZone(l, t) },
-		"datesz":        func(v string) template.HTML { return datesz(l, v) },
+		"t":           func(k string) string { return tl(l, k) },
+		"partOf":      partOf,
+		"lang":        func() string { return l },
+		"langOptions": langOptions,
+		"langShort":   langShort,
+		"since":       func(t time.Time) string { return since(l, t) },
+		"date":        func(t time.Time) string { return t.Local().Format("2006-01-02 15:04") },
+		"datez":       func(t time.Time) template.HTML { return dateWithZone(l, t) },
+		"datesz":      func(v string) template.HTML { return datesz(l, v) },
+		"label":       func(k string) string { return keyLabel(l, k) },
+		"tabsMain":    func(it []navItem) []navItem { m, _ := splitTabs(it); return m },
+		"tabsMore":    func(it []navItem) []navItem { _, m := splitTabs(it); return m },
+		"anyOn": func(it []navItem) bool {
+			for _, i := range it {
+				if i.On {
+					return true
+				}
+			}
+			return false
+		},
+		"statCols": statCols,
+		"first": func(v []map[string]any, n int) []map[string]any {
+			if len(v) > n {
+				return v[:n]
+			}
+			return v
+		},
+		"has2":          func(it []navItem) bool { _, m := splitTabs(it); return len(m) > 0 },
 		"versionLabel":  func(v string) string { return versionLabel(l, v) },
 		"pageURL":       pageURL,
 		"cursorURL":     cursorURL,
 		"utcz":          func(t time.Time) string { return t.UTC().Format(time.RFC3339) },
 		"n":             humanAny,
+		"healthOf":      func(slug string) Health { return a.healthSnapshot()[slug] },
+		"reQuote":       reQuote,
 		"has":           func(list []string, x string) bool { return contains(list, x) },
 		"json":          jsonPretty,
 		"lower":         strings.ToLower,

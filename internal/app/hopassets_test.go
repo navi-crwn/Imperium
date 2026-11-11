@@ -23,7 +23,7 @@ func TestHopFamilyAssetsServedLocally(t *testing.T) {
 	if strings.Contains(page, "hel.ink/hop-assets") {
 		t.Error("login page must not load hel.ink assets: the CSP is 'self' only")
 	}
-	for _, path := range []string{"/static/hop/fonts.css", "/static/hop/hop-float.js", "/static/hop/hop-float.css", "/static/hop/apps/linkhop/mark-white.svg", "/static/hop/apps/filehop/mark.svg", "/static/hop/fonts/syne-latin-wght-normal.woff2"} {
+	for _, path := range []string{"/static/hop/fonts.css", "/static/hop/hop-float.js", "/static/hop/hop-float.css", "/static/hop/apps/linkhop/mark-white.svg", "/static/hop/apps/filehop/mark.svg", "/static/hop/apps/payhop/mark.svg", "/static/hop/fonts/syne-latin-wght-normal.woff2"} {
 		r, err := http.Get(srv.URL + path)
 		if err != nil {
 			t.Fatal(err)

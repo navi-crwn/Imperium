@@ -1,16 +1,15 @@
 {{template "head" .}}{{template "top" .}}
-{{template "appnav" .Data}}
-<h1>{{t "mod.settings"}} · {{.Data.App.Name}}</h1>
+{{template "appshell" .Data}}
+<div class="page-head"><h1>{{t "mod.settings"}}</h1>{{if .Data.IsAdmin}}<div class="head-actions"><button class="btn primary" type="submit" form="settings-form">{{t "save"}}</button></div>{{end}}</div>
 {{if .Data.Err}}<p class="flash err">{{.Data.Err}}</p>{{end}}
 {{if not .Data.IsAdmin}}<p class="flash">{{t "settings.only_admin"}}</p>{{end}}
-<form method="post" action="/apps/{{.Data.App.Slug}}/settings" class="card">
+<form method="post" action="/apps/{{.Data.App.Slug}}/settings" id="settings-form" class="sect">
   <table class="set-table">
   {{range .Data.Rows}}<tr>
-    <th><code>{{.Key}}</code><div class="muted small normal">{{.Description}}{{if .Readonly}} <span class="chip set-flag">{{t "settings.readonly"}}</span>{{end}}{{if .RestartRequired}} <span class="chip set-flag">{{t "settings.restart"}}</span>{{end}}</div></th>
+    <th><label for="s-{{.Key}}"><code>{{.Key}}</code></label><div class="muted small normal">{{.Description}}{{if .Readonly}} <span class="chip set-flag">{{t "settings.readonly"}}</span>{{end}}{{if .RestartRequired}} <span class="chip set-flag">{{t "settings.restart"}}</span>{{end}}</div></th>
     <td{{if eq .Type "int"}} class="narrow"{{else if eq .Type "float"}} class="narrow"{{end}}>{{$editable := and $.Data.IsAdmin (not .Readonly)}}{{if not $editable}}<span class="mono">{{json .Value}}</span>{{else}}<input type="hidden" name="t_{{.Key}}" value="{{.Type}}">
-      {{if eq .Type "bool"}}<input type="checkbox" name="s_{{.Key}}" value="1" {{if .Value}}checked{{end}}>{{else if eq .Type "text"}}<textarea name="s_{{.Key}}" rows="3">{{.Value}}</textarea>{{else}}<input type="text" name="s_{{.Key}}" value="{{.Value}}">{{end}}{{end}}</td>
-  </tr>{{end}}
+      {{if eq .Type "bool"}}<label class="switch"><input id="s-{{.Key}}" type="checkbox" role="switch" name="s_{{.Key}}" value="1" {{if .Value}}checked{{end}}><span class="track" aria-hidden="true"></span></label>{{else if eq .Type "text"}}<textarea id="s-{{.Key}}" name="s_{{.Key}}" rows="3">{{.Value}}</textarea>{{else}}<input id="s-{{.Key}}" type="text" name="s_{{.Key}}" value="{{.Value}}">{{end}}{{end}}</td>
+  </tr>{{else}}<tr><td class="muted">{{t "none"}}</td></tr>{{end}}
   </table>
-  {{if .Data.IsAdmin}}<p class="mt12"><button class="btn primary" type="submit">{{t "save"}}</button></p>{{end}}
 </form>
 {{template "foot" .}}

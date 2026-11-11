@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Deutsch](README.de.md) · [Bahasa Indonesia](README.id.md) · [日本語](README.ja.md) · **Português (Brasil)** · [Español](README.es.md) · [Français](README.fr.md) · [Русский](README.ru.md)
 
-O painel de administração e console de operações da família de apps HOP (LinkHop, BioHop, PixelHop, NoteHop, FileHop). Ele é open source como o resto da família, e **opcional**: todo app funciona sem ele. Você só precisa dele se quiser um único lugar para gerenciar os usuários, o conteúdo, as denúncias de abuso, as configurações e a saúde de todos os seus apps.
+O painel de administração e console de operações da família de apps HOP (LinkHop, BioHop, PixelHop, NoteHop, FileHop, PayHop). Ele é open source como o resto da família, e **opcional**: todo app funciona sem ele. Você só precisa dele se quiser um único lugar para gerenciar os usuários, o conteúdo, as denúncias de abuso, as configurações e a saúde de todos os seus apps.
 
 O que ele faz:
 
@@ -73,6 +73,7 @@ Os apps HOP reportam cada HTTP 500 que servem para `POST /hop/notify` no listene
 | **PixelHop** | [pixel.hel.ink](https://pixel.hel.ink) · `p.hel.ink/…` | [navi-crwn/PixelHop](https://github.com/navi-crwn/PixelHop) | Image hosting with albums and direct links. |
 | **NoteHop** | [note.hel.ink](https://note.hel.ink) · `n.hel.ink/…` | [navi-crwn/NoteHop](https://github.com/navi-crwn/NoteHop) | Encrypted notes you share with a link. |
 | **FileHop** | [file.hel.ink](https://file.hel.ink) | [navi-crwn/FileHop](https://github.com/navi-crwn/FileHop) | Convert files in your browser; nothing is uploaded. |
+| **PayHop** | [pay.hel.ink](https://pay.hel.ink) | [navi-crwn/PayHop](https://github.com/navi-crwn/PayHop) | Make a payment QR and split a bill; nothing leaves your browser. |
 | **Imperium** | not public-facing: optional, for admins | [navi-crwn/Imperium](https://github.com/navi-crwn/Imperium) | The HOP control panel. |
 <!-- hop-family:end -->
 

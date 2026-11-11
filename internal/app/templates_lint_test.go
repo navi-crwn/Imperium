@@ -15,7 +15,7 @@ var (
 )
 
 // The list pages whose tables are wide; the small key/value cards need no wrapper.
-var wideTables = map[string]bool{"web/templates/audit.html": true, "web/templates/content.html": true, "web/templates/reports.html": true, "web/templates/search.html": true}
+var wideTables = map[string]bool{"web/templates/audit.html": true, "web/templates/list.html": true, "web/templates/search.html": true}
 
 // A label that names no control is invisible to a screen reader, and a table that is not
 // wrapped in .scroll-x makes the whole page scroll sideways on a phone (A2-S6-17, A2-S6-21).

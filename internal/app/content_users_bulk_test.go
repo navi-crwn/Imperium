@@ -131,7 +131,7 @@ func TestContentBulkActionRefusals(t *testing.T) {
 		}
 	}
 	// enable is not destructive: no confirmation needed.
-	res, err := c.PostForm(srv.URL+"/apps/linkhop/content/actions", url.Values{"type": {"link"}, "pick": {"13"}, "action": {"enable"}})
+	res, err := c.PostForm(srv.URL+"/apps/linkhop/content/actions", url.Values{"type": {"link"}, "pick": {"13"}, "action": {"enable"}, "reason": {"back on"}})
 	if err != nil {
 		t.Fatal(err)
 	}

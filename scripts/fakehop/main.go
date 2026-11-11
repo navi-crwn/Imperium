@@ -1,8 +1,8 @@
-// fakehop plays HOP ID, LinkHop, PixelHop, NoteHop and FileHop on localhost so Imperium's UI can
+// fakehop plays HOP ID, LinkHop, PixelHop, NoteHop, FileHop and PayHop on localhost so Imperium's UI can
 // be developed and screenshotted without the real servers. Sign-in always
 // succeeds as an owner with 2FA. Not for production.
 //
-//	go run ./scripts/fakehop -addr 127.0.0.1:9101 -px 127.0.0.1:9102 -nh 127.0.0.1:9103 -fh 127.0.0.1:9105
+//	go run ./scripts/fakehop -addr 127.0.0.1:9101 -px 127.0.0.1:9102 -nh 127.0.0.1:9103 -fh 127.0.0.1:9105 -ph 127.0.0.1:9106 [-bulk]
 //	HOP_URL=http://127.0.0.1:9101 HOP_SSO_SECRET=<secret> ... bin/imperium -addr 127.0.0.1:9100
 package main
 
@@ -26,12 +26,20 @@ var (
 	pxAddr   = flag.String("px", "127.0.0.1:9102", "PixelHop address")
 	nhAddr   = flag.String("nh", "127.0.0.1:9103", "NoteHop address")
 	fhAddr   = flag.String("fh", "127.0.0.1:9105", "FileHop address")
+	phAddr   = flag.String("ph", "127.0.0.1:9106", "PayHop address")
 	secret   = flag.String("secret", "imperium-dev-secret-that-is-long-enough-1234", "Imperium's secret in the registry")
 	pxSecret = flag.String("px-secret", "pixelhop-dev-secret-that-is-long-enough-12", "PixelHop's secret")
 	nhSecret = flag.String("nh-secret", "notehop-dev-secret-that-is-long-enough-123", "NoteHop's secret")
 	fhSecret = flag.String("fh-secret", "filehop-dev-secret-that-is-long-enough-123", "FileHop's secret")
+	phSecret = flag.String("ph-secret", "payhop-dev-secret-that-is-long-enough-1234", "PayHop's secret")
 	nonces   hopproto.Nonces
 )
+
+func flagBool(n string, d bool, u string) *bool { return flag.Bool(n, d, u) }
+
+func jsonOut(w http.ResponseWriter, v any) { _ = json.NewEncoder(w).Encode(v) }
+
+var ()
 
 func ok(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
@@ -72,8 +80,9 @@ func main() {
 	go func() { log.Fatal(http.ListenAndServe(*pxAddr, pixelhop())) }()
 	go func() { log.Fatal(http.ListenAndServe(*nhAddr, notehop())) }()
 	go func() { log.Fatal(http.ListenAndServe(*fhAddr, filehop())) }()
+	go func() { log.Fatal(http.ListenAndServe(*phAddr, payhop())) }()
 	go func() { log.Fatal(http.ListenAndServe(*lhAddr, laravelApp(false))) }()
-	log.Printf("fakehop: HOP ID %s, LinkHop %s, PixelHop %s, NoteHop %s, FileHop %s", *addr, *lhAddr, *pxAddr, *nhAddr, *fhAddr)
+	log.Printf("fakehop: HOP ID %s, LinkHop %s, PixelHop %s, NoteHop %s, FileHop %s, PayHop %s", *addr, *lhAddr, *pxAddr, *nhAddr, *fhAddr, *phAddr)
 	log.Fatal(http.ListenAndServe(*addr, laravelApp(true)))
 }
 
@@ -96,6 +105,7 @@ func laravelApp(hub bool) http.Handler {
 			{"slug": "pixelhop", "name": "PixelHop", "url": "http://" + *pxAddr, "status": "active", "icon": "image", "capabilities": []string{"account_api", "admin_api", "events", "metrics"}, "secret": *pxSecret, "sort_order": 10},
 			{"slug": "notehop", "name": "NoteHop", "url": "http://" + *nhAddr, "status": "active", "icon": "note", "capabilities": []string{"admin_api", "events", "metrics", "zero_knowledge"}, "secret": *nhSecret, "sort_order": 20},
 			{"slug": "filehop", "name": "FileHop", "url": "http://" + *fhAddr, "status": "active", "icon": "file", "capabilities": []string{"admin_api", "events", "zero_knowledge"}, "secret": *fhSecret, "sort_order": 25},
+			{"slug": "payhop", "name": "PayHop", "url": "http://" + *phAddr, "status": "active", "icon": "qr", "capabilities": []string{"admin_api", "events", "zero_knowledge"}, "secret": *phSecret, "sort_order": 26},
 			{"slug": "remotehop", "name": "RemoteHop", "url": "http://127.0.0.1:9", "status": "active", "capabilities": []string{"account_api"}, "sort_order": 30},
 			{"slug": "imperium", "name": "Imperium", "url": "x", "status": "active", "hidden": true},
 		})
@@ -128,6 +138,10 @@ func laravelApp(hub bool) http.Handler {
 		ok(w, []map[string]any{{"kind": "user", "id": "26", "label": "@rani", "sub": "Rani Dewi"}})
 	})
 	s("GET /api/hop/users", func(w http.ResponseWriter, r *http.Request) {
+		if *bulk {
+			pageOf(w, bulkUsers(), r)
+			return
+		}
 		page(w, []map[string]any{
 			{"sub": "26", "username": "rani", "name": "Rani Dewi", "email": "rani@example.test", "status": "active", "roles": []string{}, "verified": true, "created_at": "2026-09-02", "last_login_at": "2026-10-27", "links": 38, "bio_pages": 1},
 			{"sub": "31", "username": "budi", "name": "Budi Santoso", "email": "budi@example.test", "status": "suspended", "roles": []string{}, "verified": true, "created_at": "2026-09-14", "last_login_at": "2026-10-20", "links": 410, "bio_pages": 0},
@@ -143,9 +157,17 @@ func laravelApp(hub bool) http.Handler {
 			"counts": map[string]any{"links": 38, "bio_pages": 1, "clicks_30d": 912}, "sessions": map[string]any{"count": 2}, "logins": []any{}, "activity": []any{}, "roles": roles, "notes": []any{}, "recent_links": []any{}})
 	})
 	s("GET /api/hop/audit", func(w http.ResponseWriter, r *http.Request) {
+		if *bulk {
+			ok(w, bulkAudit())
+			return
+		}
 		ok(w, []map[string]any{{"created_at": day(0) + "T08:12:00Z", "actor": "1:superadmin", "app_slug": "imperium", "action": "link.disable", "target_type": "link", "target_id": "9", "reason": "phishing"}})
 	})
 	s("GET /api/hop/content", func(w http.ResponseWriter, r *http.Request) {
+		if *bulk && r.URL.Query().Get("type") != "bio" {
+			pageOf(w, bulkLinks(), r)
+			return
+		}
 		if r.URL.Query().Get("type") == "bio" {
 			page(w, []map[string]any{{"id": "7", "type": "bio", "title": "Rani · tautan", "owner": map[string]any{"sub": "26", "username": "rani"}, "status": "published", "views": 1200, "created_at": day(9) + "T10:00:00Z", "url": "https://hel.ink/b/rani"}}, 41)
 			return
@@ -173,6 +195,10 @@ func laravelApp(hub bool) http.Handler {
 		}, 3)
 	})
 	s("GET /api/hop/settings", func(w http.ResponseWriter, r *http.Request) {
+		if *bulk {
+			ok(w, bulkSettings())
+			return
+		}
 		ok(w, []map[string]any{{"key": "seo.site_title", "type": "string", "value": "LinkHop", "description": "Site & SEO: site title"}, {"key": "turnstile", "type": "bool", "value": true, "readonly": true, "description": "Cloudflare Turnstile"}})
 	})
 	s("GET /api/hop/x/ip", func(w http.ResponseWriter, r *http.Request) {
@@ -180,6 +206,10 @@ func laravelApp(hub bool) http.Handler {
 			"watchlist": []map[string]any{{"id": 5, "ip": "198.51.100.4", "user": "budi", "reason": "failed logins", "attempts": 14, "last_attempt_at": day(0) + "T02:00:00Z"}}})
 	})
 	s("GET /api/hop/x/domains", func(w http.ResponseWriter, r *http.Request) {
+		if *bulk {
+			page(w, bulkDomains(), 55)
+			return
+		}
 		page(w, []map[string]any{{"id": 1, "domain": "bad.example", "match_type": "wildcard", "category": "phishing", "notes": "", "created_at": day(5) + "T00:00:00Z"}}, 1)
 	})
 	s("GET /api/hop/x/queue", func(w http.ResponseWriter, r *http.Request) {
@@ -273,6 +303,10 @@ func notehop() http.Handler {
 		ok(w, []map[string]any{{"key": "rate_limit_per_min", "type": "int", "value": 60, "description": "Requests per minute per IP"}})
 	})
 	s("GET /hop/x/names", func(w http.ResponseWriter, r *http.Request) {
+		if *bulk {
+			ok(w, bulkNames())
+			return
+		}
 		ok(w, map[string]any{"holds": []map[string]any{{"slug": "konten-buruk", "reason": "takedown", "until": day(-20)}, {"slug": "admin", "reason": "reserved", "until": nil}}, "reserved": []string{"admin", "api", "login"}})
 	})
 	s("GET /hop/x/files", func(w http.ResponseWriter, r *http.Request) {
@@ -308,5 +342,27 @@ func filehop() http.Handler {
 		ok(w, map[string]any{"sub": r.PathValue("sub"), "id": 1, "name": "Superadmin", "status": "active", "created_at": day(3) + "T09:00:00Z", "last_seen_at": day(0) + "T08:00:00Z", "content": map[string]int{}})
 	})
 	m.HandleFunc("POST /hop/", signed(*fhSecret, func(w http.ResponseWriter, r *http.Request) { ok(w, map[string]any{}) }))
+	return m
+}
+
+// payhop answers like PayHop: accounts and sessions only. It also counts saved payment methods and
+// bills, which Imperium must not show; the numbers are here so that stays checked by eye.
+func payhop() http.Handler {
+	m := http.NewServeMux()
+	s := func(p string, h http.HandlerFunc) { m.HandleFunc(p, signed(*phSecret, h)) }
+	s("GET /hop/health", func(w http.ResponseWriter, r *http.Request) {
+		ok(w, map[string]any{"app": "payhop", "version": "0.3.0", "db": "ok", "storage": "encrypted", "sso": "ok"})
+	})
+	s("GET /hop/manifest", func(w http.ResponseWriter, r *http.Request) {
+		ok(w, map[string]any{"app": "payhop", "name": "PayHop", "icon": "qr", "capabilities": []string{"admin_api", "events", "zero_knowledge"},
+			"content_types": []any{}, "actions": map[string]any{"user": []string{"revoke_sessions"}}})
+	})
+	s("GET /hop/stats", func(w http.ResponseWriter, r *http.Request) {
+		ok(w, map[string]any{"app": "payhop", "totals": map[string]any{"users": 8, "users_suspended": 0, "sessions_live": 3, "users_active_30d": 5, "methods_saved": 4, "bills_saved": 40}})
+	})
+	s("GET /hop/users/{sub}", func(w http.ResponseWriter, r *http.Request) {
+		ok(w, map[string]any{"sub": r.PathValue("sub"), "id": 1, "name": "Superadmin", "status": "active", "created_at": day(2) + "T09:00:00Z", "last_seen_at": day(0) + "T08:00:00Z", "content": map[string]int{}})
+	})
+	m.HandleFunc("POST /hop/", signed(*phSecret, func(w http.ResponseWriter, r *http.Request) { ok(w, map[string]any{}) }))
 	return m
 }

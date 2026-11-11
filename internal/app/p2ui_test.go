@@ -210,6 +210,16 @@ func TestEveryLanguageHasEveryKey(t *testing.T) {
 				t.Errorf("%s lacks %q", lang, key)
 			}
 		}
+		// The action labels (the Actions menu and the bulk bar) live beside the catalogue: one value per language.
+		for key, vals := range actionLabels {
+			got := actionLabel(lang, key)
+			if got == "" || got == strings.ReplaceAll(key, "_", " ") {
+				t.Errorf("%s lacks the action label %q", lang, key)
+			}
+			if lang != "en" && got == vals[0] {
+				t.Errorf("%s shows the English label for %q", lang, key)
+			}
+		}
 	}
 }
 

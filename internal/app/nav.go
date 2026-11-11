@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -46,7 +47,46 @@ func extLabel(l, ext string) string {
 	if v := tl(l, "ext."+ext); v != "ext."+ext {
 		return v
 	}
-	return ext
+	return plainWords(ext)
+}
+
+// plainWords spells a machine key out: api_tokens becomes "Api tokens".
+func plainWords(k string) string {
+	k = strings.ReplaceAll(strings.ReplaceAll(strings.TrimSpace(k), "_", " "), "-", " ")
+	if k == "" {
+		return ""
+	}
+	return strings.ToUpper(k[:1]) + k[1:]
+}
+
+// keyLabel is the label of a key an app reports (a count, a column, a table name): the
+// translated KPI or label when there is one, else the key spelled out. Never raw underscores.
+func keyLabel(l, k string) string {
+	for _, p := range []string{"kpi.", "lbl."} {
+		if v := tl(l, p+k); v != p+k {
+			return v
+		}
+	}
+	return plainWords(k)
+}
+
+// splitTabs separates the tabs of an app: the main ones, and the extension tabs that go
+// under "More".
+func splitTabs(items []navItem) (main, more []navItem) {
+	n := 0
+	for _, it := range items {
+		if it.Kind == "ext" {
+			n++
+		}
+	}
+	for _, it := range items {
+		if it.Kind == "ext" {
+			more = append(more, it)
+		} else {
+			main = append(main, it)
+		}
+	}
+	return main, more
 }
 
 // cachedManifest returns an app's manifest when one was fetched recently;
@@ -81,9 +121,10 @@ func (a *App) appItems(r *http.Request, slug string, m *Manifest, path, typ stri
 	if m == nil {
 		return items
 	}
-	for i, ct := range m.ContentTypes {
-		on := strings.HasPrefix(path, base+"/content") && (typ == ct.Type || (typ == "" && i == 0))
-		items = append(items, navItem{Label: ct.Label, Href: base + "/content?type=" + url.QueryEscape(ct.Type), Kind: "content", On: on})
+	// One fixed set of tabs for every app: Dashboard, Content, Reports, Settings, More. The kinds of
+	// content (Images, Albums, Links, …) are picked inside Content; every extension is under More.
+	if len(m.ContentTypes) > 0 {
+		items = append(items, navItem{Label: tl(l, "mod.content"), Href: base + "/content", Kind: "content", On: strings.HasPrefix(path, base+"/content")})
 	}
 	if m.HasReports() {
 		items = append(items, navItem{Label: a.Tr(r, "mod.reports"), Href: base + "/reports", Kind: "reports", On: strings.HasPrefix(path, base+"/reports")})
@@ -171,8 +212,13 @@ var kpiOrder = map[string][]string{
 	"biohop":   {"pages", "pages_published", "pages_draft", "pages_adult", "blocks", "views_total", "clicks_total", "reports_open"},
 	"pixelhop": {"users", "content", "images", "videos", "pdfs", "albums", "bytes", "views", "uploads_today", "open_reports", "bans", "guest_uploads"},
 	"filehop":  {"users", "users_active_30d", "sessions_live", "users_suspended"},
+	"payhop":   {"users", "users_active_30d", "sessions_live", "users_suspended"},
 	"notehop":  {"users", "users_sso", "notes", "notes_encrypted", "notes_public", "notes_owned", "notes_burn", "files", "files_bytes", "files_budget_bytes", "live_rooms", "slug_holds", "reports_open", "takedowns"},
 }
+
+// hiddenKPIs are numbers an app reports that the dashboard leaves out. PayHop counts the saved payment
+// methods and bills of its people; those never appear in Imperium, not even as totals.
+var hiddenKPIs = map[string][]string{"payhop": {"methods_saved", "bills_saved"}}
 
 // attentionKeys are KPIs that mean work when they are above zero.
 var attentionKeys = []string{"open_reports", "open_flags", "reports_open", "takedowns", "users_suspended", "failed"}
@@ -219,6 +265,9 @@ func isBytesKey(k string) bool { return k == "bytes" || strings.HasSuffix(k, "_b
 
 // kpiLabel translates a KPI key, falling back to the key spelled out.
 func kpiLabel(l, key string) string {
+	if key == "" {
+		return ""
+	}
 	if v := tl(l, "kpi."+key); v != "kpi."+key {
 		return v
 	}
@@ -244,6 +293,9 @@ func (a *App) kpis(l, slug string, raw map[string]int64) (all, attention []kpi) 
 	}
 	var rest []string
 	for k := range raw {
+		if contains(hiddenKPIs[slug], k) {
+			continue
+		}
 		if !seen[k] {
 			rest = append(rest, k)
 		}
@@ -385,11 +437,47 @@ func (a *App) dashboard(w http.ResponseWriter, r *http.Request) {
 		kpiMap = st.Totals
 	}
 	all, attention := a.kpis(a.langOf(r), ap.Slug, kpiMap)
+	all = topNumbers(all, 5)
+	seriesAll := a.seriesViews(a.langOf(r), st.Series)
+	if len(seriesAll) > 1 {
+		seriesAll = seriesAll[:1]
+	}
 	a.render(w, r, "dashboard.html", ap.Name, map[string]any{
 		"App": ap, "M": m, "Health": health, "Items": a.appItems(r, ap.Slug, m, r.URL.Path, ""),
-		"KPIs": all, "Attention": attention, "Series": a.seriesViews(a.langOf(r), st.Series), "StatsErr": statsErr,
+		"KPIs": all, "Attention": attention, "Series": seriesAll, "StatsErr": statsErr,
 		"CT": firstCT, "Latest": latest, "LatestErr": latestErr,
 		"Reports": reports, "ReportsErr": reportsErr, "HasReports": m.HasReports(),
 		"Ops": ops, "CanAct": canActIn(s, ap.Slug),
 	})
+}
+
+// statCols picks a column class for a row of n cards so that the last row is never a
+// lone card: n cards are spread over as few rows as max columns allow, then evenly.
+func statCols(n, max int) string {
+	if n < 1 {
+		n = 1
+	}
+	rows := (n + max - 1) / max
+	cols := (n + rows - 1) / rows
+	return "c" + strconv.Itoa(cols)
+}
+
+// topNumbers keeps at most n numbers for the dashboard row: the ones that need attention first, then the
+// app's own order.
+func topNumbers(all []kpi, n int) []kpi {
+	if len(all) <= n {
+		return all
+	}
+	var out []kpi
+	for _, k := range all {
+		if k.Warn && len(out) < n {
+			out = append(out, k)
+		}
+	}
+	for _, k := range all {
+		if !k.Warn && len(out) < n {
+			out = append(out, k)
+		}
+	}
+	return out
 }

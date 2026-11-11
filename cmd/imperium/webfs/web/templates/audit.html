@@ -1,13 +1,16 @@
 {{template "head" .}}{{template "top" .}}
 <h1>{{t "audit.title"}}</h1>
-<h2>{{t "audit.local"}}</h2>
-<div class="scroll-x"><table><tr><th>{{t "col.when"}}</th><th>{{t "col.who"}}</th><th>{{t "col.ip"}}</th><th>{{t "col.action"}}</th><th>{{t "col.target"}}</th><th>{{t "col.detail"}}</th></tr>
-{{range .Data.Local}}<tr><td class="small">{{datez .At}}</td><td>{{.ActorName}} <span class="muted mono">#{{.ActorSub}}</span></td><td class="mono">{{.IP}}</td><td><span class="chip {{if not .OK}}suspended{{end}}">{{.Action}}</span></td><td class="mono">{{.Target}}</td><td class="small mono">{{json .Detail}}</td></tr>{{else}}<tr><td colspan="6" class="muted">{{t "none"}}</td></tr>{{end}}
-</table></div>
-<h2>{{t "audit.remote"}}</h2>
+<nav class="dash-tabs" aria-label="{{t "audit.title"}}"><a class="chip {{if eq .Data.Tab "imperium"}}active{{end}}" href="/audit?tab=imperium"{{if eq .Data.Tab "imperium"}} aria-current="page"{{end}}>{{t "audit.local"}}</a><a class="chip {{if eq .Data.Tab "hop"}}active{{end}}" href="/audit?tab=hop"{{if eq .Data.Tab "hop"}} aria-current="page"{{end}}>{{t "audit.remote"}}</a></nav>
 {{if .Data.Err}}<p class="flash err">{{t "err.hop"}}: {{.Data.Err}}</p>{{end}}
-<div class="scroll-x"><table><tr><th>{{t "col.when"}}</th><th>{{t "col.actor"}}</th><th>{{t "col.app"}}</th><th>{{t "col.action"}}</th><th>{{t "col.target"}}</th><th>{{t "col.reason"}}</th></tr>
-{{range .Data.Remote}}<tr><td class="small">{{datesz (index . "created_at")}}</td><td>{{index . "actor"}}</td><td>{{index . "app_slug"}}</td><td><span class="chip">{{index . "action"}}</span></td><td class="mono">{{index . "target_type"}} {{index . "target_id"}}</td><td class="small">{{index . "reason"}}</td></tr>{{else}}<tr><td colspan="6" class="muted">{{t "none"}}</td></tr>{{end}}
+{{if eq .Data.Tab "imperium"}}
+<div class="scroll-x"><table class="fit"><tr><th>{{t "col.when"}}</th><th>{{t "col.who"}}</th><th>{{t "col.ip"}}</th><th>{{t "col.action"}}</th><th>{{t "col.target"}}</th><th>{{t "col.detail"}}</th></tr>
+{{range .Data.Local}}<tr><td class="small nw">{{datez .At}}</td><td class="nw">{{.ActorName}} <span class="muted mono">#{{.ActorSub}}</span></td><td class="mono nw">{{.IP}}</td><td class="nw"><span class="chip {{if not .OK}}suspended{{end}}">{{.Action}}</span></td><td class="mono cut" title="{{.Target}}">{{.Target}}</td><td class="small mono cut" title="{{json .Detail}}">{{json .Detail}}</td></tr>{{else}}<tr><td colspan="6" class="muted">{{t "none"}}</td></tr>{{end}}
 </table></div>
+{{else}}
+<div class="scroll-x"><table class="fit"><tr><th>{{t "col.when"}}</th><th>{{t "col.actor"}}</th><th>{{t "col.app"}}</th><th>{{t "col.action"}}</th><th>{{t "col.target"}}</th><th>{{t "col.reason"}}</th></tr>
+{{range .Data.Remote}}<tr><td class="small nw">{{datesz (index . "created_at")}}</td><td class="nw">{{index . "actor"}}</td><td class="nw">{{index . "app_slug"}}</td><td class="nw"><span class="chip">{{index . "action"}}</span></td><td class="mono nw">{{index . "target_type"}} {{index . "target_id"}}</td><td class="small cut" title="{{index . "reason"}}">{{index . "reason"}}</td></tr>{{else}}<tr><td colspan="6" class="muted">{{t "none"}}</td></tr>{{end}}
+</table></div>
+{{end}}
+{{if .Data.More}}<nav class="row mt12" aria-label="{{t "page.navigation"}}"><a class="btn" href="/audit?tab={{.Data.Tab}}&amp;n={{.Data.NextN}}">{{t "page.show_more"}}</a></nav>{{end}}
 <p class="muted small mt14">{{t "time.hint"}}</p>
 {{template "foot" .}}

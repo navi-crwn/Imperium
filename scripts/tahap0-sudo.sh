@@ -16,16 +16,39 @@ ask() { read -r -p "$1 (y/t) " a; [ "${a:-t}" = y ]; }
 say() { printf '\n== %s\n' "$*"; }
 
 # ---------- 1. sudoers untuk backup NoteHop ----------
-if ask "1) Pasang sudoers agar carawin boleh menjalankan 'notehop backup' sebagai notehop dan membaca env NoteHop dan FileHop?"; then
-  cat > /etc/sudoers.d/hop-backup <<'EOF'
+if ask "1) Pasang sudoers agar carawin boleh menjalankan 'notehop backup' sebagai notehop, membaca env NoteHop, FileHop dan PayHop, dan menyalin database FileHop dan PayHop?"; then
+  SUDOERS_TMP=$(mktemp) && chmod 600 "$SUDOERS_TMP"
+  cat > "$SUDOERS_TMP" <<'EOF'
 # hop-backup: hanya perintah ini, tanpa password
 carawin ALL=(notehop) NOPASSWD: /usr/local/bin/notehop backup -db /var/lib/notehop/notehop.db /tmp/hop-notehop-*.db
 carawin ALL=(root) NOPASSWD: /usr/bin/mv /tmp/hop-notehop-*.db /home/carawin/backups/hop/*/notehop/notehop.db
 carawin ALL=(root) NOPASSWD: /usr/bin/chown carawin /home/carawin/backups/hop/*/notehop/notehop.db
 carawin ALL=(root) NOPASSWD: /usr/bin/cat /etc/notehop/notehop.env
 carawin ALL=(root) NOPASSWD: /usr/bin/cat /etc/filehop/filehop.env
+carawin ALL=(root) NOPASSWD: /usr/bin/cat /etc/payhop/payhop.env
+# Salinan SQLite FileHop dan PayHop: sqlite3 .backup sebagai user layanan ke berkas di folder datanya, dibaca lalu dihapus
+carawin ALL=(filehop) NOPASSWD: /usr/bin/sqlite3 /var/lib/filehop/filehop.db .backup\ /var/lib/filehop/hop-backup.db
+carawin ALL=(filehop) NOPASSWD: /usr/bin/rm -f /var/lib/filehop/hop-backup.db
+carawin ALL=(filehop) NOPASSWD: /usr/bin/cat /var/lib/filehop/hop-backup.db
+carawin ALL=(payhop) NOPASSWD: /usr/bin/sqlite3 /var/lib/payhop/payhop.db .backup\ /var/lib/payhop/hop-backup.db
+carawin ALL=(payhop) NOPASSWD: /usr/bin/rm -f /var/lib/payhop/hop-backup.db
+carawin ALL=(payhop) NOPASSWD: /usr/bin/cat /var/lib/payhop/hop-backup.db
 EOF
-  chmod 440 /etc/sudoers.d/hop-backup && visudo -cf /etc/sudoers.d/hop-backup && echo "   sudoers OK"
+  # Validasi berkas sementara DULU; hanya yang lolos dipasang. Berkas lama tidak disentuh bila gagal.
+  if visudo -cf "$SUDOERS_TMP" >/dev/null; then
+    if install -m 0440 -o root -g root "$SUDOERS_TMP" /etc/sudoers.d/hop-backup; then
+      rm -f "$SUDOERS_TMP"
+      echo "   sudoers OK"
+    else
+      rm -f "$SUDOERS_TMP"
+      echo "   GAGAL: install tidak bisa memasang /etc/sudoers.d/hop-backup; berkas sementara dihapus." >&2
+      exit 1
+    fi
+  else
+    rm -f "$SUDOERS_TMP"
+    echo "   GAGAL: visudo menolak isi sudoers; tidak ada yang dipasang dan berkas lama tidak diubah." >&2
+    exit 1
+  fi
 fi
 
 # ---------- 2. NOTEHOP_ADMINS ----------

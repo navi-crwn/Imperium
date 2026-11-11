@@ -2,7 +2,7 @@
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Deutsch](README.de.md) · [Bahasa Indonesia](README.id.md) · [日本語](README.ja.md) · [Português (Brasil)](README.pt-BR.md) · [Español](README.es.md) · **Français** · [Русский](README.ru.md)
 
-Le panneau d'administration et la console d'exploitation de la famille d'apps HOP (LinkHop, BioHop, PixelHop, NoteHop, FileHop). Il est open source comme le reste de la famille, et **facultatif** : chaque app fonctionne sans lui. Vous n'en avez besoin que si vous voulez un seul endroit pour gérer les utilisateurs, le contenu, les signalements d'abus, les réglages et l'état de santé de toutes vos apps.
+Le panneau d'administration et la console d'exploitation de la famille d'apps HOP (LinkHop, BioHop, PixelHop, NoteHop, FileHop, PayHop). Il est open source comme le reste de la famille, et **facultatif** : chaque app fonctionne sans lui. Vous n'en avez besoin que si vous voulez un seul endroit pour gérer les utilisateurs, le contenu, les signalements d'abus, les réglages et l'état de santé de toutes vos apps.
 
 Ce qu'il fait :
 
@@ -73,6 +73,7 @@ Les apps HOP signalent chaque HTTP 500 qu'elles servent à `POST /hop/notify` su
 | **PixelHop** | [pixel.hel.ink](https://pixel.hel.ink) · `p.hel.ink/…` | [navi-crwn/PixelHop](https://github.com/navi-crwn/PixelHop) | Image hosting with albums and direct links. |
 | **NoteHop** | [note.hel.ink](https://note.hel.ink) · `n.hel.ink/…` | [navi-crwn/NoteHop](https://github.com/navi-crwn/NoteHop) | Encrypted notes you share with a link. |
 | **FileHop** | [file.hel.ink](https://file.hel.ink) | [navi-crwn/FileHop](https://github.com/navi-crwn/FileHop) | Convert files in your browser; nothing is uploaded. |
+| **PayHop** | [pay.hel.ink](https://pay.hel.ink) | [navi-crwn/PayHop](https://github.com/navi-crwn/PayHop) | Make a payment QR and split a bill; nothing leaves your browser. |
 | **Imperium** | not public-facing: optional, for admins | [navi-crwn/Imperium](https://github.com/navi-crwn/Imperium) | The HOP control panel. |
 <!-- hop-family:end -->
 

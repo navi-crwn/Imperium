@@ -152,7 +152,7 @@ func (a *App) users(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
-	path := "/users?" + url.Values{"q": {q.Get("q")}, "status": {q.Get("status")}, "role": {q.Get("role")}, "cursor": {q.Get("cursor")}, "limit": {"50"}}.Encode()
+	path := "/users?" + url.Values{"q": {q.Get("q")}, "status": {q.Get("status")}, "role": {q.Get("role")}, "cursor": {q.Get("cursor")}, "limit": {"25"}}.Encode()
 	var rows []userRow
 	var errMsg, next string
 	env, err := a.callHop(r.Context(), current(r), "GET", path, nil, &rows)
@@ -167,8 +167,7 @@ func (a *App) users(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	apps, _ := a.db.Apps(r.Context())
-	a.render(w, r, "users.html", a.Tr(r, "users.title"), map[string]any{"Rows": rows, "Err": errMsg, "Next": next, "Q": q.Get("q"), "Status": q.Get("status"), "Role": q.Get("role"),
-		"Cursor": q.Get("cursor"), "Filters": q, "IsAdmin": isAdmin(current(r)), "Me": current(r).Sub, "BulkActions": userBulkActions, "RoleFilter": roleOptions(apps, nil)})
+	a.render(w, r, "list.html", a.Tr(r, "users.title"), map[string]any{"P": a.usersPage(r, rows, errMsg, next, apps)})
 }
 
 // roleOptions are the roles a form offers: the hub-wide ones, admin:<app> for every registered app (HOP ID
@@ -241,7 +240,7 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	// Each app's own view of the person, fetched side by side. An app that has
 	// no account for this HOP id answers not_found; any other error is shown as
 	// such, so a broken app never reads as "not linked".
-	summaries := map[string]*appSummary{"pixelhop": {}, "notehop": {}, "filehop": {}}
+	summaries := map[string]*appSummary{"pixelhop": {}, "notehop": {}, "filehop": {}, "payhop": {}}
 	var wg sync.WaitGroup
 	for slug, sum := range summaries {
 		ap, err := a.db.App(r.Context(), slug)
@@ -264,14 +263,14 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	wg.Wait()
 
 	apps, _ := a.db.Apps(r.Context())
-	a.render(w, r, "user.html", "@"+str(u.Profile["username"]), map[string]any{
-		"ID": id, "U": u, "Raw": string(raw), "IsAdmin": isAdmin(current(r)), "CanNote": canNote(current(r)),
-		"Protected": u.protected(),
-		"PixelUser": summaries["pixelhop"].User, "PixelErr": summaries["pixelhop"].Err,
-		"NoteUser": summaries["notehop"].User, "NoteErr": summaries["notehop"].Err,
-		"FileUser": summaries["filehop"].User, "FileErr": summaries["filehop"].Err,
-		"RoleOptions": roleOptions(apps, u.Roles),
-	})
+	tab := r.URL.Query().Get("tab")
+	if !contains([]string{"profile", "content", "sessions", "activity"}, tab) {
+		tab = "profile"
+	}
+	in := userDetailIn{ID: id, Raw: string(raw), Tab: tab, U: u, Protected: u.protected(), Admin: isAdmin(current(r)), Note: canNote(current(r)), Options: roleOptions(apps, u.Roles),
+		Pixel: summaries["pixelhop"].User, PixelErr: summaries["pixelhop"].Err, NoteU: summaries["notehop"].User, NoteErr: summaries["notehop"].Err,
+		File: summaries["filehop"].User, FileErr: summaries["filehop"].Err, Pay: summaries["payhop"].User, PayErr: summaries["payhop"].Err}
+	a.render(w, r, "detail.html", "@"+str(u.Profile["username"]), map[string]any{"P": a.userDetailPage(r, in)})
 }
 
 // canNote says whether the session may add a note to a hub user: every
@@ -296,6 +295,11 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 	action := r.FormValue("action")
 	reason := strings.TrimSpace(r.FormValue("reason"))
 	params := map[string]any{}
+	if needAck(action, r.FormValue("ack")) {
+		a.flashError(w, a.Tr(r, "err.need_ack"))
+		http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
+		return
+	}
 	switch action {
 	case "suspend", "activate", "revoke_sessions", "revoke_tokens", "delete", "set_roles":
 		if !isAdmin(s) {
@@ -313,6 +317,12 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "unknown action", 400)
 		return
+	}
+	switch action {
+	case "suspend", "activate", "revoke_sessions", "revoke_tokens", "delete":
+		if a.refuseNoReason(w, r, "/users/"+url.PathEscape(id), reason) {
+			return
+		}
 	}
 	switch action {
 	case "note":
@@ -346,7 +356,7 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/users", http.StatusFound)
 		return
 	}
-	http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
+	http.Redirect(w, r, returnTo(r, "/users/"+url.PathEscape(id)), http.StatusFound)
 }
 
 // userBulkActions are the account actions offered for many users at once. Delete
@@ -383,6 +393,9 @@ func (a *App) usersBulkAction(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("confirm") != "yes" && (confirmAction(action) || action == "revoke_sessions" || action == "revoke_tokens") {
 		a.flashError(w, a.Tr(r, "bulk.need_confirm"))
 		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	if a.refuseNoReason(w, r, back, r.FormValue("reason")) {
 		return
 	}
 	if len(ids) > maxBulk {
@@ -469,17 +482,40 @@ func (a *App) appsSync(w http.ResponseWriter, r *http.Request) {
 
 // ---- audit ----
 
+// auditStep is how many rows an audit list grows by; the page shows one list at a time
+// (?tab=imperium or ?tab=hop) and "Show more" asks for the next step (?n=).
+const auditStep = 25
+
 func (a *App) audit(w http.ResponseWriter, r *http.Request) {
 	if !a.requireGlobal(w, r) {
 		return
 	}
-	local, _ := a.db.Audits(r.Context(), 0, 100)
+	tab := r.URL.Query().Get("tab")
+	if tab != "hop" {
+		tab = "imperium"
+	}
+	n := auditStep
+	if v, err := strconv.Atoi(r.URL.Query().Get("n")); err == nil && v >= auditStep && v <= 200 {
+		n = v / auditStep * auditStep
+	}
+	var local []db.Audit
 	var remote []map[string]any
 	var errMsg string
-	if _, err := a.callHop(r.Context(), current(r), "GET", "/audit?limit=50", nil, &remote); err != nil {
-		errMsg = err.Error()
+	more := false
+	if tab == "imperium" {
+		local, _ = a.db.Audits(r.Context(), 0, n+1)
+		if more = len(local) > n; more {
+			local = local[:n]
+		}
+	} else {
+		if _, err := a.callHop(r.Context(), current(r), "GET", "/audit?limit="+strconv.Itoa(n+1), nil, &remote); err != nil {
+			errMsg = err.Error()
+		}
+		if more = len(remote) > n; more {
+			remote = remote[:n]
+		}
 	}
-	a.render(w, r, "audit.html", a.Tr(r, "audit.title"), map[string]any{"Local": local, "Remote": remote, "Err": errMsg})
+	a.render(w, r, "audit.html", a.Tr(r, "audit.title"), map[string]any{"Local": local, "Remote": remote, "Err": errMsg, "Tab": tab, "N": n, "NextN": n + auditStep, "More": more})
 }
 
 // appSummary is one app's answer for the User 360 page.

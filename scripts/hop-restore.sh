@@ -41,7 +41,7 @@ if [ -f "$SRC/linkhop/db.sql.gz" ]; then
   say "  $(gunzip -c "$SRC/linkhop/db.sql.gz" | grep -c '^CREATE TABLE') tabel di dump"
   [ -f "$SRC/linkhop/storage-public.tar.gz" ] && { tar -tzf "$SRC/linkhop/storage-public.tar.gz" >/dev/null || fail "storage-public.tar.gz rusak"; }
 fi
-for app in pixelhop notehop; do
+for app in pixelhop notehop filehop payhop; do
   if [ -f "$SRC/$app/$app.db" ]; then
     say "$app: PRAGMA integrity_check"
     python3 -I -c "import sqlite3,sys; c=sqlite3.connect('file:'+sys.argv[1]+'?mode=ro',uri=True); r=c.execute('pragma integrity_check').fetchone()[0]; print('  ',r); sys.exit(0 if r=='ok' else 1)" "$SRC/$app/$app.db" || fail "$app.db tidak sehat"
@@ -80,7 +80,7 @@ read -r -p "Ini akan MENIMPA database dan file di server ini. Ketik 'pulihkan' u
 [ "$ans" = pulihkan ] || exit 1
 
 say "Hentikan layanan"
-systemctl stop pixelhop notehop linkhop-queue hub-queue biohop-queue queue-worker 2>/dev/null || true
+systemctl stop pixelhop notehop filehop payhop linkhop-queue hub-queue biohop-queue queue-worker 2>/dev/null || true
 
 if [ -f "$SRC/linkhop/db.sql.gz" ] && [ -f "$TMP/secrets/linkhop.env" ]; then
   say "LinkHop: env, DB, storage"
@@ -116,14 +116,27 @@ if [ -f "$SRC/notehop/notehop.db" ]; then
   [ -f "$SRC/system/notehop.unit" ] && sed -n '/^# \/etc\/systemd/,$p' "$SRC/system/notehop.unit" | sed 1d > /etc/systemd/system/notehop.service
 fi
 
-if [ -f "$TMP/secrets/filehop.env" ]; then
-  say "FileHop: env dan unit (database mulai kosong: hanya sesi)"
-  id filehop >/dev/null 2>&1 || useradd -r -s /usr/sbin/nologin -d /var/lib/filehop filehop
-  mkdir -p /etc/filehop
-  install -o root -g filehop -m 640 "$TMP/secrets/filehop.env" /etc/filehop/filehop.env
-  [ -f "$SRC/system/filehop.unit" ] && sed -n '/^# \/etc\/systemd/,$p' "$SRC/system/filehop.unit" | sed 1d > /etc/systemd/system/filehop.service
-  [ -x /usr/local/bin/filehop ] || say "  FileHop: biner /usr/local/bin/filehop belum ada; bangun dari repo (deploy/install.sh)"
-fi
+# FileHop dan PayHop: env, unit, dan database (arsip lama tanpa DB: database mulai kosong, hanya sesi hilang).
+# Untuk PayHop database berisi data yang dienkripsi dengan PAYHOP_PROFILE_KEY; env hasil restore membawa kunci itu.
+restore_service() {  # slug
+  local slug=$1
+  [ -f "$TMP/secrets/$slug.env" ] || return 0
+  say "$slug: env, unit, database"
+  id "$slug" >/dev/null 2>&1 || useradd -r -s /usr/sbin/nologin -d "/var/lib/$slug" "$slug"
+  mkdir -p "/etc/$slug" "/var/lib/$slug"
+  install -o root -g "$slug" -m 640 "$TMP/secrets/$slug.env" "/etc/$slug/$slug.env"
+  if [ -f "$SRC/$slug/$slug.db" ]; then
+    install -o "$slug" -g "$slug" -m 640 "$SRC/$slug/$slug.db" "/var/lib/$slug/$slug.db"
+    rm -f "/var/lib/$slug/$slug.db-wal" "/var/lib/$slug/$slug.db-shm"
+  else
+    say "  $slug: arsip tanpa database; mulai dari database kosong"
+  fi
+  chown "$slug:$slug" "/var/lib/$slug" && chmod 750 "/var/lib/$slug"
+  [ -f "$SRC/system/$slug.unit" ] && sed -n '/^# \/etc\/systemd/,$p' "$SRC/system/$slug.unit" | sed 1d > "/etc/systemd/system/$slug.service"
+  [ -x "/usr/local/bin/$slug" ] || say "  $slug: biner /usr/local/bin/$slug belum ada; bangun dari repo (deploy/install.sh)"
+}
+restore_service filehop
+restore_service payhop
 
 say "nginx + cron"
 cp -n "$SRC"/system/nginx-sites-enabled/* /etc/nginx/sites-available/ 2>/dev/null || true
@@ -132,7 +145,7 @@ nginx -t && systemctl reload nginx
 [ -f "$SRC/system/crontab-carawin.txt" ] && crontab -u carawin "$SRC/system/crontab-carawin.txt"
 
 systemctl daemon-reload
-systemctl start pixelhop notehop filehop linkhop-queue hub-queue biohop-queue queue-worker 2>/dev/null || true
+systemctl start pixelhop notehop filehop payhop linkhop-queue hub-queue biohop-queue queue-worker 2>/dev/null || true
 say "Healthcheck"
 for u in "https://hel.ink/health/queue" "http://127.0.0.1:8080/api/v1/stats" "http://127.0.0.1:8090/healthz"; do
   printf '  %s -> ' "$u"; curl -s -o /dev/null -w '%{http_code}\n' -m 10 "$u" || echo "gagal"

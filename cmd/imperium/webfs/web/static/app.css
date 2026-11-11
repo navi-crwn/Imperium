@@ -282,3 +282,178 @@ table tr.picked td { background:color-mix(in srgb, var(--line) 45%, transparent)
 @media (max-width:720px) { .lang-menu .pop-menu { inset-inline-start:0; inset-inline-end:auto; } .top-end { order:2; width:100%; margin:0; } .acct { margin-inline-start:auto; } .acct-name { max-width:6.5rem; } }
 @media (pointer:coarse) { .ctl, .pop-item { min-height:44px; } .ctl-icon { width:44px; } }
 @media (prefers-reduced-motion: reduce) { .ctl { transition:none; } }
+
+/* Dashboard tidy (2026-11-11). Measured at 1920x945 before and after: tables kept one row per
+   line instead of wrapping to two or three, nothing overflows its card, the content area uses
+   the screen, cards line up, no text under 12px, the sidebar runs the height of the page. */
+main { max-width:1760px; }
+small { font-size:13px; }
+.time-zone { font-size:12px; }
+/* In a table the zone is not repeated on every row: the cell's title carries it and the page
+   foot says that times are UTC (the script turns them into the reader's own zone). */
+td .time-zone { display:none; }
+table.fit th, table.fit td { white-space:nowrap; }
+table.fit td.cut { max-width:0; overflow:hidden; text-overflow:ellipsis; }
+table.fit th.w-chk, table.fit td.w-chk { width:44px; }
+.w-chk input[type=checkbox] { margin:0; }
+.filters { align-items:end; }
+.filters .grow { flex:2 1 260px; }
+.filters > div { flex:0 1 190px; }
+.filters > .grow { flex:2 1 260px; }
+pre { white-space:pre-wrap; overflow-wrap:anywhere; max-height:320px; }
+/* Rows of cards: the template picks cN so the last row is never a lone card; the cards of a
+   row are the same height. Narrow screens fall back to whatever fits. */
+.stats { grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); grid-auto-rows:1fr; }
+@media (min-width:1200px) {
+  .stats.c1 { grid-template-columns:minmax(0, 1fr); } .stats.c2 { grid-template-columns:repeat(2, minmax(0, 1fr)); } .stats.c3 { grid-template-columns:repeat(3, minmax(0, 1fr)); }
+  .stats.c4 { grid-template-columns:repeat(4, minmax(0, 1fr)); } .stats.c5 { grid-template-columns:repeat(5, minmax(0, 1fr)); } .stats.c6 { grid-template-columns:repeat(6, minmax(0, 1fr)); }
+}
+.app-tile .small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.span-all { grid-column:1 / -1; }
+.dash-cols { grid-template-columns:repeat(auto-fit, minmax(min(100%, 520px), 1fr)); }
+.dash-tabs { overflow:visible; flex-wrap:wrap; }
+.tabs-more { position:relative; }
+.tabs-more > summary { list-style:none; cursor:pointer; display:inline-block; }
+.tabs-more > summary::-webkit-details-marker { display:none; }
+.tabs-more > summary::after { content:""; display:inline-block; width:6px; height:6px; margin-inline-start:8px; border-right:1.6px solid currentColor; border-bottom:1.6px solid currentColor; transform:rotate(45deg) translateY(-2px); }
+.tabs-more .pop-menu { inset-inline-start:0; inset-inline-end:auto; }
+.tabs-more .pop-item.on { background:var(--panel2); font-weight:700; box-shadow:inset 3px 0 0 var(--accent); }
+.tabs-more .pop-item:hover { text-decoration:none; }
+/* The sidebar is as tall as the page; its list sticks under the topbar while you scroll. */
+@media (min-width:901px) {
+  .side { position:static; height:auto; overflow:visible; align-self:stretch; }
+  .side > .tree { position:sticky; top:calc(var(--top) + 10px); max-height:calc(100vh - var(--top) - 20px); overflow:auto; }
+}
+table.fit td.wrapok { white-space:normal; min-width:12rem; }
+table.fit th.w22 { width:22%; }
+.filters .grow { flex:0 1 22rem; }
+.filters { justify-content:flex-start; }
+.bulk-panel .row { display:flex; flex-wrap:wrap; align-items:center; gap:10px; }
+
+/* Actions where the work is: a bulk bar that appears over the table once rows are ticked, a
+   menu on every row, a pager at the top. Quiet red for destructive buttons. */
+.bulk-bar { position:sticky; top:calc(var(--top) + 8px); z-index:6; display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:8px 12px; margin:0 0 10px; border:1px solid var(--line); border-radius:12px; background:var(--panel2); box-shadow:0 8px 24px -12px rgb(0 0 0 / .4); }
+.bulk-bar.is-idle { display:none; }
+.bulk-bar .bulk-count { font-size:14px; margin-inline-end:4px; white-space:nowrap; }
+.bulk-bar select { width:auto; min-width:11rem; height:var(--hop-ctl-h-sm); }
+.bulk-bar input[type=text] { flex:1 1 12rem; max-width:20rem; height:var(--hop-ctl-h-sm); }
+.bulk-bar .bulk-sure { display:inline-flex; margin:0; font-size:13px; }
+.pager { display:flex; justify-content:flex-end; gap:8px; margin:0 0 10px; }
+table.fit th.w-act, table.fit td.w-act { width:52px; text-align:end; }
+.row-menu { display:inline-block; }
+.row-menu > summary { height:var(--hop-ctl-h-sm); width:var(--hop-ctl-h-sm); min-width:var(--hop-ctl-h-sm); font-size:18px; }
+.row-menu .pop-menu { min-width:12rem; }
+.scroll-x:has(.row-menu[open]) { overflow:visible; }
+.pop-item.danger { color:#ff9b9b; }
+:root[data-theme="light"] .pop-item.danger { color:#b42323; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .pop-item.danger { color:#b42323; } }
+.actions .btn.sm.danger { background:transparent; color:#ff9b9b; border:1px solid #7a2a2a; margin:0; }
+.actions .btn.sm.danger:hover { background:#5a1f1f; filter:none; }
+:root[data-theme="light"] .actions .btn.sm.danger { color:#b42323; border-color:#e1a3a3; }
+:root[data-theme="light"] .actions .btn.sm.danger:hover { background:#fcdcdc; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) .actions .btn.sm.danger { color:#b42323; border-color:#e1a3a3; } :root:not([data-theme="dark"]) .actions .btn.sm.danger:hover { background:#fcdcdc; } }
+.actions form, .actions form:has(.danger) { margin:0 0 12px; padding-top:0; border-top:0; }
+.act-form { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.act-form input[type=text] { flex:1 1 12rem; max-width:none; height:var(--hop-ctl-h-sm); }
+.more-act { border-top:1px solid var(--line); padding:8px 0; }
+.more-act > summary { font-size:14px; color:var(--ink); }
+.more-act form { margin:10px 0 0; }
+.role-checks { display:flex; flex-wrap:wrap; gap:4px 14px; }
+.role-checks label.inline { margin:0; font-size:13px; }
+.notes { margin:0 0 12px; padding-inline-start:18px; }
+
+/* ===== Admin redesign (2026-11-11): one quiet surface, four buttons, a menu, a dialog, tabs, a switch. =====
+   Neutral surface, thin lines, one accent. Red only for what cannot be undone. Controls: radius 8, 36/32/40. */
+:root { --danger:#c62828; --danger-ink:#fff; --danger-soft:#ff9b9b; }
+:root[data-theme="light"] { --danger-soft:#b42323; }
+@media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) { --danger-soft:#b42323; } }
+/* Buttons: primary, secondary (.btn), ghost, destructive. */
+.btn { font-weight:500; }
+.btn.primary { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+.btn.ghost { background:transparent; border-color:transparent; color:var(--muted); }
+.btn.ghost:hover { background:var(--panel2); color:var(--ink); filter:none; }
+.btn.destructive, .btn.danger { background:var(--danger); border-color:var(--danger); color:var(--danger-ink); }
+.btn.destructive:hover, .btn.danger:hover { filter:brightness(1.08); }
+.btn.destructive:disabled { opacity:.5; }
+.actions .btn.sm.danger { background:var(--danger); color:var(--danger-ink); border-color:var(--danger); }
+/* Page head and sections. */
+.page-head { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin:0 0 16px; }
+.page-head h1 { margin:0; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.page-head .count { font-size:14px; font-weight:500; color:var(--muted); font-family:var(--hop-font-body, inherit); }
+.head-actions { display:flex; align-items:center; gap:8px; }
+.crumb { margin:0 0 6px; font-size:14px; }
+.app-head { display:flex; align-items:center; gap:14px; margin:0 0 14px; }
+.app-head h1 { font-size:22px; margin:0; line-height:1.2; }
+.app-head .dash-meta { margin:2px 0 0; }
+.sect { margin:0 0 24px; padding:16px 0 0; border-top:1px solid var(--line); background:transparent; border-radius:0; }
+.sect:first-of-type { border-top:0; padding-top:0; }
+.sect h2, .sect-title { font-size:13px; text-transform:uppercase; letter-spacing:.06em; margin:0 0 12px; color:var(--muted); display:flex; justify-content:space-between; align-items:baseline; gap:12px; }
+.sect-title a { text-transform:none; letter-spacing:0; font-weight:500; }
+form.sect, form.sect:first-of-type { border-top:0; padding-top:0; }
+.kv-table { width:auto; min-width:min(100%, 36rem); }
+.kv-table th { width:12rem; color:var(--muted); text-transform:none; letter-spacing:0; font-size:14px; font-weight:500; }
+.kv-table td { overflow-wrap:anywhere; }
+.g1 { grid-template-columns:minmax(0, 1fr); }
+.thumb.sm { width:28px; height:28px; display:inline-block; vertical-align:middle; border-radius:6px; margin-inline-end:6px; }
+/* Tabs and the segmented switch between kinds. */
+.tabs { display:flex; flex-wrap:wrap; gap:2px; margin:0 0 20px; padding:0; border:0; border-bottom:1px solid var(--line); background:transparent; border-radius:0; overflow:visible; }
+.tab { display:inline-flex; align-items:center; gap:6px; padding:10px 14px; margin-bottom:-1px; color:var(--muted); font-size:14px; font-weight:500; border-bottom:2px solid transparent; cursor:pointer; list-style:none; }
+.tab::-webkit-details-marker { display:none; }
+.tab:hover { color:var(--ink); text-decoration:none; }
+.tab.on { color:var(--ink); border-bottom-color:var(--accent); }
+.seg { display:inline-flex; gap:2px; padding:3px; margin:0 0 14px; border:1px solid var(--line); border-radius:10px; background:var(--panel2); }
+.seg-item { padding:4px 12px; border-radius:8px; color:var(--muted); font-size:14px; font-weight:500; }
+.seg-item:hover { text-decoration:none; color:var(--ink); }
+.seg-item.on { background:var(--panel); color:var(--ink); box-shadow:0 1px 2px rgb(0 0 0 / .15); }
+.chev { display:inline-block; width:6px; height:6px; margin-inline-start:2px; border-right:1.6px solid currentColor; border-bottom:1.6px solid currentColor; transform:rotate(45deg) translateY(-2px); }
+/* The Actions menu: a details element. */
+.menu { position:relative; }
+.menu > summary { list-style:none; }
+.menu > summary::-webkit-details-marker { display:none; }
+.menu-btn { cursor:pointer; }
+.menu-list { position:absolute; inset-inline-end:0; top:calc(100% + 6px); z-index:9; min-width:13rem; display:flex; flex-direction:column; gap:2px; padding:6px; background:var(--panel); border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 32px rgb(0 0 0 / .25); }
+.tabs-more .menu-list { inset-inline-start:0; inset-inline-end:auto; }
+.menu-list form { margin:0; }
+.menu-item { display:flex; align-items:center; width:100%; height:var(--hop-ctl-h); padding:0 10px; border:0; border-radius:8px; background:transparent; color:var(--ink); font:inherit; font-size:14px; text-align:start; cursor:pointer; text-decoration:none; }
+.menu-item:hover, .menu-item:focus-visible, .menu-item.on { background:var(--panel2); text-decoration:none; outline:none; }
+.menu-item.destructive { color:var(--danger-soft); margin-top:4px; border-top:1px solid var(--line); border-radius:0 0 8px 8px; }
+.row-menu > summary { height:var(--hop-ctl-h-sm); width:var(--hop-ctl-h-sm); min-width:var(--hop-ctl-h-sm); padding:0; font-size:18px; }
+.scroll-x:has(.menu[open]) { overflow:visible; }
+/* The confirmation dialog. Without JavaScript the menu link is #id and :target shows it. */
+dialog.confirm { width:min(28rem, calc(100% - 32px)); padding:20px 22px; }
+dialog.confirm h2 { margin:0 0 4px; font-size:18px; text-transform:none; letter-spacing:0; color:var(--ink); }
+dialog.confirm .target { margin:0 0 8px; font-weight:600; overflow-wrap:anywhere; }
+dialog.confirm label { margin:12px 0 4px; }
+dialog.confirm input[type=text] { max-width:none; }
+.dlg-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:18px; }
+dialog.confirm:target { display:block; position:fixed; inset:0; margin:auto; height:fit-content; z-index:40; box-shadow:0 0 0 100vmax rgb(0 0 0 / .55); }
+/* Checkbox: 16px box, 24px hit area, the label is clickable, a visible focus. */
+.check { display:inline-flex; align-items:center; gap:8px; min-width:24px; min-height:24px; padding:4px; margin:0; cursor:pointer; font-size:14px; color:var(--ink); font-weight:400; }
+input[type=checkbox] { width:16px; height:16px; margin:0; accent-color:var(--accent); cursor:pointer; flex:none; }
+input[type=checkbox]:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.w-chk { width:40px; }
+.role-list { display:grid; gap:2px; margin:0 0 8px; }
+.check.role { align-items:flex-start; }
+.check.role span { display:flex; flex-direction:column; gap:1px; }
+.check.role small { font-size:13px; }
+html.js .bulk-sure { display:none; }
+/* The switch of a setting. */
+.switch { position:relative; display:inline-block; width:38px; height:22px; margin:0; vertical-align:middle; }
+.switch input { position:absolute; inset:0; width:100%; height:100%; margin:0; opacity:0; cursor:pointer; z-index:1; }
+.switch .track { position:absolute; inset:0; border-radius:999px; background:var(--line); transition:background-color .15s ease; }
+.switch .track::after { content:""; position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff; transition:transform .15s ease; }
+.switch input:checked + .track { background:var(--accent); }
+.switch input:checked + .track::after { transform:translateX(16px); }
+.switch input:focus-visible + .track { outline:2px solid var(--accent); outline-offset:2px; }
+@media (prefers-reduced-motion: reduce) { .switch .track, .switch .track::after { transition:none; } }
+/* Compact one-line forms, run-an-action. */
+.act-form { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.run-action > summary { cursor:pointer; color:var(--ink); font-weight:500; }
+.run-action form { margin-top:12px; }
+.bulk-bar .btn.destructive { height:var(--hop-ctl-h-sm); }
+.chev { width:auto; height:auto; border:0; transform:none; margin:0; line-height:1; }
+.chev::before { content:"\25BE"; font-size:13px; }
+.grid { margin-bottom:16px; }
+.grid.mt14 { margin-bottom:16px; }
+.row-menu > summary span { font-size:20px; line-height:1; }
+.pager { margin:-6px 0 10px; }

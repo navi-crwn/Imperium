@@ -1,5 +1,7 @@
 {{define "appnav"}}
-<nav class="dash-tabs" aria-label="{{.App.Name}}">
-  {{range .Items}}<a class="chip {{if .On}}active{{end}}" href="{{.Href}}" {{if .On}}aria-current="page"{{end}}>{{.Label}}</a>{{end}}
+<nav class="tabs" aria-label="{{.App.Name}}">
+  {{range tabsMain .Items}}<a class="tab{{if .On}} on{{end}}" href="{{.Href}}" {{if .On}}aria-current="page"{{end}}>{{.Label}}</a>{{end}}
+  {{if has2 .Items}}{{$more := tabsMore .Items}}<details class="pop tabs-more"><summary class="tab{{if anyOn $more}} on{{end}}">{{t "nav.more"}}<span class="chev" aria-hidden="true"></span></summary>
+    <div class="menu-list">{{range $more}}<a class="menu-item{{if .On}} on{{end}}" href="{{.Href}}" {{if .On}}aria-current="page"{{end}}>{{.Label}}</a>{{end}}</div></details>{{end}}
 </nav>
 {{end}}

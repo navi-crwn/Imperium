@@ -100,22 +100,17 @@ func TestReportsPageOffersBulkSelection(t *testing.T) {
 			t.Errorf("reports page missing %q", want)
 		}
 	}
-	// Every row keeps its own single-row form, but the buttons point at it from
-	// outside, so no <form> is nested inside another.
-	for _, id := range []string{"a1", "a2", "b1"} {
-		if !strings.Contains(page, `id="row-`+id+`"`) || !strings.Contains(page, `form="row-`+id+`"`) {
-			t.Errorf("row %s should have its own form and buttons bound to it", id)
+	// A row's actions are a menu of forms of their own, outside the bulk form; the bulk form holds no table.
+	for _, want := range []string{`<details class="pop menu row-menu">`, `<form method="post" action="/apps/linkhop/reports/a1/actions">`, `<input type="hidden" name="kind" value="flag">`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("reports page lacks the row menu piece %q", want)
 		}
 	}
-	if strings.Count(page, "<form") != strings.Count(page, "</form>") {
-		t.Errorf("unbalanced forms: %d open, %d close", strings.Count(page, "<form"), strings.Count(page, "</form>"))
+	if strings.Contains(page, "formaction") || strings.Contains(page, `id="row-`) {
+		t.Error("no formaction and no shared row forms any more")
 	}
-	if n := strings.Count(page, `id="bulk-form"`); n != 1 {
-		t.Errorf("exactly one bulk form expected, found %d", n)
-	}
-	// No form is opened inside the other: the bulk form closes before the row forms.
-	if bi, ri := strings.Index(page, `id="bulk-form"`), strings.Index(page, `id="row-a1"`); bi > ri {
-		t.Error("the row forms must come after the bulk form")
+	if b := strings.Index(page, `id="bulk-form"`); b < 0 || strings.Index(page[b:], "<table") < strings.Index(page[b:], "</form>") {
+		t.Error("the bulk form must close before the table")
 	}
 }
 
@@ -222,7 +217,7 @@ func TestReportsBulkActionNeedsConfirmation(t *testing.T) {
 	}
 	// With the confirmation it goes through.
 	res, err = c.PostForm(base+"/apps/linkhop/reports/actions", url.Values{
-		"pick": {"a1|flag"}, "action": {"confirm"}, "confirm": {"yes"},
+		"pick": {"a1|flag"}, "action": {"confirm"}, "confirm": {"yes"}, "reason": {"checked"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -242,7 +237,7 @@ func TestReportsBulkActionSkipsRowsTheQueueDoesNotCover(t *testing.T) {
 	c := client(t)
 	body(login(t, c, srv))
 	res, err := c.PostForm(base+"/apps/linkhop/reports/actions", url.Values{
-		"pick": {"a1|flag", "b1|report"}, "action": {"restore"},
+		"pick": {"a1|flag", "b1|report"}, "action": {"restore"}, "reason": {"undo"},
 	})
 	if err != nil {
 		t.Fatal(err)

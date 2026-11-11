@@ -205,7 +205,7 @@ func TestPixelHopContentStatusIsAllowlisted(t *testing.T) {
 		if !strings.Contains(query, "status="+url.QueryEscape(status)) {
 			t.Errorf("valid status %q was not preserved in %q", status, query)
 		}
-		for _, want := range []string{`<select id="f-content-status-2"`, `value="visible"`, `value="hidden"`, `value="private"`, `value="expiring"`, `>Search</label>`, `>Status</label>`} {
+		for _, want := range []string{`<select id="f-status"`, `value="visible"`, `value="hidden"`, `value="private"`, `value="expiring"`, `>Search</label>`, `>Status</label>`} {
 			if !strings.Contains(page, want) {
 				t.Errorf("PixelHop image filter lacks %q", want)
 			}
@@ -236,7 +236,7 @@ func TestPixelHopContentStatusIsAllowlisted(t *testing.T) {
 		if strings.Contains(page, "Choose a status from the list.") {
 			t.Errorf("album status %q was refused although albums are not filtered", status)
 		}
-		if strings.Contains(page, `<select id="f-content-status-2"`) || strings.Contains(page, `<input id="f-content-status-2"`) {
+		if strings.Contains(page, `<select id="f-status"`) || strings.Contains(page, `<input id="f-status"`) {
 			t.Errorf("albums are offered a status filter that does nothing: %q", page)
 		}
 	}

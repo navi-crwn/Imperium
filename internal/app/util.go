@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -171,4 +172,15 @@ func dayOf(v any) string {
 		return s[:10]
 	}
 	return s
+}
+
+// returnTo is where an action sends the browser afterwards: the page it was started from (the Referer, when it is
+// on this host), else def. Only local paths are followed.
+func returnTo(r *http.Request, def string) string {
+	if ref := r.Referer(); ref != "" {
+		if u, err := url.Parse(ref); err == nil && u.Host == r.Host && strings.HasPrefix(u.Path, "/") {
+			return safeNext(u.RequestURI())
+		}
+	}
+	return def
 }
