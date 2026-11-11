@@ -4,6 +4,8 @@ All notable changes to Imperium are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-12
+
 ### Added
 - Announcements, in the HOP ID section: a list (state, level, app, paging, filters), a page for each, create and edit forms (title, text, level, app, publish and expiry time in UTC, "publish now"), publish, unpublish and delete (destructive) from the Actions menu. Every change asks for a reason, is refused on the server without one, and is written to the audit trail. Owners and admins may change announcements; moderators and support read them. Nine languages. This is what HOP ID's old `/admin/announcements` page did, so that page can be retired once HOP ID serves the new API.
 - `docs/announcements-contract.md`: the admin API HOP ID has to offer for announcements (list, show, create, update, publish/unpublish/delete), in the style of its user API, and the role-parity gaps that need a change in HOP ID. `scripts/fakehop` serves it (from `internal/fakehub`, which the tests use too).
