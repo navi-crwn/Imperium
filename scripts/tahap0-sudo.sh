@@ -36,7 +36,14 @@ carawin ALL=(payhop) NOPASSWD: /usr/bin/cat /var/lib/payhop/hop-backup.db
 EOF
   # Validasi berkas sementara DULU; hanya yang lolos dipasang. Berkas lama tidak disentuh bila gagal.
   if visudo -cf "$SUDOERS_TMP" >/dev/null; then
-    install -m 0440 -o root -g root "$SUDOERS_TMP" /etc/sudoers.d/hop-backup && rm -f "$SUDOERS_TMP" && echo "   sudoers OK"
+    if install -m 0440 -o root -g root "$SUDOERS_TMP" /etc/sudoers.d/hop-backup; then
+      rm -f "$SUDOERS_TMP"
+      echo "   sudoers OK"
+    else
+      rm -f "$SUDOERS_TMP"
+      echo "   GAGAL: install tidak bisa memasang /etc/sudoers.d/hop-backup; berkas sementara dihapus." >&2
+      exit 1
+    fi
   else
     rm -f "$SUDOERS_TMP"
     echo "   GAGAL: visudo menolak isi sudoers; tidak ada yang dipasang dan berkas lama tidak diubah." >&2
