@@ -3,6 +3,7 @@ package app
 import (
 	"fmt"
 	"html/template"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -18,12 +19,14 @@ type uiCell struct {
 
 type uiCol struct{ Label, Class string }
 
-type uiInput struct{ Name, Label string }
+type uiInput struct {
+	Name, Label string
+	Required    bool
+}
 
-// uiAction is one entry of an Actions menu. A plain action is a one-click form of its own. A destructive
-// one, one that must be typed, and one that needs a value open a dialog, which also works without JavaScript
-// (the menu links to #id and CSS shows the dialog); the server refuses a destructive action unless the dialog
-// sent ack=yes.
+// uiAction is one entry of an Actions menu. Every entry opens a confirmation dialog that asks for a reason (required),
+// which also works without JavaScript (the menu links to #id and CSS shows the dialog). A destructive one is red and
+// the server refuses it unless the dialog sent ack=yes; one that must be typed or needs a value asks for it there.
 type uiAction struct {
 	Label, Action, URL, ID, Target string
 	Typed                          string
@@ -31,8 +34,6 @@ type uiAction struct {
 	Fields                         [][2]string
 	Danger                         bool
 }
-
-func (u uiAction) Dialog() bool { return u.Danger || u.Typed != "" || len(u.Inputs) > 0 }
 
 type uiRow struct {
 	Pick, PickLabel string
@@ -108,6 +109,24 @@ func destructiveAction(action string) bool {
 // needAck refuses a destructive action that did not come through the confirmation dialog.
 func needAck(action, ack string) bool { return destructiveAction(action) && ack != "yes" }
 
+// extDestructive are the extension actions that cannot be taken back (ban an address, remove a domain, release a
+// reserved name); they too are confirmed in a dialog and refused without its ack.
+func extDestructive(action string) bool {
+	switch action {
+	case "release", "ban", "remove":
+		return true
+	}
+	return false
+}
+
+func needExtAck(action, ack string) bool { return extDestructive(action) && ack != "yes" }
+
+// dlgID is the id of the dialog of one entry. The row index keeps two rows apart even when their own ids
+// differ only in characters that idSafe replaces.
+func dlgID(n int, parts ...string) string {
+	return fmt.Sprintf("dlg-%d-%s", n, idSafe(strings.Join(parts, "-")))
+}
+
 func esc(s string) string { return template.HTMLEscapeString(s) }
 
 func hLink(href, text string) template.HTML {
@@ -126,11 +145,16 @@ func idSafe(s string) string {
 var (
 	positiveActions = map[string]string{"unhide": "hide", "enable": "disable", "publish": "unpublish", "activate": "suspend", "restore": "confirm", "unmark_nsfw": "mark_nsfw", "unmark_sensitive": "mark_sensitive"}
 	inactiveStates  = map[string]bool{"hidden": true, "disabled": true, "unpublished": true, "draft": true, "suspended": true, "takedown": true, "removed": true}
+	activeStates    = map[string]bool{"active": true, "live": true, "published": true, "visible": true, "enabled": true, "open": true, "public": true, "ok": true, "approved": true}
 )
 
 // pairedActions keeps one half of every pair: the positive one (Show, Enable, Publish) when the item is in an
-// inactive state, the negative one (Hide, Disable, Unpublish) otherwise.
+// inactive state, the negative one (Hide, Disable, Unpublish) when it is in an active one. A status that is
+// neither is not guessed: both halves are offered, so no action is ever out of reach.
 func pairedActions(actions []string, status string, flags []string) []string {
+	if !inactiveStates[status] && !activeStates[status] {
+		return actions
+	}
 	have := map[string]bool{}
 	for _, a := range actions {
 		have[a] = true
@@ -178,11 +202,11 @@ var paramInputs = map[string][]string{"transfer": {"p_to", "item.to"}, "set_expi
 
 // itemActions builds the menu of one content item: paired actions collapse to one, the ones that need a
 // value ask for it in a dialog, irreversible ones go last.
-func (a *App) itemActions(l, slug, typ, id, target string, actions []string, status string, flags []string, withParams bool) []uiAction {
+func (a *App) itemActions(l, slug, typ, id, target string, n int, actions []string, status string, flags []string, withParams bool) []uiAction {
 	var normal, last []uiAction
 	for _, act := range pairedActions(actions, status, flags) {
 		ua := uiAction{Label: actionLabel(l, act), Action: act, Target: target,
-			URL: "/apps/" + slug + "/content/" + url.PathEscape(typ) + "/" + url.PathEscape(id) + "/actions", ID: "dlg-" + idSafe(typ+"-"+id+"-"+act), Danger: destructiveAction(act)}
+			URL: "/apps/" + slug + "/content/" + url.PathEscape(typ) + "/" + url.PathEscape(id) + "/actions", ID: dlgID(n, typ, id, act), Danger: destructiveAction(act)}
 		if p, ok := paramInputs[act]; ok {
 			if !withParams {
 				continue
@@ -214,3 +238,44 @@ func fmtCount(n int64) string {
 }
 
 func plural(l, key string, n int) string { return fmt.Sprintf(tl(l, key), n) }
+
+// refuseNoReason answers a form that came without a reason (empty after trimming): a flash and a redirect, like
+// a missing confirmation, and nothing is sent or logged. It reports whether it refused.
+func (a *App) refuseNoReason(w http.ResponseWriter, r *http.Request, back, reason string) bool {
+	if strings.TrimSpace(reason) != "" {
+		return false
+	}
+	a.flashError(w, a.Tr(r, "err.need_reason"))
+	http.Redirect(w, r, back, http.StatusFound)
+	return true
+}
+
+// extPlainActions are the actions of an extension that run from the plain form; the irreversible ones
+// (ban, remove, release) have a button and a dialog of their own.
+func extPlainActions(all []string) []string {
+	var out []string
+	for _, a := range all {
+		if !extDestructive(a) {
+			out = append(out, a)
+		}
+	}
+	return out
+}
+
+// extDialogs are the dialogs of the irreversible actions of one extension: each asks for the value it acts on
+// and for a reason, and sends ack=yes.
+func (a *App) extDialogs(l, slug, ext string) []uiAction {
+	value := map[string]uiInput{
+		"ban":     {Name: "p_ip", Label: tl(l, "lbl.ip"), Required: true},
+		"remove":  {Name: "p_domain", Label: tl(l, "lbl.domain"), Required: true},
+		"release": {Name: "path", Label: tl(l, "ext.sub"), Required: true},
+	}
+	var out []uiAction
+	for _, act := range extActions[ext] {
+		if in, ok := value[act]; ok && extDestructive(act) {
+			out = append(out, uiAction{Label: actionLabel(l, act), Action: act, URL: "/apps/" + slug + "/x/" + url.PathEscape(ext) + "/actions",
+				ID: dlgID(0, "x", ext, act), Target: extLabel(l, ext), Inputs: []uiInput{in}, Danger: true})
+		}
+	}
+	return out
+}

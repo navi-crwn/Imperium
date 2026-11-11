@@ -30,7 +30,11 @@ All notable changes to Imperium are listed here. The format follows [Keep a Chan
 
 
 ### Fixed
-- `tahap0-sudo.sh` checks the new sudoers file before it replaces the installed one, and the backup reads the service databases as the service user, not as root.
+- Every action in a row or detail Actions menu now opens the confirmation dialog with a required reason (only the irreversible ones are red), and the server refuses an empty reason for user, content and report actions, single and bulk, before anything is sent or logged; the reason of the bulk bar is required too.
+- The extension actions `release`, `ban` and `remove` open a dialog (reason required) and need `ack=yes` on the server, like the other irreversible actions.
+- An item URL that is not `http://` or `https://` is shown as plain text, not as a link; an item whose status is not a known one offers both halves of every pair (Hide and Show, ...); dialog ids carry the row index so two rows never share one.
+- The action labels exist in all nine languages (they were only en and id).
+- `tahap0-sudo.sh` checks the new sudoers file before it replaces the installed one, and the backup reads the service databases as the service user, not as root; if the install itself fails it says so, removes the temporary file and stops.
 
 ## [1.0.0] - 2026-11-10
 

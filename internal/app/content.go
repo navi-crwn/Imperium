@@ -358,6 +358,9 @@ func (a *App) itemAction(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
+	if a.refuseNoReason(w, r, back, r.FormValue("reason")) {
+		return
+	}
 	params := map[string]any{}
 	for k, v := range r.Form {
 		if strings.HasPrefix(k, "p_") && len(v) > 0 && v[0] != "" {
@@ -419,6 +422,9 @@ func (a *App) reportAction(w http.ResponseWriter, r *http.Request) {
 	if !canActIn(s, ap.Slug) || action == "" {
 		a.flashError(w, a.Tr(r, "err.forbidden"))
 		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	if a.refuseNoReason(w, r, back, r.FormValue("reason")) {
 		return
 	}
 	// LinkHop keeps two queues, abuse flags and visitor reports, and routes them by kind; other apps have one.
@@ -508,6 +514,9 @@ func (a *App) reportsBulkAction(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("confirm") != "yes" && confirmAction(action) {
 		a.flashError(w, a.Tr(r, "bulk.need_confirm"))
 		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	if a.refuseNoReason(w, r, back, r.FormValue("reason")) {
 		return
 	}
 	if len(picks) > maxBulk {
@@ -625,6 +634,9 @@ func (a *App) contentBulkAction(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
+	if a.refuseNoReason(w, r, back, r.FormValue("reason")) {
+		return
+	}
 	if len(ids) > maxBulk {
 		a.flashError(w, a.Tr(r, "bulk.too_many"))
 		http.Redirect(w, r, back, http.StatusFound)
@@ -735,7 +747,7 @@ func (a *App) extension(w http.ResponseWriter, r *http.Request) {
 	}
 	tbls := pageTables(tables(data), q, n)
 	a.render(w, r, "extension.html", ap.Name+" · "+extLabel(a.langOf(r), ext), map[string]any{"App": ap, "M": m, "Ext": ext, "Data": data, "Tables": tbls, "N": n, "NextN": n + extStep, "Raw": jsonPretty(data), "Err": errMsg, "Q": q,
-		"IsAdmin": isAdmin(current(r)), "Actions": extActions[ext], "KV": kvRows(data)})
+		"IsAdmin": isAdmin(current(r)), "Actions": extPlainActions(extActions[ext]), "Dialogs": a.extDialogs(a.langOf(r), ap.Slug, ext), "KV": kvRows(data)})
 }
 
 // POST /apps/{app}/x/{ext}/actions: free-form action with p_* params.
@@ -754,6 +766,14 @@ func (a *App) extensionAction(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = r.ParseForm()
 	action := r.FormValue("action")
+	if needExtAck(action, r.FormValue("ack")) {
+		a.flashError(w, a.Tr(r, "err.need_ack"))
+		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	if extDestructive(action) && a.refuseNoReason(w, r, back, r.FormValue("reason")) {
+		return
+	}
 	params := map[string]any{}
 	for k, v := range r.Form {
 		if strings.HasPrefix(k, "p_") && len(v) > 0 && v[0] != "" {

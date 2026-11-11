@@ -12,7 +12,7 @@
   <span class="bulk-count"><b data-bulk-count>0</b> {{t "bulk.selected"}}</span>
   <label for="bulk-action" class="sr">{{t "bulk.action"}}</label>
   <select id="bulk-action" name="action" data-bulk-action><option value="" selected>{{t "bulk.choose"}}</option>{{range $p.BulkActions}}<option value="{{index . 0}}">{{index . 1}}</option>{{end}}</select>
-  <label for="bulk-reason" class="sr">{{t "bulk.reason"}}</label><input id="bulk-reason" type="text" name="reason" maxlength="255" placeholder="{{t "bulk.reason"}}">
+  <label for="bulk-reason" class="sr">{{t "bulk.reason"}}</label><input id="bulk-reason" type="text" name="reason" required maxlength="255" placeholder="{{t "bulk.reason"}}">
   <label class="check bulk-sure" for="bulk-confirm"><input type="checkbox" id="bulk-confirm" name="confirm" value="yes" data-bulk-confirm> {{t "bulk.confirm"}}</label>
   <button class="btn destructive" type="submit" data-bulk-apply disabled title="{{t "bulk.limit"}}">{{t "bulk.apply"}}</button>
 </div></form>{{end}}

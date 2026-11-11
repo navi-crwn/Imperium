@@ -65,14 +65,15 @@ func (a *App) usersPage(r *http.Request, rows []userRow, errMsg, next string, ap
 		if admin && !locked {
 			row.Pick = u.Sub
 			uid := url.PathEscape(u.Sub)
-			toggle := uiAction{Label: actionLabel(l, "suspend"), Action: "suspend"}
-			if u.Status == "suspended" {
-				toggle = uiAction{Label: actionLabel(l, "activate"), Action: "activate"}
+			n, who := len(p.Rows), "@"+u.Username
+			act := func(name string) uiAction {
+				return uiAction{Label: actionLabel(l, name), Action: name, URL: "/users/" + uid + "/actions", ID: dlgID(n, "u", u.Sub, name), Target: who}
 			}
-			toggle.URL = "/users/" + uid + "/actions"
-			row.Actions = []uiAction{toggle,
-				{Label: actionLabel(l, "revoke_sessions"), Action: "revoke_sessions", URL: "/users/" + uid + "/actions"},
-				{Label: actionLabel(l, "revoke_tokens"), Action: "revoke_tokens", URL: "/users/" + uid + "/actions"}}
+			toggle := act("suspend")
+			if u.Status == "suspended" {
+				toggle = act("activate")
+			}
+			row.Actions = []uiAction{toggle, act("revoke_sessions"), act("revoke_tokens")}
 		}
 		p.Rows = append(p.Rows, row)
 	}
@@ -135,7 +136,7 @@ func (a *App) contentPage(r *http.Request, ap *db.App, m *Manifest, typ string, 
 		}
 		row := uiRow{Pick: it.ID, PickLabel: tl(l, "bulk.pick_item") + " " + name, Cells: []uiCell{{template.HTML(item), "cut"}, {ownerCell(l, it), "nw"}, {template.HTML(status), "nw"}, {txt(metricCell(it)), "small nw"}, {txt(dayOf(it.Created)), "small muted nw"}}}
 		if can && ct != nil {
-			row.Actions = a.itemActions(l, ap.Slug, it.Type, it.ID, name, ct.Actions, it.Status, it.Flags, false)
+			row.Actions = a.itemActions(l, ap.Slug, it.Type, it.ID, name, len(p.Rows), ct.Actions, it.Status, it.Flags, false)
 		}
 		p.Rows = append(p.Rows, row)
 	}
@@ -193,7 +194,7 @@ func (a *App) reportsPage(r *http.Request, ap *db.App, m *Manifest, rows []map[s
 		if can {
 			for _, act := range m.ReportActions(kind) {
 				ur.Actions = append(ur.Actions, uiAction{Label: actionLabel(l, act), Action: act, URL: base + "/" + url.PathEscape(id) + "/actions", Fields: [][2]string{{"kind", ks}},
-					ID: "dlg-" + idSafe("r-"+id+"-"+act), Target: ks + " " + id, Danger: destructiveAction(act)})
+					ID: dlgID(len(p.Rows), "r", ks, id, act), Target: ks + " " + id, Danger: destructiveAction(act)})
 			}
 		}
 		p.Rows = append(p.Rows, ur)
@@ -299,15 +300,16 @@ func (a *App) userDetailPage(r *http.Request, in userDetailIn) detailPage {
 		d.Tabs = append(d.Tabs, navItem{Label: tl(l, t[1]), Href: base + "?tab=" + t[0], On: in.Tab == t[0]})
 	}
 	if in.Admin && !in.Protected {
-		toggle := uiAction{Label: actionLabel(l, "suspend"), Action: "suspend"}
-		if str(p["status"]) == "suspended" {
-			toggle = uiAction{Label: actionLabel(l, "activate"), Action: "activate"}
+		who := "@" + str(p["username"])
+		act := func(name string) uiAction {
+			return uiAction{Label: actionLabel(l, name), Action: name, URL: base + "/actions", ID: dlgID(0, "u", uid, name), Target: who}
 		}
-		toggle.URL = base + "/actions"
-		d.Actions = []uiAction{toggle,
-			{Label: actionLabel(l, "revoke_sessions"), Action: "revoke_sessions", URL: base + "/actions"},
-			{Label: actionLabel(l, "revoke_tokens"), Action: "revoke_tokens", URL: base + "/actions"},
-			{Label: tl(l, "action.delete") + " " + "@" + str(p["username"]), Action: "delete", URL: base + "/actions", ID: "dlg-delete-" + idSafe(in.ID), Danger: true, Typed: "@" + str(p["username"]), Target: "@" + str(p["username"])}}
+		toggle := act("suspend")
+		if str(p["status"]) == "suspended" {
+			toggle = act("activate")
+		}
+		d.Actions = []uiAction{toggle, act("revoke_sessions"), act("revoke_tokens"),
+			{Label: tl(l, "action.delete") + " " + "@" + str(p["username"]), Action: "delete", URL: base + "/actions", ID: dlgID(0, "u", uid, "delete"), Danger: true, Typed: "@" + str(p["username"]), Target: "@" + str(p["username"])}}
 		d.Actions[3].Label = tl(l, "action.delete")
 	}
 	switch in.Tab {
@@ -426,11 +428,16 @@ func (a *App) itemDetailPage(r *http.Request, ap *db.App, m *Manifest, typ, id s
 		d.Chips = append(d.Chips, uiChip{f, ""})
 	}
 	if ct := m.ContentType(typ); can && ct != nil {
-		d.Actions = a.itemActions(l, ap.Slug, typ, id, name, ct.Actions, it.Status, it.Flags, true)
+		d.Actions = a.itemActions(l, ap.Slug, typ, id, name, 0, ct.Actions, it.Status, it.Flags, true)
 	}
 	kv := []uiKV{{tl(l, "col.item_id"), template.HTML(`<span class="mono">` + esc(it.ID) + `</span>`)}}
 	if it.URL != "" {
-		kv = append(kv, uiKV{tl(l, "col.url"), template.HTML(`<a href="` + esc(it.URL) + `" target="_blank" rel="noopener">` + esc(it.URL) + `</a>`)})
+		e := uiKV{tl(l, "col.url"), txt(it.URL)}
+		// Only an http(s) address becomes a link; any other scheme (javascript:, data:) stays plain escaped text.
+		if strings.HasPrefix(it.URL, "http://") || strings.HasPrefix(it.URL, "https://") {
+			e.V = template.HTML(`<a href="` + esc(it.URL) + `" target="_blank" rel="noopener">` + esc(it.URL) + `</a>`)
+		}
+		kv = append(kv, e)
 	}
 	kv = append(kv, uiKV{tl(l, "col.owner"), ownerCell(l, it)}, uiKV{tl(l, "col.created"), datesz(l, it.Created)})
 	for _, k := range sortedAnyKeys(it.Extra) {

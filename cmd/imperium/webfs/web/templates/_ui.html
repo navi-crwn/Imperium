@@ -1,14 +1,14 @@
-{{define "menulist"}}<div class="menu-list">{{range .}}{{if .Dialog}}<a class="menu-item{{if .Danger}} destructive{{end}}" href="#{{.ID}}" data-dialog="{{.ID}}">{{.Label}}</a>{{else}}<form method="post" action="{{.URL}}"><input type="hidden" name="action" value="{{.Action}}">{{range .Fields}}<input type="hidden" name="{{index . 0}}" value="{{index . 1}}">{{end}}<button class="menu-item" type="submit">{{.Label}}</button></form>{{end}}{{end}}</div>{{end}}
+{{define "menulist"}}<div class="menu-list">{{range .}}<a class="menu-item{{if .Danger}} destructive{{end}}" href="#{{.ID}}" data-dialog="{{.ID}}">{{.Label}}</a>{{end}}</div>{{end}}
 {{define "actionmenu"}}{{if .}}<details class="pop menu"><summary class="btn menu-btn">{{t "act.menu"}}<span class="chev" aria-hidden="true"></span></summary>{{template "menulist" .}}</details>{{end}}{{end}}
 {{define "rowmenu"}}{{if .}}<details class="pop menu row-menu"><summary class="btn ghost menu-btn" aria-label="{{t "act.menu"}}" title="{{t "act.menu"}}"><span aria-hidden="true">⋯</span></summary>{{template "menulist" .}}</details>{{end}}{{end}}
-{{define "dialogs"}}{{range .}}{{if .Dialog}}{{$id := .ID}}<dialog class="confirm" id="{{.ID}}" aria-labelledby="{{.ID}}-t"><form method="post" action="{{.URL}}">
+{{define "dialogs"}}{{range .}}{{$id := .ID}}<dialog class="confirm" id="{{.ID}}" aria-labelledby="{{.ID}}-t"><form method="post" action="{{.URL}}">
   <h2 id="{{.ID}}-t">{{.Label}}</h2>{{if .Target}}<p class="target">{{.Target}}</p>{{end}}
   <input type="hidden" name="action" value="{{.Action}}"><input type="hidden" name="ack" value="yes">{{range .Fields}}<input type="hidden" name="{{index . 0}}" value="{{index . 1}}">{{end}}
-  {{range .Inputs}}<label for="{{$id}}-{{.Name}}">{{.Label}}</label><input id="{{$id}}-{{.Name}}" type="text" name="{{.Name}}">{{end}}
+  {{range .Inputs}}<label for="{{$id}}-{{.Name}}">{{.Label}}</label><input id="{{$id}}-{{.Name}}" type="text" name="{{.Name}}"{{if .Required}} required{{end}}>{{end}}
   {{if .Typed}}<label for="{{.ID}}-typed">{{printf (t "dlg.typed") .Typed}}</label><input id="{{.ID}}-typed" type="text" name="confirm" required autocomplete="off" pattern="{{reQuote .Typed}}">{{end}}
   <label for="{{.ID}}-reason">{{t "action.reason"}}</label><input id="{{.ID}}-reason" type="text" name="reason" required maxlength="255">
   <div class="dlg-actions"><a class="btn ghost" href="#" data-dialog-close>{{t "action.cancel"}}</a><button class="btn {{if .Danger}}destructive{{else}}primary{{end}}" type="submit">{{t "act.confirm"}}</button></div>
-</form></dialog>{{end}}{{end}}{{end}}
+</form></dialog>{{end}}{{end}}
 {{define "appshell"}}{{$h := healthOf .App.Slug}}<div class="app-head"><img class="app-mark" src="{{appMark .App.Slug}}" alt="" width="32" height="32"><div><h1>{{.App.Name}}</h1>
   <p class="small muted dash-meta"><span class="dot {{if eq $h.Status "maint"}}maint{{else if $h.OK}}ok{{else if $h.Known}}bad{{end}}"></span>{{if eq $h.Status "maint"}}{{t "status.maint"}}{{else if $h.OK}}{{t "status.ok"}}{{if $h.Version}} · {{versionLabel $h.Version}}{{end}}{{else if $h.Known}}{{t "status.down"}}{{else}}{{t "status.unknown"}}{{end}} · <a href="{{.App.URL}}" target="_blank" rel="noopener">{{.App.URL}} ↗</a></p></div></div>
 {{template "appnav" .}}{{end}}

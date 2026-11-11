@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// The design: a row's actions are a menu of forms of their own, outside the bulk form. A plain action is a
+// The design: a row's actions are a menu of forms of their own (each in a dialog that asks for a reason), outside the bulk form. A plain action used to be a
 // one-click form; an action that cannot be undone opens a dialog whose form sends ack=yes, and the server
 // refuses it without that. A click can only run the action written on its button, on that row only.
 
@@ -58,6 +58,7 @@ func TestContentRowActionIsItsOwnForm(t *testing.T) {
 			t.Errorf("the row form carries the bulk field %q", k)
 		}
 	}
+	vals.Set("reason", "cleanup")
 	res, err := c.PostForm(srv.URL+post, vals)
 	if err != nil {
 		t.Fatal(err)
@@ -74,7 +75,7 @@ func TestIrreversibleContentActionNeedsTheDialogAck(t *testing.T) {
 	c := client(t)
 	body(login(t, c, srv))
 	page := body(bulkGet(t, c, srv.URL+"/apps/linkhop/content?type=link"))
-	if !strings.Contains(page, `<dialog class="confirm" id="dlg-link-11-delete"`) || !strings.Contains(page, `href="#dlg-link-11-delete"`) {
+	if !strings.Contains(page, `<dialog class="confirm" id="dlg-0-link-11-delete"`) || !strings.Contains(page, `href="#dlg-0-link-11-delete"`) {
 		t.Fatal("delete should be a dialog reached from the menu (and by :target without JavaScript)")
 	}
 	post, vals := menuForm(t, page, "delete", "/apps/linkhop/content/link/11/actions")
@@ -143,13 +144,14 @@ func TestUsersRowActionIsItsOwnForm(t *testing.T) {
 			t.Errorf("the row form carries the bulk field %q", k)
 		}
 	}
+	vals.Set("reason", "abuse")
 	res, err := c.PostForm(srv.URL+post, vals)
 	if err != nil {
 		t.Fatal(err)
 	}
 	body(res)
-	if len(hop.actions) != 1 || hop.actions[0]["action"] != "suspend" || hop.actions[0]["reason"] != "" {
-		t.Fatalf("forwarded = %+v, want only suspend on 26 with no reason from the bulk form", hop.actions)
+	if len(hop.actions) != 1 || hop.actions[0]["action"] != "suspend" || hop.actions[0]["reason"] != "abuse" {
+		t.Fatalf("forwarded = %+v, want only suspend on 26 with the reason typed in its own dialog", hop.actions)
 	}
 }
 
@@ -177,7 +179,7 @@ func TestUserDeleteNeedsTheDialogAck(t *testing.T) {
 	c := client(t)
 	body(login(t, c, srv))
 	page := body(bulkGet(t, c, srv.URL+"/users/26"))
-	if !strings.Contains(page, `<dialog class="confirm" id="dlg-delete-26"`) || !strings.Contains(page, `name="confirm" required`) {
+	if !strings.Contains(page, `<dialog class="confirm" id="dlg-0-u-26-delete"`) || !strings.Contains(page, `name="confirm" required`) {
 		t.Fatal("delete account should be a dialog that asks for the username")
 	}
 	res, _ := c.PostForm(srv.URL+"/users/26/actions", url.Values{"action": {"delete"}, "confirm": {"@rani"}})

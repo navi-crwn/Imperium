@@ -436,7 +436,7 @@ func TestHomeUserActionsAudit(t *testing.T) {
 		t.Fatalf("forwarded action: %+v", hop.actions)
 	}
 	// a refused action shows the error and is logged as failed
-	res, _ = c.PostForm(srv.URL+"/users/26/actions", url.Values{"action": {"delete"}, "confirm": {"rani"}, "ack": {"yes"}})
+	res, _ = c.PostForm(srv.URL+"/users/26/actions", url.Values{"action": {"delete"}, "confirm": {"rani"}, "ack": {"yes"}, "reason": {"test"}})
 	if b := body(res); !strings.Contains(b, "owner_protected") {
 		t.Fatal("refusal should be shown")
 	}
@@ -587,7 +587,7 @@ func TestContentModulesFollowTheManifest(t *testing.T) {
 	if b := body(res); !strings.Contains(b, "phishing words") || !strings.Contains(b, `value="restore"`) {
 		t.Fatal("reports page")
 	}
-	res, _ = c.PostForm(srv.URL+"/apps/linkhop/reports/3/actions", url.Values{"kind": {"flag"}, "action": {"restore"}})
+	res, _ = c.PostForm(srv.URL+"/apps/linkhop/reports/3/actions", url.Values{"kind": {"flag"}, "action": {"restore"}, "reason": {"fine"}})
 	body(res)
 	if len(reportActions) != 1 || reportActions[0]["action"] != "restore" {
 		t.Fatalf("report action: %+v", reportActions)
@@ -727,7 +727,7 @@ func TestSidebarAndAppDashboards(t *testing.T) {
 		t.Errorf("dashboard should ask for the latest images: %v", hop.contentQueries)
 	}
 	// a report action from the dashboard reaches PixelHop and is audited
-	res, _ = c.PostForm(srv.URL+"/apps/pixelhop/reports/r1/actions", url.Values{"kind": {"image"}, "action": {"dismiss"}})
+	res, _ = c.PostForm(srv.URL+"/apps/pixelhop/reports/r1/actions", url.Values{"kind": {"image"}, "action": {"dismiss"}, "reason": {"fine"}})
 	body(res)
 	if len(hop.actions) != 1 || hop.actions[0]["action"] != "dismiss" {
 		t.Fatalf("report action: %+v", hop.actions)
@@ -746,9 +746,9 @@ func TestSidebarAndAppDashboards(t *testing.T) {
 		t.Error("sidebar must not duplicate per-app tabs")
 	}
 	// an extension action may address a nested resource (NoteHop-style slug holds), but not escape the extension
-	res, _ = c.PostForm(srv.URL+"/apps/linkhop/x/names/actions", url.Values{"action": {"release"}, "path": {"holds/bad-slug"}})
+	res, _ = c.PostForm(srv.URL+"/apps/linkhop/x/names/actions", url.Values{"action": {"release"}, "path": {"holds/bad-slug"}, "ack": {"yes"}, "reason": {"appeal"}})
 	body(res)
-	res, _ = c.PostForm(srv.URL+"/apps/linkhop/x/names/actions", url.Values{"action": {"release"}, "path": {"../ip"}})
+	res, _ = c.PostForm(srv.URL+"/apps/linkhop/x/names/actions", url.Values{"action": {"release"}, "path": {"../ip"}, "ack": {"yes"}, "reason": {"appeal"}})
 	body(res)
 	if len(extActions) != 1 || extActions[0] != "/api/hop/x/names/holds/bad-slug/actions" {
 		t.Fatalf("ext sub-path actions: %v", extActions)

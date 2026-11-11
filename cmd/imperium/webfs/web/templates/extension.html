@@ -19,6 +19,8 @@
     <div><label>&nbsp;</label><button class="btn" type="submit">{{t "ext.action"}}</button></div>
   </form>
   <p class="small muted">{{t "ext.hint"}}</p>
-</details>{{end}}
+  {{if .Data.Dialogs}}<p class="ext-danger">{{range .Data.Dialogs}}<a class="btn destructive" href="#{{.ID}}" data-dialog="{{.ID}}">{{.Label}}</a> {{end}}</p>{{end}}
+</details>{{template "dialogs" .Data.Dialogs}}
+{{end}}
 <details class="mt14"><summary>{{t "raw.json"}}</summary><pre class="mono">{{.Data.Raw}}</pre></details>
 {{template "foot" .}}

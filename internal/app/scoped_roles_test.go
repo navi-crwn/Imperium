@@ -43,7 +43,7 @@ func TestScopedAdminActsOnItsOwnAppOnly(t *testing.T) {
 		c := client(t)
 		body(login(t, c, srv))
 		hop.actions = nil
-		res, _ := c.PostForm(srv.URL+"/apps/pixelhop/reports/r1/actions", url.Values{"action": {"dismiss"}})
+		res, _ := c.PostForm(srv.URL+"/apps/pixelhop/reports/r1/actions", url.Values{"action": {"dismiss"}, "reason": {"fine"}})
 		body(res)
 		return len(hop.actions)
 	}

@@ -101,7 +101,7 @@ func TestReportsPageOffersBulkSelection(t *testing.T) {
 		}
 	}
 	// A row's actions are a menu of forms of their own, outside the bulk form; the bulk form holds no table.
-	for _, want := range []string{`<details class="pop menu row-menu">`, `<form method="post" action="/apps/linkhop/reports/a1/actions"><input type="hidden" name="action"`, `<input type="hidden" name="kind" value="flag">`} {
+	for _, want := range []string{`<details class="pop menu row-menu">`, `<form method="post" action="/apps/linkhop/reports/a1/actions">`, `<input type="hidden" name="kind" value="flag">`} {
 		if !strings.Contains(page, want) {
 			t.Errorf("reports page lacks the row menu piece %q", want)
 		}
@@ -217,7 +217,7 @@ func TestReportsBulkActionNeedsConfirmation(t *testing.T) {
 	}
 	// With the confirmation it goes through.
 	res, err = c.PostForm(base+"/apps/linkhop/reports/actions", url.Values{
-		"pick": {"a1|flag"}, "action": {"confirm"}, "confirm": {"yes"},
+		"pick": {"a1|flag"}, "action": {"confirm"}, "confirm": {"yes"}, "reason": {"checked"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -237,7 +237,7 @@ func TestReportsBulkActionSkipsRowsTheQueueDoesNotCover(t *testing.T) {
 	c := client(t)
 	body(login(t, c, srv))
 	res, err := c.PostForm(base+"/apps/linkhop/reports/actions", url.Values{
-		"pick": {"a1|flag", "b1|report"}, "action": {"restore"},
+		"pick": {"a1|flag", "b1|report"}, "action": {"restore"}, "reason": {"undo"},
 	})
 	if err != nil {
 		t.Fatal(err)

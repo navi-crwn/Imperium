@@ -319,6 +319,12 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch action {
+	case "suspend", "activate", "revoke_sessions", "revoke_tokens", "delete":
+		if a.refuseNoReason(w, r, "/users/"+url.PathEscape(id), reason) {
+			return
+		}
+	}
+	switch action {
 	case "note":
 		params["text"] = strings.TrimSpace(r.FormValue("text"))
 	case "set_roles":
@@ -387,6 +393,9 @@ func (a *App) usersBulkAction(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("confirm") != "yes" && (confirmAction(action) || action == "revoke_sessions" || action == "revoke_tokens") {
 		a.flashError(w, a.Tr(r, "bulk.need_confirm"))
 		http.Redirect(w, r, back, http.StatusFound)
+		return
+	}
+	if a.refuseNoReason(w, r, back, r.FormValue("reason")) {
 		return
 	}
 	if len(ids) > maxBulk {
