@@ -5,6 +5,7 @@ package fakehub
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"sort"
 	"strconv"
@@ -314,11 +315,12 @@ func (s *Store) apply(w http.ResponseWriter, body []byte, row *Row) bool {
 		return bad("expires_at must be an ISO 8601 date and time")
 	}
 	now := s.Now()
-	if f.PublishNow {
-		pub = &now
-	}
+	// Checked against the submitted published_at, before publish_now replaces it (as HOP ID does).
 	if exp != nil && (pub == nil || !exp.After(*pub)) {
 		return bad("expires_at must be after published_at")
+	}
+	if f.PublishNow {
+		pub = &now
 	}
 	row.Title, row.Body, row.Level, row.AppSlug, row.PublishedAt, row.ExpiresAt = f.Title, f.Body, f.Level, app, pub, exp
 	row.UpdatedAt = now
@@ -337,12 +339,15 @@ func parseTime(p *string) (*time.Time, error) {
 	if p == nil || strings.TrimSpace(*p) == "" {
 		return nil, nil
 	}
-	t, err := time.Parse(time.RFC3339, strings.TrimSpace(*p))
-	if err != nil {
-		return nil, err
+	// YYYY-MM-DDTHH:MM[:SS[.fff]] with an optional Z or +-HH:MM; no offset means UTC. Output is whole seconds.
+	v := strings.TrimSpace(*p)
+	for _, layout := range []string{time.RFC3339Nano, "2006-01-02T15:04:05.999999999", "2006-01-02T15:04:05", "2006-01-02T15:04"} {
+		if t, err := time.Parse(layout, v); err == nil {
+			t = t.UTC().Truncate(time.Second)
+			return &t, nil
+		}
 	}
-	t = t.UTC()
-	return &t, nil
+	return nil, errors.New("bad time")
 }
 
 func (s *Store) create(w http.ResponseWriter, r *http.Request, body []byte) {
@@ -395,6 +400,10 @@ func (s *Store) act(w http.ResponseWriter, r *http.Request, body []byte) {
 			fail(w, 409, "expired", "This announcement has expired; change its expiry date first.")
 			return
 		case "draft", "scheduled":
+			if row.ExpiresAt != nil && !row.ExpiresAt.After(now) { // publishing would expire it at once
+				fail(w, 409, "expired", "This announcement has expired; change its expiry date first.")
+				return
+			}
 			row.PublishedAt = &now
 			row.UpdatedAt = now
 		}

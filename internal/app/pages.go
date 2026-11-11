@@ -341,6 +341,16 @@ func (a *App) userDetailPage(r *http.Request, in userDetailIn) detailPage {
 			t.Rows = append(t.Rows, []template.HTML{datesz(l, fmt.Sprint(row["at"])), txt(str(row["ip"])), txt(dev)})
 		}
 		d.Sections = append(d.Sections, uiSection{Title: tl(l, "user.logins"), Table: t, Empty: map[bool]string{true: tl(l, "none")}[len(t.Rows) == 0]})
+		// The API tokens of the account: name and last use only; HOP ID never sends the token itself.
+		tt := &uiTable{Cols: []string{tl(l, "col.name"), tl(l, "lbl.last_activity"), tl(l, "lbl.created_at")}}
+		for _, tok := range u.Tokens {
+			last := "–"
+			if v := str(tok["last_used_at"]); v != "" {
+				last = string(datesz(l, v))
+			}
+			tt.Rows = append(tt.Rows, []template.HTML{txt(str(tok["name"])), template.HTML(last), datesz(l, str(tok["created_at"]))})
+		}
+		d.Sections = append(d.Sections, uiSection{Title: tl(l, "lbl.api_tokens"), Table: tt, Empty: map[bool]string{true: tl(l, "none")}[len(tt.Rows) == 0]})
 	case "activity":
 		t := &uiTable{Cols: []string{tl(l, "col.when"), tl(l, "col.action"), tl(l, "col.detail")}}
 		for _, row := range u.Activity {

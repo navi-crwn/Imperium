@@ -118,8 +118,8 @@ func (a *App) annList(w http.ResponseWriter, r *http.Request) {
 		p.First = pageURL("/announcements", q, "cursor")
 	}
 	p.Filters = []uiFilter{
-		{Kind: "select", Name: "state", Label: tl(l, "ann.col.state"), Value: state, Options: annStates},
-		{Kind: "select", Name: "level", Label: tl(l, "ann.col.level"), Value: level, Options: annLevels},
+		{Kind: "select", Name: "state", Label: tl(l, "ann.col.state"), Value: state, Options: annStates, Labels: annLabels(l, "ann.state.", annStates)},
+		{Kind: "select", Name: "level", Label: tl(l, "ann.col.level"), Value: level, Options: annLevels, Labels: annLabels(l, "ann.level.", annLevels)},
 	}
 	p.Cols = []uiCol{{Label: tl(l, "ann.col.title")}, {Label: tl(l, "ann.col.state")}, {Label: tl(l, "ann.col.level")}, {Label: tl(l, "ann.col.app")}, {Label: tl(l, "ann.col.published")}, {Label: tl(l, "ann.col.expires")}}
 	for _, n := range rows {
@@ -136,6 +136,14 @@ func (a *App) annList(w http.ResponseWriter, r *http.Request) {
 	}
 	data := a.annShell(r, map[string]any{"P": p})
 	a.render(w, r, "list.html", p.Title, data)
+}
+
+func annLabels(l, prefix string, values []string) map[string]string {
+	out := map[string]string{}
+	for _, v := range values {
+		out[v] = tl(l, prefix+v)
+	}
+	return out
 }
 
 func annAppLabel(l, slug string) string {
@@ -316,7 +324,7 @@ func (a *App) annRead(r *http.Request, f *annForm) (map[string]any, bool) {
 	if expErr != nil {
 		f.Errs["expires_at"] = tl(l, "ann.err.date")
 	}
-	if pubErr == nil && expErr == nil && f.Expires != "" && !f.PublishNow && (f.Published == "" || !exp.After(pub)) {
+	if pubErr == nil && expErr == nil && f.Expires != "" && (f.Published == "" || !exp.After(pub)) {
 		f.Errs["expires_at"] = tl(l, "ann.err.order")
 	}
 	if f.Reason == "" {

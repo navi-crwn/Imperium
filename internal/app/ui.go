@@ -44,6 +44,15 @@ type uiRow struct {
 type uiFilter struct {
 	Kind, Name, Label, Value, Class string
 	Options                         []string
+	Labels                          map[string]string // shown text of an option when it differs from its value
+}
+
+// Text is what an option of a select shows: its translated label, else the value itself.
+func (f uiFilter) Text(v string) string {
+	if t, ok := f.Labels[v]; ok {
+		return t
+	}
+	return v
 }
 
 type uiChip struct{ Label, Class string }

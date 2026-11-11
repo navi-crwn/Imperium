@@ -483,3 +483,35 @@ func TestAnnouncementTextsInNineLanguages(t *testing.T) {
 		t.Error("the German validation text is missing")
 	}
 }
+
+func TestAnnouncementExpiryNeedsASubmittedPublishTimeEvenWithPublishNow(t *testing.T) {
+	e := newAnnEnv(t, "owner")
+	e.hop.ann.ResetCalls()
+	st, _, page := e.post(t, "/announcements", validForm(url.Values{"publish_now": {"1"}, "expires_at": {"2030-01-01T00:00"}}))
+	if st != http.StatusUnprocessableEntity || !strings.Contains(page, "after the publish time") || len(e.hop.ann.Calls()) != 0 {
+		t.Errorf("HOP ID refuses it, so Imperium says so first: %d", st)
+	}
+	if st, _, _ := e.post(t, "/announcements", validForm(url.Values{"publish_now": {"1"}, "published_at": {"2029-01-01T00:00"}, "expires_at": {"2030-01-01T00:00"}})); st != http.StatusFound {
+		t.Errorf("publish now with both times: %d", st)
+	}
+}
+
+func TestAnnouncementFilterOptionsAreTranslated(t *testing.T) {
+	e := newAnnEnv(t, "owner")
+	req, _ := http.NewRequest("GET", e.srv.URL+"/announcements", nil)
+	req.AddCookie(&http.Cookie{Name: "hop_lang", Value: "de"})
+	res, err := e.c.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := body(res)
+	for _, want := range []string{`>Entwurf</option>`, `>Warnung</option>`, `>Aktiv</option>`, `>Kritisch</option>`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("German filter lacks %s", want)
+		}
+	}
+	_, en := e.get(t, "/announcements?state=draft")
+	if !strings.Contains(en, `selected>Draft</option>`) {
+		t.Error("the chosen state stays selected with its label")
+	}
+}

@@ -157,7 +157,8 @@ func laravelApp(hub bool) http.Handler {
 			roles = []string{"owner"} // the demo sign-in below; Imperium asks the hub about it every few minutes
 		}
 		ok(w, map[string]any{"profile": map[string]any{"sub": r.PathValue("id"), "username": "rani", "name": "Rani Dewi", "email": "rani@example.test", "status": "active", "verified": true},
-			"counts": map[string]any{"links": 38, "bio_pages": 1, "clicks_30d": 912}, "sessions": map[string]any{"count": 2}, "logins": []any{}, "activity": []any{}, "roles": roles, "notes": []any{}, "recent_links": []any{}})
+			"counts": map[string]any{"links": 38, "bio_pages": 1, "clicks_30d": 912}, "sessions": map[string]any{"count": 2}, "logins": []map[string]any{{"at": day(0) + "T08:01:00Z", "ip": "203.0.113.7", "country": "ID", "city": "Jakarta", "device": "Desktop", "browser": "Firefox", "provider": "password"}, {"at": day(2) + "T19:30:00Z", "ip": "198.51.100.20", "country": "ID", "city": "Bandung", "device": "Phone", "browser": "Chrome", "provider": "google"}},
+			"tokens": []map[string]any{{"id": "7", "name": "deploy script", "last_used_at": day(1) + "T08:00:00Z", "created_at": day(40) + "T09:00:00Z"}, {"id": "8", "name": "never used", "last_used_at": nil, "created_at": day(12) + "T09:00:00Z"}}, "activity": []any{}, "roles": roles, "notes": []any{}, "recent_links": []any{}})
 	})
 	s("GET /api/hop/audit", func(w http.ResponseWriter, r *http.Request) {
 		if *bulk {

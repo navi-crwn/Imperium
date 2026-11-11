@@ -122,3 +122,63 @@ func TestSuspendAlsoRevokesApiTokens(t *testing.T) {
 		t.Errorf("bulk suspend upstream: %v", upstreamActions(e))
 	}
 }
+
+func TestSameAccountReadsIdsAsNumbers(t *testing.T) {
+	for _, c := range []struct {
+		a, b string
+		want bool
+	}{{"26", "26", true}, {"026", "26", true}, {"0026", " 26", true}, {"0", "000", true}, {"26", "27", false}, {"", "", false}, {"26", "", false}, {"abc", "abc", true}, {"abc", "ABC", false}, {"2 6", "26", false}} {
+		if got := sameAccount(c.a, c.b); got != c.want {
+			t.Errorf("sameAccount(%q, %q) = %v", c.a, c.b, got)
+		}
+	}
+}
+
+func TestSelfChecksNormaliseTheId(t *testing.T) {
+	e := newAnnEnv(t, "admin")
+	e.hop.ticket = scopedTicket("026", "rani", "admin") // signed in as 26, written with a leading zero
+	c := client(t)
+	body(login(t, c, e.srv))
+	e.c = c
+	for _, act := range []string{"suspend", "delete"} {
+		if _, _ = e.userPost(t, url.Values{"action": {act}, "reason": {"oops"}, "ack": {"yes"}, "confirm": {"@rani"}}); len(e.hop.actions) != 0 {
+			t.Errorf("%s on yourself (026 = 26) reached HOP ID: %v", act, upstreamActions(e))
+		}
+	}
+	e.hop.actions = nil
+	e.post(t, "/users/actions", url.Values{"action": {"suspend"}, "pick": {"26"}, "confirm": {"yes"}, "reason": {"wave"}})
+	if len(e.hop.actions) != 0 {
+		t.Errorf("bulk suspend skipped nobody: %v", upstreamActions(e))
+	}
+	if st, _, _ := e.post(t, "/users/actions", url.Values{"action": {"suspend"}, "pick": {"0026"}, "confirm": {"yes"}, "reason": {"wave"}}); st != http.StatusFound || len(e.hop.actions) != 0 {
+		t.Errorf("bulk suspend with 0026: %v", upstreamActions(e))
+	}
+}
+
+// HOP ID already deletes the tokens when it suspends; a refusal of the extra revoke_tokens is not a failure.
+func TestSuspendIsDoneEvenIfTheTokenFollowUpIsRefused(t *testing.T) {
+	e := newAnnEnv(t, "owner")
+	e.hop.failAction = "revoke_tokens"
+	e.hop.actions = nil
+	res, err := e.c.PostForm(e.srv.URL+"/users/26/actions", url.Values{"action": {"suspend"}, "reason": {"abuse"}, "ack": {"yes"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := body(res)
+	if !strings.Contains(page, "Done.") || strings.Contains(page, "failed") {
+		t.Errorf("the suspension succeeded and must read as done")
+	}
+	if n, _, _ := auditCount(t, e.a, "user.suspend"); n != 1 {
+		t.Errorf("suspend audit %d", n)
+	}
+}
+
+func TestUserPageListsTokensWithoutSecrets(t *testing.T) {
+	e := newAnnEnv(t, "owner")
+	_, page := e.get(t, "/users/26?tab=sessions")
+	for _, want := range []string{"API tokens", "deploy script", "never used", "2026-11-10"} {
+		if !strings.Contains(page, want) {
+			t.Errorf("sessions tab lacks %q", want)
+		}
+	}
+}

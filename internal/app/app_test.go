@@ -43,6 +43,7 @@ type fakeHop struct {
 	searchLabel    string                         // overrides the label of the user hit in /api/hop/search
 	memberCalls    []string                       // the subs Imperium asked about
 	statsCalls     int                            // how often HOP ID's /stats was asked
+	failAction     string                         // an action name HOP ID refuses with a 500 (empty: none)
 	ann            *fakehub.Store                 // HOP ID's announcements (the contract in docs/announcements-contract.md)
 
 	// mu guards the fields below. The handlers run on the fake servers'
@@ -248,7 +249,7 @@ func newFakeHop(t *testing.T) *fakeHop {
 			_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"26","username":"rani","status":"active","owner":true},"roles":["owner"]}}`))
 			return
 		}
-		_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"26","username":"rani","name":"Rani","email":"r@x","status":"active","verified":true},"counts":{"links":3},"sessions":{"count":1},"logins":[],"activity":[],"roles":[],"notes":[],"recent_links":[]}}`))
+		_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"26","username":"rani","name":"Rani","email":"r@x","status":"active","verified":true},"counts":{"links":3},"sessions":{"count":1},"logins":[],"tokens":[{"id":"7","name":"deploy script","last_used_at":"2026-11-10T08:00:00Z","created_at":"2026-10-01T09:00:00Z"},{"id":"8","name":"never used","last_used_at":null,"created_at":"2026-10-02T09:00:00Z"}],"activity":[],"roles":[],"notes":[],"recent_links":[]}}`))
 	}))
 	mux.HandleFunc("GET /api/hop/users/27", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
 		_, _ = w.Write([]byte(`{"ok":true,"data":{"profile":{"sub":"27","username":"budi","name":"Budi","email":"b@x","status":"active","verified":true},"counts":{},"sessions":{"count":0},"logins":[],"activity":[],"roles":[],"notes":[],"recent_links":[]}}`))
@@ -268,6 +269,11 @@ func newFakeHop(t *testing.T) *fakeHop {
 		_ = json.Unmarshal(body, &m)
 		m["actor"] = r.Header.Get("X-HOP-Actor")
 		f.actions = append(f.actions, m)
+		if f.failAction != "" && m["action"] == f.failAction {
+			w.WriteHeader(500)
+			_, _ = w.Write([]byte(`{"ok":false,"error":"server_error"}`))
+			return
+		}
 		if m["action"] == "delete" {
 			w.WriteHeader(403)
 			_, _ = w.Write([]byte(`{"ok":false,"error":"owner_protected"}`))

@@ -1,6 +1,6 @@
 # Hub admin API for announcements: contract
 
-Status: Imperium implements the client side; `scripts/fakehop` and `internal/fakehub` implement this contract so the
+Status: implemented in HOP ID (`navi-crwn/HEL.ink`, branch `fix/sign-in-and-sign-out-speed`, e10e368) and aligned with it in round 2 (see "As built in HOP ID" at the end). Imperium implements the client side; `scripts/fakehop` and `internal/fakehub` implement this contract so the
 pages are tested without HOP ID. HOP ID (`navi-crwn/HEL.ink`) has to answer exactly like `internal/fakehub`.
 
 It follows HOP ID's existing admin API for users (`app/Http/Controllers/Api/HopAdminController.php`): same prefix,
@@ -21,7 +21,7 @@ same signature, same middleware, same envelope, same paging, same audit.
 - The announcement model is unchanged: `title` (≤160), `body` (≤5000), `level` (`info`, `warning`, `critical`),
   `app_slug` (null = HOP as a whole, else a slug of `HopApps::all()`), `published_at`, `expires_at`, `author_id`.
   No new column or table.
-- Times go in and out as ISO 8601 / RFC 3339 and are stored as UTC (`2026-12-01T09:30:00Z`).
+- Times go in as ISO 8601 `YYYY-MM-DDTHH:MM[:SS[.fff]]` with an optional `Z` or `±HH:MM` offset (no offset = UTC) and come out as whole-second UTC (`2026-12-01T09:30:00Z`).
 
 ### The announcement object (`row`)
 
@@ -87,7 +87,7 @@ Request:
   `set_roles`' `granted_by`).
 - 422 `bad_params` with `message` naming the first problem, for: missing/blank or too long `title` or `body`; `level` not in
   `Announcement::LEVELS`; `app_slug` neither empty nor a slug of `HopApps::all()`; a time that is not ISO 8601;
-  `expires_at` that is not after `published_at` (an `expires_at` without a `published_at` is refused too).
+  `expires_at` that is not after the *submitted* `published_at` (checked before `publish_now` replaces it, so `expires_at` with `publish_now` and no `published_at` is refused; an `expires_at` without a `published_at` is refused too). The first problem in the order title, body, level, app_slug, published_at, expires_at (format), then the order check is the message.
   Messages: `title is required`, `title may not be longer than 160 characters`, `body is required`,
   `body may not be longer than 5000 characters`, `level must be one of info, warning, critical`,
   `app_slug must be empty or the slug of a registered app`, `published_at must be an ISO 8601 date and time`,
@@ -103,7 +103,7 @@ Request:
 
 Like `POST /api/hop/users/{user}/actions`: `{"action": "publish" | "unpublish" | "delete", "reason": "..."}`.
 
-- `publish`: a `draft` or `scheduled` announcement gets `published_at` = now; a `live` one is left as it is (200, no
+- `publish`: a `draft` or `scheduled` announcement gets `published_at` = now (409 `expired` if its `expires_at` is already past); a `live` one is left as it is (200, no
   change); an `expired` one answers 409 `expired` `This announcement has expired; change its expiry date first.`
 - `unpublish`: sets `published_at` to null (back to a draft), whatever the state; a draft stays a draft (200).
 - `delete`: removes the row. 200 `{"ok": true, "data": row + {"deleted": true}}` (the row as it was).
@@ -114,7 +114,7 @@ Like `POST /api/hop/users/{user}/actions`: `{"action": "publish" | "unpublish" |
 
 | Status | `error` | When |
 |---|---|---|
-| 401 | (signature errors, as today) | bad or stale signature, replayed nonce |
+| 401 or 404 | (signature errors, as today; 404 `not_configured` when no app is named) | bad, stale or missing signature, replayed nonce |
 | 403 | `forbidden` | the calling app has no `admin_client` capability (middleware, as today) |
 | 404 | `not_found` | no such announcement |
 | 409 | `expired` | publish of an expired announcement |
@@ -123,20 +123,18 @@ Like `POST /api/hop/users/{user}/actions`: `{"action": "publish" | "unpublish" |
 
 Limits: the list page size is at most 200; `title` 160, `body` 5000, `reason` 500 stored.
 
-## Role parity: what needs a change in HOP ID
+## As built in HOP ID (e10e368), and the role rules
 
-Imperium closes every gap its own side can close (owner-only role changes, no ownership grant, no self-suspend or
-self-delete, tokens taken on suspend). These remain on the HOP ID side:
+Differences from the first draft of this contract, now reflected above, in `internal/fakehub` and in Imperium:
 
-1. **`set_roles` accepts `owner`** (`HopAdminController::act`, case `set_roles`), while the hub's own page refuses
-   ("Ownership is set with SUPERADMIN_EMAIL or hop:owner"). Imperium refuses it before asking; the API should too:
-   reject a role list that adds `owner` to a user who does not hold it (422 `bad_params`).
-2. **No check of who acts.** `act()` trusts the app; the hub's page requires `isOwner()` for roles and refuses
-   suspending/deleting oneself. The API only knows `X-HOP-Actor`. It should look the actor up: `set_roles` only if the
-   actor is an owner; `suspend` and `delete` refused (403) when the actor id equals the target id.
-3. **`suspend` does not delete the user's API tokens**, the hub's page does (`$user->apiTokens()->delete()`).
-   Imperium sends `revoke_tokens` right after `suspend`; doing it inside `suspend` makes it atomic.
-4. **The user detail has less than the hub's page**: `GET /api/hop/users/{user}` returns the number of API tokens, not
-   the list (name, last used) the hub's show page lists, and 5 logins instead of 10. Imperium shows what the API gives.
-5. **Activity log**: the hub's page writes `ActivityLog` rows (`suspended`, `activated`); the API writes `hop_audits`
-   only. Not a gap for Imperium (its audit page reads `hop_audits`), but retiring `/admin` drops the `ActivityLog` entries.
+1. Unsigned requests answer 401 or 404 (`not_configured`).
+2. `publish` of a draft whose `expires_at` is already past answers 409 `expired`.
+3. No-op actions (`publish` on a live announcement, `unpublish` on a draft) answer 200 with the row and write no `hop_audit` row.
+4. `author` is `<id>:<username>` (`<id>:` if the account has no username); with no `author_id` it is the actor string of the `announcement.create` audit row; `null` for notices made in the old `/admin` page whose author is gone.
+5. Times: see Common rules. 6. Validation order: see create. 7. `reason` is stored only when it is a string (first 500 characters). 8. `state` filter: as defined for `state`.
+9. Role rules: the actor is the part of `X-HOP-Actor` before the first colon. `set_roles` needs an owner actor (`system`, an unknown id or a non-owner: 403 `forbidden`); a list that grants `owner` is always refused (422).
+10. Self rules: suspending or deleting yourself is 403 `forbidden` ("An account cannot suspend itself."); a permanent superadmin target still gets `owner_protected` first.
+11. `suspend` deletes the account's API tokens (audit params `{"tokens_deleted": n}`). Imperium's extra `revoke_tokens` after `suspend` still works and deletes 0; its outcome is audited but never shown as a failure.
+12. `GET /api/hop/users/{user}` now carries `tokens` (`id`, `name`, `last_used_at`, `created_at`; never the value) and ten sign-ins. Imperium lists both on the user's Sessions tab.
+
+Imperium keeps its own checks (owner-only roles, no ownership grant, no self-suspend or self-delete, ids compared as numbers) so a refusal is shown before HOP ID is asked, and HOP ID's answer is the same.

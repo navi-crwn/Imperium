@@ -197,6 +197,7 @@ type user360 struct {
 	Activity    []map[string]any `json:"activity"`
 	Roles       []string         `json:"roles"`
 	Notes       []map[string]any `json:"notes"`
+	Tokens      []map[string]any `json:"tokens"`
 	RecentLinks []map[string]any `json:"recent_links"`
 }
 
@@ -276,6 +277,22 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 // canNote says whether the session may add a note to a hub user: every
 // hub-wide role except the read-only support role.
 func canNote(s *db.Session) bool { return isAdmin(s) || contains(s.Roles, "moderator") }
+
+// sameAccount compares two HOP ids the way HOP ID reads them: as numbers, so "026" and "26" are one account.
+// An id that is not all digits is compared as it is.
+func sameAccount(a, b string) bool {
+	norm := func(s string) string {
+		s = strings.TrimSpace(s)
+		if s == "" || strings.Trim(s, "0123456789") != "" {
+			return s
+		}
+		if t := strings.TrimLeft(s, "0"); t != "" {
+			return t
+		}
+		return "0"
+	}
+	return a != "" && b != "" && norm(a) == norm(b)
+}
 
 func str(v any) string { s, _ := v.(string); return s }
 
@@ -358,7 +375,7 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// HOP ID's own page refuses to suspend or delete the account you are signed in with.
-	if (action == "suspend" || action == "delete") && id == s.Sub {
+	if (action == "suspend" || action == "delete") && sameAccount(id, s.Sub) {
 		a.flashError(w, a.Tr(r, "err.self"))
 		http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
 		return
@@ -367,7 +384,7 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: "hub", Action: "user." + action, Target: id,
 		Detail: map[string]any{"reason": reason, "params": params, "error": errString(err)}, OK: err == nil})
 	if err == nil && action == "suspend" {
-		err = a.revokeTokensAfterSuspend(r, s, id, reason, false)
+		a.revokeTokensAfterSuspend(r, s, id, reason, false) // HOP ID already did it; a refusal here is not a failure of the suspension
 	}
 	if err != nil {
 		a.flashError(w, a.Tr(r, "action.failed")+": "+err.Error())
@@ -384,14 +401,13 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 // revokeTokensAfterSuspend takes the API tokens of an account that was just suspended. HOP ID's own page does
 // this in the same step, but its admin API does not, so a suspended person's tokens would keep working.
 // It is its own audited action, so the trail shows both steps.
-func (a *App) revokeTokensAfterSuspend(r *http.Request, s *db.Session, id, reason string, bulk bool) error {
+func (a *App) revokeTokensAfterSuspend(r *http.Request, s *db.Session, id, reason string, bulk bool) {
 	_, err := a.callHop(r.Context(), s, "POST", "/users/"+url.PathEscape(id)+"/actions", map[string]any{"action": "revoke_tokens", "reason": reason, "params": map[string]any{}}, nil)
 	detail := map[string]any{"reason": reason, "with": "suspend", "error": errString(err)}
 	if bulk {
 		detail["bulk"] = true
 	}
 	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: "hub", Action: "user.revoke_tokens", Target: id, Detail: detail, OK: err == nil})
-	return err
 }
 
 // userBulkActions are the account actions offered for many users at once. Delete
@@ -446,7 +462,7 @@ func (a *App) usersBulkAction(w http.ResponseWriter, r *http.Request) {
 			a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: "hub", Action: "user." + action, Target: id,
 				Detail: detail, OK: err == nil && detail["skipped"] == nil})
 		}
-		if id == s.Sub {
+		if sameAccount(id, s.Sub) {
 			skipped++
 			audit(nil, map[string]any{"skipped": "self"})
 			continue
@@ -465,7 +481,7 @@ func (a *App) usersBulkAction(w http.ResponseWriter, r *http.Request) {
 		_, err := a.callHop(r.Context(), s, "POST", "/users/"+url.PathEscape(id)+"/actions", map[string]any{"action": action, "reason": reason, "params": map[string]any{}}, nil)
 		audit(err, map[string]any{})
 		if err == nil && action == "suspend" {
-			err = a.revokeTokensAfterSuspend(r, s, id, reason, true)
+			a.revokeTokensAfterSuspend(r, s, id, reason, true)
 		}
 		if err != nil {
 			failed++
