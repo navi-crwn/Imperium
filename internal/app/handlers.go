@@ -267,7 +267,7 @@ func (a *App) user(w http.ResponseWriter, r *http.Request) {
 	if !contains([]string{"profile", "content", "sessions", "activity"}, tab) {
 		tab = "profile"
 	}
-	in := userDetailIn{ID: id, Raw: string(raw), Tab: tab, U: u, Protected: u.protected(), Admin: isAdmin(current(r)), Note: canNote(current(r)), Options: roleOptions(apps, u.Roles),
+	in := userDetailIn{ID: id, Raw: string(raw), Tab: tab, U: u, Protected: u.protected(), Admin: isAdmin(current(r)), Owner: isOwner(current(r)), Note: canNote(current(r)), Options: roleOptions(apps, u.Roles),
 		Pixel: summaries["pixelhop"].User, PixelErr: summaries["pixelhop"].Err, NoteU: summaries["notehop"].User, NoteErr: summaries["notehop"].Err,
 		File: summaries["filehop"].User, FileErr: summaries["filehop"].Err, Pay: summaries["payhop"].User, PayErr: summaries["payhop"].Err}
 	a.render(w, r, "detail.html", "@"+str(u.Profile["username"]), map[string]any{"P": a.userDetailPage(r, in)})
@@ -301,9 +301,16 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch action {
-	case "suspend", "activate", "revoke_sessions", "revoke_tokens", "delete", "set_roles":
+	case "suspend", "activate", "revoke_sessions", "revoke_tokens", "delete":
 		if !isAdmin(s) {
 			a.flashError(w, a.Tr(r, "err.forbidden"))
+			http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
+			return
+		}
+	case "set_roles":
+		// HOP ID's own page lets only an owner change roles; the admin API would let any admin, so the check is here.
+		if !isOwner(s) {
+			a.flashError(w, a.Tr(r, "err.owner_only"))
 			http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
 			return
 		}
@@ -319,7 +326,7 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch action {
-	case "suspend", "activate", "revoke_sessions", "revoke_tokens", "delete":
+	case "suspend", "activate", "revoke_sessions", "revoke_tokens", "delete", "set_roles":
 		if a.refuseNoReason(w, r, "/users/"+url.PathEscape(id), reason) {
 			return
 		}
@@ -328,6 +335,12 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 	case "note":
 		params["text"] = strings.TrimSpace(r.FormValue("text"))
 	case "set_roles":
+		// HOP ID's page never gives ownership (SUPERADMIN_EMAIL does); its API would, so refuse it here.
+		if contains(r.Form["roles"], "owner") {
+			a.flashError(w, a.Tr(r, "err.owner_grant"))
+			http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
+			return
+		}
 		params["roles"] = r.Form["roles"]
 	case "delete":
 		params["confirm"] = strings.TrimSpace(r.FormValue("confirm"))
@@ -344,9 +357,18 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
 		return
 	}
+	// HOP ID's own page refuses to suspend or delete the account you are signed in with.
+	if (action == "suspend" || action == "delete") && id == s.Sub {
+		a.flashError(w, a.Tr(r, "err.self"))
+		http.Redirect(w, r, "/users/"+url.PathEscape(id), http.StatusFound)
+		return
+	}
 	_, err := a.callHop(r.Context(), s, "POST", "/users/"+url.PathEscape(id)+"/actions", body, nil)
 	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: "hub", Action: "user." + action, Target: id,
 		Detail: map[string]any{"reason": reason, "params": params, "error": errString(err)}, OK: err == nil})
+	if err == nil && action == "suspend" {
+		err = a.revokeTokensAfterSuspend(r, s, id, reason, false)
+	}
 	if err != nil {
 		a.flashError(w, a.Tr(r, "action.failed")+": "+err.Error())
 	} else {
@@ -357,6 +379,19 @@ func (a *App) userAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, returnTo(r, "/users/"+url.PathEscape(id)), http.StatusFound)
+}
+
+// revokeTokensAfterSuspend takes the API tokens of an account that was just suspended. HOP ID's own page does
+// this in the same step, but its admin API does not, so a suspended person's tokens would keep working.
+// It is its own audited action, so the trail shows both steps.
+func (a *App) revokeTokensAfterSuspend(r *http.Request, s *db.Session, id, reason string, bulk bool) error {
+	_, err := a.callHop(r.Context(), s, "POST", "/users/"+url.PathEscape(id)+"/actions", map[string]any{"action": "revoke_tokens", "reason": reason, "params": map[string]any{}}, nil)
+	detail := map[string]any{"reason": reason, "with": "suspend", "error": errString(err)}
+	if bulk {
+		detail["bulk"] = true
+	}
+	a.db.AddAudit(r.Context(), &db.Audit{ActorSub: s.Sub, ActorName: s.Username, IP: clientIP(r), App: "hub", Action: "user.revoke_tokens", Target: id, Detail: detail, OK: err == nil})
+	return err
 }
 
 // userBulkActions are the account actions offered for many users at once. Delete
@@ -429,6 +464,9 @@ func (a *App) usersBulkAction(w http.ResponseWriter, r *http.Request) {
 		}
 		_, err := a.callHop(r.Context(), s, "POST", "/users/"+url.PathEscape(id)+"/actions", map[string]any{"action": action, "reason": reason, "params": map[string]any{}}, nil)
 		audit(err, map[string]any{})
+		if err == nil && action == "suspend" {
+			err = a.revokeTokensAfterSuspend(r, s, id, reason, true)
+		}
 		if err != nil {
 			failed++
 		} else {

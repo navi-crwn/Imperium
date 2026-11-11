@@ -154,6 +154,13 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("GET /users/{id}", a.member(a.user))
 	m.HandleFunc("POST /users/{id}/actions", a.member(a.userAction))
 	m.HandleFunc("POST /users/actions", a.member(a.usersBulkAction))
+	m.HandleFunc("GET /announcements", a.member(a.annList))
+	m.HandleFunc("GET /announcements/new", a.member(a.annNew))
+	m.HandleFunc("POST /announcements", a.member(a.annSave))
+	m.HandleFunc("GET /announcements/{id}", a.member(a.annShow))
+	m.HandleFunc("GET /announcements/{id}/edit", a.member(a.annEdit))
+	m.HandleFunc("POST /announcements/{id}", a.member(a.annSave))
+	m.HandleFunc("POST /announcements/{id}/actions", a.member(a.annAction))
 	m.HandleFunc("GET /apps", a.member(a.apps))
 	m.HandleFunc("POST /apps/sync", a.member(a.appsSync))
 	m.HandleFunc("GET /apps/{app}", a.member(a.dashboard))
@@ -309,6 +316,9 @@ func safeNext(next string) string {
 
 // Roles on Imperium: owner and admin may do everything, moderator may act on
 // content and read users, support may only read.
+// isOwner is the one role that may change other people's roles; HOP ID's own admin page says the same.
+func isOwner(s *db.Session) bool { return s != nil && contains(s.Roles, "owner") }
+
 func isAdmin(s *db.Session) bool {
 	return contains(s.Roles, "owner") || contains(s.Roles, "admin")
 }

@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/json"
@@ -17,6 +18,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/navi-crwn/imperium/internal/fakehub"
 	"github.com/navi-crwn/imperium/internal/hopproto"
 )
 
@@ -55,6 +57,7 @@ func page(w http.ResponseWriter, data any, total int) {
 func signed(sec string, h http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
+		r.Body = io.NopCloser(bytes.NewReader(body)) // the handler may read it again
 		if err := nonces.Verify(r, body, "imperium", []string{sec}, time.Minute); err != nil {
 			w.WriteHeader(401)
 			_ = json.NewEncoder(w).Encode(map[string]any{"ok": false, "error": err.Error()})
@@ -215,6 +218,15 @@ func laravelApp(hub bool) http.Handler {
 	s("GET /api/hop/x/queue", func(w http.ResponseWriter, r *http.Request) {
 		ok(w, map[string]any{"worker": "ok", "heartbeat_at": time.Now().UTC().Add(-40 * time.Second).Format(time.RFC3339), "pending": 2, "failed": 0, "abuse_scan_at": time.Now().UTC().Add(-50 * time.Minute).Format(time.RFC3339)})
 	})
+	if hub {
+		// The announcements admin API: not in HOP ID yet, so fakehop answers by the contract (docs/announcements-contract.md).
+		announcements().Register(m, "/api/hop", func(h fakehub.Handler) http.HandlerFunc {
+			return signed(*secret, func(w http.ResponseWriter, r *http.Request) {
+				b, _ := io.ReadAll(r.Body)
+				h(w, r, b)
+			})
+		})
+	}
 	m.HandleFunc("POST /api/hop/", signed(*secret, func(w http.ResponseWriter, r *http.Request) { ok(w, map[string]any{}) }))
 	m.HandleFunc("PUT /api/hop/", signed(*secret, func(w http.ResponseWriter, r *http.Request) { ok(w, map[string]any{}) }))
 	return m

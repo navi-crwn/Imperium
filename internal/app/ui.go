@@ -64,6 +64,8 @@ type listPage struct {
 	First, Next  string
 	Back         string
 	HasMenu      bool
+	New          string // a primary button next to the title, for example "New announcement"
+	NewLabel     string
 }
 
 type uiKV struct {
@@ -94,6 +96,8 @@ type detailPage struct {
 	Sections               []uiSection
 	Err                    string
 	Dialogs                []uiAction
+	Edit                   string // a secondary link next to the Actions menu
+	EditLabel              string
 }
 
 // destructiveAction is an action that cannot be taken back; it lives at the bottom of a menu and is

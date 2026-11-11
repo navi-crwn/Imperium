@@ -1,0 +1,40 @@
+{{template "head" .}}{{template "top" .}}
+{{$f := .Data.F}}
+{{if .Data.App}}{{template "appshell" .Data}}{{end}}
+<p class="crumb"><a href="{{$f.Back}}">← {{t "back"}}</a></p>
+<div class="page-head"><h1>{{$f.Heading}}</h1></div>
+{{if $f.Err}}<p class="flash err" role="alert">{{$f.Err}}</p>{{end}}
+{{if $f.Errs}}<p class="flash err" role="alert">{{t "ann.err.summary"}}</p>{{end}}
+<p class="muted small">{{t "ann.live_hint"}}</p>
+<form method="post" action="{{$f.Action}}" class="ann-form">
+  <input type="hidden" name="app_was" value="{{$f.AppWas}}">
+  <div class="ann-field"><label for="a-title">{{t "ann.f.title"}}</label>
+    <input id="a-title" name="title" type="text" maxlength="{{$f.TitleMax}}" required value="{{$f.Title}}"{{if index $f.Errs "title"}} aria-invalid="true" aria-describedby="e-title"{{end}}>
+    {{with index $f.Errs "title"}}<p class="field-err" id="e-title">{{.}}</p>{{end}}</div>
+  <div class="ann-field"><label for="a-body">{{t "ann.f.body"}}</label>
+    <textarea id="a-body" name="body" rows="7" maxlength="{{$f.BodyMax}}" required{{if index $f.Errs "body"}} aria-invalid="true" aria-describedby="e-body"{{end}}>{{$f.Body}}</textarea>
+    {{with index $f.Errs "body"}}<p class="field-err" id="e-body">{{.}}</p>{{end}}</div>
+  <div class="ann-row">
+    <div class="ann-field"><label for="a-level">{{t "ann.f.level"}}</label>
+      <select id="a-level" name="level"{{if index $f.Errs "level"}} aria-invalid="true" aria-describedby="e-level"{{end}}>{{range $f.LevelOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+      {{with index $f.Errs "level"}}<p class="field-err" id="e-level">{{.}}</p>{{end}}</div>
+    <div class="ann-field"><label for="a-app">{{t "ann.f.app"}}</label>
+      <select id="a-app" name="app_slug"{{if index $f.Errs "app_slug"}} aria-invalid="true" aria-describedby="e-app"{{end}}>{{range $f.AppOpts}}<option value="{{.Value}}"{{if .On}} selected{{end}}>{{.Label}}</option>{{end}}</select>
+      {{with index $f.Errs "app_slug"}}<p class="field-err" id="e-app">{{.}}</p>{{end}}</div>
+  </div>
+  <div class="ann-row">
+    <div class="ann-field"><label for="a-pub">{{t "ann.f.published"}}</label>
+      <input id="a-pub" name="published_at" type="datetime-local" value="{{$f.Published}}"{{if index $f.Errs "published_at"}} aria-invalid="true" aria-describedby="e-pub"{{end}}>
+      {{with index $f.Errs "published_at"}}<p class="field-err" id="e-pub">{{.}}</p>{{end}}</div>
+    <div class="ann-field"><label for="a-exp">{{t "ann.f.expires"}}</label>
+      <input id="a-exp" name="expires_at" type="datetime-local" value="{{$f.Expires}}"{{if index $f.Errs "expires_at"}} aria-invalid="true" aria-describedby="e-exp"{{end}}>
+      {{with index $f.Errs "expires_at"}}<p class="field-err" id="e-exp">{{.}}</p>{{end}}</div>
+  </div>
+  <p class="muted small">{{t "ann.f.utc_hint"}}</p>
+  <label class="check" for="a-now"><input id="a-now" type="checkbox" name="publish_now" value="1"{{if $f.PublishNow}} checked{{end}}> {{t "ann.f.publish_now"}}</label>
+  <div class="ann-field"><label for="a-reason">{{t "action.reason"}}</label>
+    <input id="a-reason" name="reason" type="text" maxlength="{{$f.ReasonMax}}" required value="{{$f.Reason}}"{{if index $f.Errs "reason"}} aria-invalid="true" aria-describedby="e-reason"{{end}}>
+    {{with index $f.Errs "reason"}}<p class="field-err" id="e-reason">{{.}}</p>{{end}}</div>
+  <div class="dlg-actions"><a class="btn ghost" href="{{$f.Back}}">{{t "action.cancel"}}</a><button class="btn primary" type="submit">{{t "ann.save"}}</button></div>
+</form>
+{{template "foot" .}}

@@ -18,6 +18,7 @@ import (
 
 	"github.com/navi-crwn/imperium/cmd/imperium/webfs"
 	"github.com/navi-crwn/imperium/internal/db"
+	"github.com/navi-crwn/imperium/internal/fakehub"
 	"github.com/navi-crwn/imperium/internal/hopproto"
 )
 
@@ -42,6 +43,7 @@ type fakeHop struct {
 	searchLabel    string                         // overrides the label of the user hit in /api/hop/search
 	memberCalls    []string                       // the subs Imperium asked about
 	statsCalls     int                            // how often HOP ID's /stats was asked
+	ann            *fakehub.Store                 // HOP ID's announcements (the contract in docs/announcements-contract.md)
 
 	// mu guards the fields below. The handlers run on the fake servers'
 	// goroutines (including the sign-in's background registry sync) while the
@@ -163,6 +165,8 @@ func newFakeHop(t *testing.T) *fakeHop {
 		f.countRegistryRead()
 		_, _ = w.Write([]byte(`{"ok":true,"data":[{"slug":"linkhop","name":"LinkHop","url":"` + f.srv.URL + `","status":"active","capabilities":["admin_api"],"secret":"` + lhOwnSecret + `"},{"slug":"pixelhop","name":"PixelHop","url":"` + f.px.URL + `","status":"active","capabilities":["account_api","admin_api"],"secret":"` + pxSecret + `"},{"slug":"imperium","name":"Imperium","url":"x","status":"active","hidden":true}]}`))
 	}))
+	f.ann = fakehub.New("linkhop", "pixelhop")
+	f.ann.Register(mux, "/api/hop", func(h fakehub.Handler) http.HandlerFunc { return api(h) })
 	f.srv = httptest.NewServer(mux)
 	// PixelHop's admin API (prefix /hop), signed with its own secret, on its own server.
 	pxmux := http.NewServeMux()
@@ -432,7 +436,8 @@ func TestHomeUserActionsAudit(t *testing.T) {
 	if b := body(res); !strings.Contains(b, "Done.") {
 		t.Fatalf("action flash missing: %s", b[:300])
 	}
-	if len(hop.actions) != 1 || hop.actions[0]["action"] != "suspend" || hop.actions[0]["reason"] != "spam" || hop.actions[0]["actor"] != "1:boss" {
+	// Suspending also takes the API tokens (HOP ID's own page does both).
+	if len(hop.actions) != 2 || hop.actions[0]["action"] != "suspend" || hop.actions[0]["reason"] != "spam" || hop.actions[0]["actor"] != "1:boss" || hop.actions[1]["action"] != "revoke_tokens" {
 		t.Fatalf("forwarded action: %+v", hop.actions)
 	}
 	// a refused action shows the error and is logged as failed
