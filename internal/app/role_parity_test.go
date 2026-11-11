@@ -182,3 +182,38 @@ func TestUserPageListsTokensWithoutSecrets(t *testing.T) {
 		}
 	}
 }
+
+// HOP ID refuses suspend, delete and set_roles unless X-HOP-Actor is a number without leading zeros, optionally
+// followed by ":<username>" with no space or hyphen. Every user action Imperium sends, single or bulk, has that shape.
+func TestEveryUserActionCarriesAnActorHopIdAccepts(t *testing.T) {
+	for _, tc := range []struct{ sub, user, want string }{{"5", "boss", "5:boss"}, {"05", "boss", "5:boss"}, {"5", "a-b", "5"}, {"005", "o brien", "5"}, {"5", "", "5"}} {
+		e := newAnnEnv(t, "owner")
+		e.hop.ticket = scopedTicket(tc.sub, tc.user, "owner")
+		c := client(t)
+		body(login(t, c, e.srv))
+		e.c = c
+		e.hop.actions = nil
+		for _, v := range []url.Values{
+			{"action": {"suspend"}, "reason": {"r"}, "ack": {"yes"}},
+			{"action": {"set_roles"}, "roles": {"support"}, "reason": {"r"}},
+			{"action": {"delete"}, "reason": {"r"}, "ack": {"yes"}, "confirm": {"@rani"}},
+		} {
+			e.post(t, "/users/26/actions", v)
+		}
+		e.post(t, "/users/actions", url.Values{"action": {"suspend"}, "pick": {"26"}, "confirm": {"yes"}, "reason": {"r"}})
+		if len(e.hop.actions) < 5 {
+			t.Fatalf("%+v: only %d actions reached HOP ID", tc, len(e.hop.actions))
+		}
+		for _, a := range e.hop.actions {
+			if a["actor"] != tc.want || !actorShape.MatchString(fmt.Sprint(a["actor"])) {
+				t.Errorf("%+v: action %v carried actor %v, want %s", tc, a["action"], a["actor"], tc.want)
+			}
+			if a["error"] != nil {
+				t.Errorf("unexpected %v", a)
+			}
+		}
+	}
+	if got := actorOf(nil); got != "system" {
+		t.Errorf("no session: %s", got)
+	}
+}

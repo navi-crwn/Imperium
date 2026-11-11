@@ -48,9 +48,27 @@ func TestMatchesHopIdDetails(t *testing.T) {
 	if st, out = call(t, srv, "POST", "/api/hop/announcements", `{"title":" ","body":" ","level":"x"}`); st != 422 || !strings.Contains(out, "title is required") {
 		t.Errorf("order: %d %s", st, out)
 	}
-	// expires_at is checked against the submitted published_at, before publish_now replaces it.
-	if st, out = call(t, srv, "POST", "/api/hop/announcements", `{`+base+`,"publish_now":true,"expires_at":"2031-01-01T00:00:00Z"}`); st != 422 || !strings.Contains(out, "expires_at must be after published_at") {
-		t.Errorf("publish_now without published_at: %d %s", st, out)
+	// publish_now is applied first and expires_at is checked against "now": "publish now, ends later" is valid.
+	if st, out = call(t, srv, "POST", "/api/hop/announcements", `{`+base+`,"publish_now":true,"expires_at":"2099-01-01T00:00:00Z"}`); st != 201 {
+		t.Errorf("publish_now with a later end must be accepted: %d %s", st, out)
+	}
+	if st, out = call(t, srv, "POST", "/api/hop/announcements", `{`+base+`,"publish_now":true,"expires_at":"2001-01-01T00:00:00Z"}`); st != 422 || !strings.Contains(out, "expires_at must be after published_at") {
+		t.Errorf("publish_now with an end in the past: %d %s", st, out)
+	}
+	if st, out = call(t, srv, "POST", "/api/hop/announcements", `{`+base+`,"expires_at":"2099-01-01T00:00:00Z"}`); st != 422 {
+		t.Errorf("an end without any start: %d %s", st, out)
+	}
+	if st, out = call(t, srv, "POST", "/api/hop/announcements", `{`+base+`,"app_slug":5}`); st != 422 {
+		t.Errorf("a non-string app_slug: %d %s", st, out)
+	}
+	if st, out = call(t, srv, "POST", "/api/hop/announcements", `{`+base+`,"published_at":"2030-02-30T10:00"}`); st != 422 {
+		t.Errorf("a date that does not exist: %d %s", st, out)
+	}
+	if st, out = call(t, srv, "POST", "/api/hop/announcements", `{`+base+`,"published_at":"2030-01-01T10:00+0200"}`); st != 201 || !strings.Contains(out, `"published_at":"2030-01-01T08:00:00Z"`) {
+		t.Errorf("an offset without a colon: %d %s", st, out)
+	}
+	if st, out = call(t, srv, "GET", "/api/hop/announcements?limit=abc", ""); st != 200 || strings.Count(out, `"title"`) != 1 {
+		t.Errorf("a limit that is not a number is read as 0 and lifted to 1: %d %s", st, out)
 	}
 	// A draft whose end is already past cannot be published (409).
 	past := time.Now().Add(-time.Hour)

@@ -324,8 +324,17 @@ func (a *App) annRead(r *http.Request, f *annForm) (map[string]any, bool) {
 	if expErr != nil {
 		f.Errs["expires_at"] = tl(l, "ann.err.date")
 	}
-	if pubErr == nil && expErr == nil && f.Expires != "" && (f.Published == "" || !exp.After(pub)) {
-		f.Errs["expires_at"] = tl(l, "ann.err.order")
+	if pubErr == nil && expErr == nil && f.Expires != "" {
+		// HOP ID applies "publish now" first and checks the end against it, so the end only has to be after now.
+		start := pub
+		if f.PublishNow {
+			start = time.Now().UTC()
+		} else if f.Published == "" {
+			start = time.Time{}
+		}
+		if start.IsZero() || !exp.After(start) {
+			f.Errs["expires_at"] = tl(l, "ann.err.order")
+		}
 	}
 	if f.Reason == "" {
 		f.Errs["reason"] = tl(l, "err.need_reason")

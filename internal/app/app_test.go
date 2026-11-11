@@ -4,6 +4,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
@@ -11,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -21,6 +23,8 @@ import (
 	"github.com/navi-crwn/imperium/internal/fakehub"
 	"github.com/navi-crwn/imperium/internal/hopproto"
 )
+
+var actorShape = regexp.MustCompile(`^([1-9]\d{0,17})(?::[^ -]*)?$`)
 
 const secret = "imperium-secret-that-is-long-enough-1234"
 const pxSecret = "px-secret-that-is-long-enough-123456789"
@@ -269,6 +273,21 @@ func newFakeHop(t *testing.T) *fakeHop {
 		_ = json.Unmarshal(body, &m)
 		m["actor"] = r.Header.Get("X-HOP-Actor")
 		f.actions = append(f.actions, m)
+		// HOP ID: suspend, delete and set_roles need X-HOP-Actor to name an existing account (a number without
+		// leading zeros, optionally ":<username>" with no space or hyphen); nobody suspends or deletes themselves.
+		if act := fmt.Sprint(m["action"]); act == "suspend" || act == "delete" || act == "set_roles" {
+			g := actorShape.FindStringSubmatch(r.Header.Get("X-HOP-Actor"))
+			if g == nil {
+				w.WriteHeader(403)
+				_, _ = w.Write([]byte(`{"ok":false,"error":"forbidden","message":"This action needs X-HOP-Actor to name an existing account (<id>:<username>)."}`))
+				return
+			}
+			if g[1] == "26" && act != "set_roles" {
+				w.WriteHeader(403)
+				_, _ = w.Write([]byte(`{"ok":false,"error":"forbidden","message":"An account cannot ` + act + ` itself."}`))
+				return
+			}
+		}
 		if f.failAction != "" && m["action"] == f.failAction {
 			w.WriteHeader(500)
 			_, _ = w.Write([]byte(`{"ok":false,"error":"server_error"}`))

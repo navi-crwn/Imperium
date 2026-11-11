@@ -484,15 +484,31 @@ func TestAnnouncementTextsInNineLanguages(t *testing.T) {
 	}
 }
 
-func TestAnnouncementExpiryNeedsASubmittedPublishTimeEvenWithPublishNow(t *testing.T) {
+// HOP ID applies "publish now" first and checks the end against it: "publish now, ends next week" needs no publish date.
+func TestAnnouncementPublishNowWithAnEndNeedsNoPublishDate(t *testing.T) {
 	e := newAnnEnv(t, "owner")
-	e.hop.ann.ResetCalls()
-	st, _, page := e.post(t, "/announcements", validForm(url.Values{"publish_now": {"1"}, "expires_at": {"2030-01-01T00:00"}}))
-	if st != http.StatusUnprocessableEntity || !strings.Contains(page, "after the publish time") || len(e.hop.ann.Calls()) != 0 {
-		t.Errorf("HOP ID refuses it, so Imperium says so first: %d", st)
+	end := time.Now().UTC().Add(7 * 24 * time.Hour).Format("2006-01-02T15:04")
+	st, loc, _ := e.post(t, "/announcements", validForm(url.Values{"publish_now": {"1"}, "expires_at": {end}}))
+	if st != http.StatusFound || loc != "/announcements/1" {
+		t.Fatalf("publish now, ends next week: %d %s", st, loc)
 	}
-	if st, _, _ := e.post(t, "/announcements", validForm(url.Values{"publish_now": {"1"}, "published_at": {"2029-01-01T00:00"}, "expires_at": {"2030-01-01T00:00"}})); st != http.StatusFound {
-		t.Errorf("publish now with both times: %d", st)
+	b := lastCall(t, e.hop.ann).Body
+	if b["publish_now"] != true || b["published_at"] != nil || b["expires_at"] == nil {
+		t.Errorf("body to HOP ID: %+v", b)
+	}
+	if r, _ := e.hop.ann.Get(1); r.PublishedAt == nil || r.ExpiresAt == nil || r.PublishedAt.After(time.Now()) || !r.ExpiresAt.After(time.Now()) {
+		t.Errorf("stored: %+v", r)
+	}
+	// An end in the past with publish now is refused before HOP ID is asked, and so is an end with no start at all.
+	e.hop.ann.ResetCalls()
+	if st, _, page := e.post(t, "/announcements", validForm(url.Values{"publish_now": {"1"}, "expires_at": {"2001-01-01T00:00"}})); st != http.StatusUnprocessableEntity || !strings.Contains(page, "after the publish time") {
+		t.Errorf("publish now with an end in the past: %d", st)
+	}
+	if st, _, _ := e.post(t, "/announcements", validForm(url.Values{"expires_at": {end}})); st != http.StatusUnprocessableEntity {
+		t.Errorf("an end without a start: %d", st)
+	}
+	if len(e.hop.ann.Calls()) != 0 {
+		t.Errorf("refused forms reach HOP ID: %+v", e.hop.ann.Calls())
 	}
 }
 

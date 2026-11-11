@@ -87,7 +87,7 @@ Request:
   `set_roles`' `granted_by`).
 - 422 `bad_params` with `message` naming the first problem, for: missing/blank or too long `title` or `body`; `level` not in
   `Announcement::LEVELS`; `app_slug` neither empty nor a slug of `HopApps::all()`; a time that is not ISO 8601;
-  `expires_at` that is not after the *submitted* `published_at` (checked before `publish_now` replaces it, so `expires_at` with `publish_now` and no `published_at` is refused; an `expires_at` without a `published_at` is refused too). The first problem in the order title, body, level, app_slug, published_at, expires_at (format), then the order check is the message.
+  `expires_at` that is not after `published_at`. `publish_now: true` is applied first (`published_at` becomes now), then the end is checked against it: "publish now, ends next week" needs no `published_at`; an `expires_at` with neither `published_at` nor `publish_now` is refused, and so is one in the past with `publish_now`. The first problem in the order title, body, level, app_slug, published_at, expires_at (format), then the order check is the message.
   Messages: `title is required`, `title may not be longer than 160 characters`, `body is required`,
   `body may not be longer than 5000 characters`, `level must be one of info, warning, critical`,
   `app_slug must be empty or the slug of a registered app`, `published_at must be an ISO 8601 date and time`,
@@ -132,8 +132,8 @@ Differences from the first draft of this contract, now reflected above, in `inte
 3. No-op actions (`publish` on a live announcement, `unpublish` on a draft) answer 200 with the row and write no `hop_audit` row.
 4. `author` is `<id>:<username>` (`<id>:` if the account has no username); with no `author_id` it is the actor string of the `announcement.create` audit row; `null` for notices made in the old `/admin` page whose author is gone.
 5. Times: see Common rules. 6. Validation order: see create. 7. `reason` is stored only when it is a string (first 500 characters). 8. `state` filter: as defined for `state`.
-9. Role rules: the actor is the part of `X-HOP-Actor` before the first colon. `set_roles` needs an owner actor (`system`, an unknown id or a non-owner: 403 `forbidden`); a list that grants `owner` is always refused (422).
-10. Self rules: suspending or deleting yourself is 403 `forbidden` ("An account cannot suspend itself."); a permanent superadmin target still gets `owner_protected` first.
+9. Role rules (as of HEL.ink ed0ceea): `X-HOP-Actor` must have the strict shape `^[1-9]\d{0,17}(:[^ -]*)?$` (a number without leading zeros, optionally `:<username>` where the username holds no space and no hyphen) and name an existing account. `suspend`, `delete` and `set_roles` with any other actor (`system`, empty, malformed, unknown id) are refused: 403 `forbidden` "This action needs X-HOP-Actor to name an existing account (<id>:<username>)." `set_roles` also needs an owner actor (403 `forbidden` "Only an owner can change roles."); a list that grants `owner` is always refused (422). Announcement calls only use the actor to fill `author_id` (same shape).
+10. Self rules: suspending or deleting yourself is 403 `forbidden` ("An account cannot suspend itself."); a permanent superadmin target still gets `owner_protected` first. Imperium sends the actor as `<sub without leading zeros>:<username>`, and the bare number when the username has a space or a hyphen, so the shape always holds.
 11. `suspend` deletes the account's API tokens (audit params `{"tokens_deleted": n}`). Imperium's extra `revoke_tokens` after `suspend` still works and deletes 0; its outcome is audited but never shown as a failure.
 12. `GET /api/hop/users/{user}` now carries `tokens` (`id`, `name`, `last_used_at`, `created_at`; never the value) and ten sign-ins. Imperium lists both on the user's Sessions tab.
 

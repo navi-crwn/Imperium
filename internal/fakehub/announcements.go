@@ -204,9 +204,9 @@ func (s *Store) find(w http.ResponseWriter, r *http.Request) *Row {
 
 func (s *Store) list(w http.ResponseWriter, r *http.Request, _ []byte) {
 	q := r.URL.Query()
-	limit, _ := strconv.Atoi(q.Get("limit"))
-	if limit == 0 {
-		limit = 50
+	limit := 50 // a missing limit is 50; a present one that is 0 or not a number is read as 0 and lifted to 1, as HOP ID does
+	if q.Has("limit") {
+		limit, _ = strconv.Atoi(q.Get("limit"))
 	}
 	limit = max(1, min(200, limit))
 	cursor, _ := strconv.Atoi(q.Get("cursor"))
@@ -273,6 +273,12 @@ func (s *Store) apply(w http.ResponseWriter, body []byte, row *Row) bool {
 	f.Title, _ = raw["title"].(string)
 	f.Body, _ = raw["body"].(string)
 	f.Level, _ = raw["level"].(string)
+	if v, present := raw["app_slug"]; present && v != nil {
+		if _, isString := v.(string); !isString {
+			fail(w, 422, "bad_params", "app_slug must be empty or the slug of a registered app")
+			return false
+		}
+	}
 	f.AppSlug = optString(raw["app_slug"])
 	f.PublishedAt = optString(raw["published_at"])
 	f.ExpiresAt = optString(raw["expires_at"])
@@ -315,12 +321,11 @@ func (s *Store) apply(w http.ResponseWriter, body []byte, row *Row) bool {
 		return bad("expires_at must be an ISO 8601 date and time")
 	}
 	now := s.Now()
-	// Checked against the submitted published_at, before publish_now replaces it (as HOP ID does).
+	if f.PublishNow { // applied first, as HOP ID does; the expiry is then checked against "now"
+		pub = &now
+	}
 	if exp != nil && (pub == nil || !exp.After(*pub)) {
 		return bad("expires_at must be after published_at")
-	}
-	if f.PublishNow {
-		pub = &now
 	}
 	row.Title, row.Body, row.Level, row.AppSlug, row.PublishedAt, row.ExpiresAt = f.Title, f.Body, f.Level, app, pub, exp
 	row.UpdatedAt = now
@@ -341,7 +346,7 @@ func parseTime(p *string) (*time.Time, error) {
 	}
 	// YYYY-MM-DDTHH:MM[:SS[.fff]] with an optional Z or +-HH:MM; no offset means UTC. Output is whole seconds.
 	v := strings.TrimSpace(*p)
-	for _, layout := range []string{time.RFC3339Nano, "2006-01-02T15:04:05.999999999", "2006-01-02T15:04:05", "2006-01-02T15:04"} {
+	for _, layout := range []string{time.RFC3339Nano, "2006-01-02T15:04:05.999999999Z0700", "2006-01-02T15:04Z07:00", "2006-01-02T15:04Z0700", "2006-01-02T15:04:05.999999999", "2006-01-02T15:04"} {
 		if t, err := time.Parse(layout, v); err == nil {
 			t = t.UTC().Truncate(time.Second)
 			return &t, nil

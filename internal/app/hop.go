@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -36,7 +37,21 @@ func actorOf(s *db.Session) string {
 	if s == nil {
 		return "system"
 	}
-	return s.Sub + ":" + s.Username
+	return actorString(s.Sub, s.Username)
+}
+
+// actorString is the X-HOP-Actor HOP ID accepts for the actions that need a person: a number without leading
+// zeros, optionally followed by ":<username>", where the username holds no space and no hyphen. A username that
+// does not fit is left out (the bare number still names the account); a sub that is not a number is sent as it is
+// and HOP ID will refuse the actions that need a person.
+func actorString(sub, username string) string {
+	if t := strings.TrimLeft(sub, "0"); t != "" && strings.Trim(t, "0123456789") == "" {
+		sub = t
+	}
+	if username == "" || strings.ContainsAny(username, " -") || strings.ContainsFunc(username, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+		return sub
+	}
+	return sub + ":" + username
 }
 
 // callHop makes a signed call to HOP ID and decodes data into out.
