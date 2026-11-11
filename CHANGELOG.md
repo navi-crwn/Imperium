@@ -14,7 +14,7 @@ All notable changes to Imperium are listed here. The format follows [Keep a Chan
 - Announcement forms follow HOP ID's order: "publish now" is applied first, so "publish now, ends next week" no longer needs a publish date. The acting person is sent to HOP ID in the shape it requires (a number without leading zeros, `:<username>` only when the name has no space or hyphen).
 - Aligned with what HOP ID really does (announcements API, role rules): the API's time formats, the expiry check against the submitted publish time, 409 on a draft whose end is past. The user's Sessions tab lists the account's API tokens (name, last use, created). The extra token revocation after a suspension is no longer shown as a failure if HOP ID refuses it. The "not yourself" checks compare ids as numbers (`026` is `26`), one at a time and in bulk. The state and level filters of the announcements list show translated labels.
 - Changing a person's roles is for owners only, as on HOP ID's own admin page (it was any admin). The roles form asks for a reason; ownership is shown but cannot be given here (set `SUPERADMIN_EMAIL` on HOP ID).
-- Suspending a person (one at a time or in bulk) also revokes their API tokens, as HOP ID's own page does; it is a second, audited step.
+- Suspending a person (one at a time or in bulk) also revokes their API tokens, as HOP ID's own page does (HOP ID now also ends their sessions in the same step); the token call is a second, audited step that is harmless when HOP ID has already done it.
 - Suspending or deleting the account you are signed in with is refused.
 
 ## [1.1.0] - 2026-11-11
