@@ -182,7 +182,7 @@ func (a *App) reportsPage(r *http.Request, ap *db.App, m *Manifest, rows []map[s
 		}
 		subject := ""
 		if sub, ok := row["subject"].(map[string]any); ok {
-			subject = strings.TrimSpace(str(sub["type"]) + " " + fmt.Sprint(sub["id"]))
+			subject = reportSubject(l, sub)
 		}
 		for _, k := range []string{"content", "image"} {
 			if c, ok := row[k].(map[string]any); ok && str(c["url"]) != "" {

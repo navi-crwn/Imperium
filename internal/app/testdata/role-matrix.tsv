@@ -22,3 +22,4 @@ POST /users/26/actions note	1	1	1	0	0	0
 POST /users/26/actions suspend	1	1	0	0	0	0
 POST /users/26/actions revoke_sessions	1	1	0	0	0	0
 POST /apps/pixelhop/reports/r1/actions resolve	1	1	1	0	1	0
+POST /apps/pixelhop/reports/r1/actions unpublish_page	1	1	1	0	1	0
