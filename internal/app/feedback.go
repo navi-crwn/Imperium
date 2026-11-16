@@ -343,6 +343,7 @@ func (a *App) fbList(w http.ResponseWriter, r *http.Request) {
 	p := listPage{Title: tl(l, "fb.title"), Path: "/feedback", Empty: tl(l, "fb.none")}
 	if err != nil {
 		_, p.Err = fbErrText(l, err)
+		p.Empty = "—" // the table says nothing when the list could not be read
 		rows = nil
 	} else if env.Page != nil {
 		if env.Page.Total > 0 {
@@ -367,16 +368,17 @@ func (a *App) fbList(w http.ResponseWriter, r *http.Request) {
 	p.Cols = []uiCol{{Label: tl(l, "fb.col.kind")}, {Label: tl(l, "ann.col.app")}, {Label: tl(l, "fb.col.message")}, {Label: tl(l, "fb.col.from")}, {Label: tl(l, "fb.col.received")}, {Label: tl(l, "fb.col.status")}}
 	keep := f.Encode()
 	for _, n := range rows {
-		msg := string(hLink(fbDetailURL(n.ID, keep), n.Excerpt))
+		msg := `<span class="fb-excerpt">` + string(hLink(fbDetailURL(n.ID, keep), n.Excerpt))
 		if n.HasScreenshot {
 			msg += ` <span class="small muted nw">· ` + esc(tl(l, "fb.has_image")) + `</span>`
 		}
+		msg += `</span>`
 		from := template.HTML(`<span class="muted">` + esc(tl(l, "fb.guest")) + `</span>`)
 		if n.Username != nil && *n.Username != "" {
 			from = txt(*n.Username)
 		}
 		p.Rows = append(p.Rows, uiRow{Cells: []uiCell{
-			{template.HTML(fbKindChip(l, n.Kind)), "nw"}, {txt(fbAppLabel(n.App)), "nw"}, {template.HTML(msg), "fb-msg"},
+			{template.HTML(fbKindChip(l, n.Kind)), "nw"}, {txt(fbAppLabel(n.App)), "nw"}, {template.HTML(msg), "wrapok"},
 			{from, "nw"}, {datesz(l, n.CreatedAt), "small muted nw"}, {template.HTML(fbStatusChip(l, n.Status)), "nw"}}})
 	}
 	a.render(w, r, "list.html", p.Title, map[string]any{"P": p})
@@ -427,8 +429,6 @@ func (a *App) fbShow(w http.ResponseWriter, r *http.Request) {
 		from = txt(rep.User.Username)
 	}
 	kv := []uiKV{
-		{tl(l, "fb.col.kind"), template.HTML(fbKindChip(l, rep.Kind))},
-		{tl(l, "ann.col.app"), txt(fbAppLabel(rep.App))},
 		{tl(l, "fb.d.page"), fbText(rep.Page)},
 		{tl(l, "fb.d.version"), fbText(rep.AppVersion)},
 		{tl(l, "fb.col.from"), from},

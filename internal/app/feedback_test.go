@@ -602,3 +602,14 @@ func indexOf(list []string, v string) int {
 	}
 	return 0
 }
+
+// A list that could not be read must not also say "No feedback yet.".
+func TestFeedbackHubDownDoesNotClaimTheInboxIsEmpty(t *testing.T) {
+	e := newAnnEnv(t, "owner")
+	e.seedFeedback()
+	e.hop.fb.FailWith(&fakehub.ErrSpec{Status: 500, Code: "server_error", Message: "boom"})
+	_, page := e.get(t, "/feedback")
+	if strings.Contains(page, "No feedback yet.") {
+		t.Error("an unreadable list says the inbox is empty")
+	}
+}
