@@ -4,6 +4,9 @@ All notable changes to Imperium are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+### Added
+- "Unpublish page" button for a visitor's report of a bio page (BioHop, Reports tab). Without this change the button would have shown the app's raw action name, "unpublish page", in every language. It now has a proper name in all nine languages. Pressing it asks for a reason, and from the bulk bar it also needs the confirmation tick, like the other buttons that hide content. BioHop then puts the page back to a draft and closes the report. Moderators, admins and owners (and the admin of that app) can press it; support only reads. Investigate and Close are unchanged.
+
 ## [1.2.0] - 2026-11-12
 
 ### Added
