@@ -613,3 +613,23 @@ func TestFeedbackHubDownDoesNotClaimTheInboxIsEmpty(t *testing.T) {
 		t.Error("an unreadable list says the inbox is empty")
 	}
 }
+
+// IMPERIUM_ALIASES hides a real identity on every screen: the sender's name too.
+func TestFeedbackSenderNameFollowsAliases(t *testing.T) {
+	e := newAnnEnv(t, "owner")
+	ids := e.seedFeedback()
+	e.a.cfg.Aliases = map[string]string{"helena": "superadmin"}
+	for _, path := range []string{"/feedback", fmt.Sprintf("/feedback/%d", ids.px)} {
+		_, page := e.get(t, path)
+		if path != "/feedback" {
+			continue
+		}
+		if !strings.Contains(page, "superadmin") || strings.Contains(page, ">helena<") {
+			t.Errorf("%s shows the real sender name", path)
+		}
+	}
+	_, page := e.get(t, "/feedback/3")
+	if strings.Contains(page, ">helena<") || !strings.Contains(page, "superadmin") {
+		t.Error("the report page shows the real sender name")
+	}
+}

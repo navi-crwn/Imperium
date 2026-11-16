@@ -375,7 +375,7 @@ func (a *App) fbList(w http.ResponseWriter, r *http.Request) {
 		msg += `</span>`
 		from := template.HTML(`<span class="muted">` + esc(tl(l, "fb.guest")) + `</span>`)
 		if n.Username != nil && *n.Username != "" {
-			from = txt(*n.Username)
+			from = txt(a.fbName(*n.Username))
 		}
 		p.Rows = append(p.Rows, uiRow{Cells: []uiCell{
 			{template.HTML(fbKindChip(l, n.Kind)), "nw"}, {txt(fbAppLabel(n.App)), "nw"}, {template.HTML(msg), "wrapok"},
@@ -426,7 +426,7 @@ func (a *App) fbShow(w http.ResponseWriter, r *http.Request) {
 	}
 	from := template.HTML(`<span class="muted">` + esc(tl(l, "fb.guest")) + `</span>`)
 	if rep.User != nil && rep.User.Username != "" {
-		from = txt(rep.User.Username)
+		from = txt(a.fbName(rep.User.Username))
 	}
 	kv := []uiKV{
 		{tl(l, "fb.d.page"), fbText(rep.Page)},
@@ -459,6 +459,14 @@ func (a *App) fbShow(w http.ResponseWriter, r *http.Request) {
 	}
 	d.Sections = []uiSection{{KV: kv}, {Title: tl(l, "fb.col.message"), HTML: template.HTML(`<p class="pre-wrap">` + esc(rep.Message) + `</p>`)}, shot}
 	a.render(w, r, "detail.html", d.Title, map[string]any{"P": d})
+}
+
+// fbName is a sender's name as the owner wants it shown: IMPERIUM_ALIASES hides a real identity on every screen.
+func (a *App) fbName(username string) string {
+	if alias := a.cfg.Alias(username, ""); alias != "" {
+		return alias
+	}
+	return username
 }
 
 // fbText is a value of the report shown as plain text; nothing in it becomes a link or markup.
