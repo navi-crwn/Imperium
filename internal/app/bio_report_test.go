@@ -142,3 +142,52 @@ func TestBioReportUnpublishPageRefusedForSupport(t *testing.T) {
 		t.Fatalf("support must not reach the app, got %d calls", n)
 	}
 }
+
+// The subject cell names the page the moderator is about to hide: its slug and address, or that it is gone.
+const bioSubjectReports = `{"ok":true,"data":[
+	{"kind":"bio_report","id":"report-7","reason":"scam page","subject":{"type":"bio_page","id":3,"slug":"promo","url":"https://bio.example/promo"},"status":"open","created_at":"2026-11-16T00:00:00Z"},
+	{"kind":"bio_report","id":"report-8","reason":"gone already","subject":{"type":"bio_page","id":null,"slug":"vanished","url":"https://bio.example/vanished"},"status":"open","created_at":"2026-11-16T00:00:00Z"},
+	{"kind":"bio_report","id":"report-9","reason":"no name","subject":{"type":"bio_page","id":null},"status":"open","created_at":"2026-11-16T00:00:00Z"},
+	{"kind":"bio_report","id":"report-10","reason":"old shape","subject":{"type":"bio_page","id":42},"status":"open","created_at":"2026-11-16T00:00:00Z"},
+	{"kind":"report","id":"b1","reason":"other app","subject":{"type":"link","id":9},"status":"open","created_at":"2026-11-16T00:00:00Z"}]}`
+
+func TestReportSubjectNamesTheBioPage(t *testing.T) {
+	hop, _, _, srv := newBulkSetupWith(t, bioManifest, bioSubjectReports)
+	defer hop.srv.Close()
+	c := client(t)
+	body(login(t, c, srv))
+	page := body(bulkGet(t, c, srv.URL+"/apps/linkhop/reports"))
+	for _, want := range []string{
+		"promo · https://bio.example/promo", // slug and address of a live page
+		"vanished · page deleted",           // a deleted page: no address to open, plain words
+		"bio_page · page deleted",           // deleted and nothing to name it by
+		"bio_page 42",                       // no slug and no address: the old rendering
+		"link 9",                            // every other subject keeps the old rendering
+	} {
+		if !strings.Contains(page, want) {
+			t.Errorf("reports page lacks %q", want)
+		}
+	}
+	for _, bad := range []string{"bio_page 3", "&lt;nil&gt;", "https://bio.example/vanished"} {
+		if strings.Contains(page, bad) {
+			t.Errorf("reports page should not show %q", bad)
+		}
+	}
+}
+
+func TestReportSubjectDeletedWordingInNineLanguages(t *testing.T) {
+	en := tl("en", "reports.page_deleted")
+	if en != "page deleted" {
+		t.Fatalf("en = %q", en)
+	}
+	for _, code := range langOrder[1:] {
+		got := catalog[code]["reports.page_deleted"]
+		if strings.TrimSpace(got) == "" || got == en {
+			t.Errorf("%s: reports.page_deleted is %q", code, got)
+		}
+		if got := reportSubject(code, map[string]any{"type": "bio_page", "slug": "x"}); got == "x" {
+			// id missing means deleted: the wording must be part of the cell
+			t.Errorf("%s: a page without an id shows no deleted wording", code)
+		}
+	}
+}
