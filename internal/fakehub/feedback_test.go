@@ -98,7 +98,7 @@ func TestFeedbackActions(t *testing.T) {
 	}
 }
 
-// Round 1: a bad cursor is a 422, the last page (even a full one) has no next, and the optional columns are null.
+// A bad cursor is a 422, the last page (even a full one) has no next, and the optional columns are null.
 func TestFeedbackCursorAndLastPage(t *testing.T) {
 	f, srv := serveFeedback(t)
 	f.Seed(Report{App: "hub", Message: "one"})

@@ -10,7 +10,7 @@ import (
 	"github.com/navi-crwn/imperium/internal/fakehub"
 )
 
-// Round 1 of the second reader: the checks that were missing.
+// Checks of who may see and change what, bad ids, broken hub answers and the menu count.
 
 func countCalls(f *fakehub.Feedback, pred func(c fakehub.Call) bool) int {
 	n := 0
