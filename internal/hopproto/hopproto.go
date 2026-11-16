@@ -274,6 +274,45 @@ func (c *Client) Call(ctx context.Context, app App, actor, method, pathAndQuery 
 	return &env, nil
 }
 
+// Fetch does one signed GET and returns the raw body, for an answer that is not JSON (an image). At most max
+// bytes are read; a longer body is an error, not a cut-off picture. A non-2xx answer becomes an *APIError.
+func (c *Client) Fetch(ctx context.Context, app App, actor, pathAndQuery string, max int64) (contentType string, body []byte, err error) {
+	full := strings.TrimRight(app.URL, "/") + app.Prefix + pathAndQuery
+	req, err := http.NewRequestWithContext(ctx, "GET", full, nil)
+	if err != nil {
+		return "", nil, err
+	}
+	for k, v := range Headers(c.As, app.Secret, actor, "GET", app.Prefix+pathAndQuery, nil) {
+		req.Header[k] = v
+	}
+	hc := c.HTTP
+	if hc == nil {
+		hc = &http.Client{Timeout: 15 * time.Second}
+	}
+	res, err := hc.Do(req)
+	if err != nil {
+		return "", nil, err
+	}
+	defer res.Body.Close()
+	if res.StatusCode >= 300 {
+		raw, _ := io.ReadAll(io.LimitReader(res.Body, 64<<10))
+		var env Envelope
+		code := fmt.Sprintf("http_%d", res.StatusCode)
+		if json.Unmarshal(raw, &env) == nil && env.Error != "" {
+			code = env.Error
+		}
+		return "", nil, &APIError{Status: res.StatusCode, Code: code, Message: cleanMessage(env.Message)}
+	}
+	body, err = io.ReadAll(io.LimitReader(res.Body, max+1))
+	if err != nil {
+		return "", nil, err
+	}
+	if int64(len(body)) > max {
+		return "", nil, errors.New("too_large")
+	}
+	return res.Header.Get("Content-Type"), body, nil
+}
+
 // APIError is an app's refusal. Error() is the protocol code, so callers can
 // compare it ("not_found"); for a 422 (the app rejected a value) it carries the
 // app's own message too, so the admin sees which field or range failed.

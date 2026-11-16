@@ -154,6 +154,9 @@ func (a *App) nav(r *http.Request) navData {
 	n.Pages = append(n.Pages,
 		navItem{Label: a.Tr(r, "nav.apps"), Href: "/apps", Kind: "apps", On: path == "/apps"},
 		navItem{Label: a.Tr(r, "nav.notifications"), Href: "/notifications", Kind: "notifications", On: strings.HasPrefix(path, "/notifications"), Badge: a.newErrors(r)})
+	if fbAllowed(sess) {
+		n.Pages = append(n.Pages, navItem{Label: a.Tr(r, "nav.feedback"), Href: "/feedback", Kind: "feedback", On: strings.HasPrefix(path, "/feedback"), Badge: a.feedbackBadge(r)})
+	}
 	if global {
 		n.Pages = append(n.Pages, navItem{Label: a.Tr(r, "nav.audit"), Href: "/audit", Kind: "audit", On: path == "/audit"})
 	}
