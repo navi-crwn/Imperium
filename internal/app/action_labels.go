@@ -15,6 +15,7 @@ var actionLabels = map[string][9]string{
 	"enable":           {"Enable", "启用", "Aktivieren", "Aktifkan", "有効にする", "Ativar", "Activar", "Activer", "Включить"},
 	"publish":          {"Publish", "发布", "Veröffentlichen", "Terbitkan", "公開する", "Publicar", "Publicar", "Publier", "Опубликовать"},
 	"unpublish":        {"Unpublish", "取消发布", "Veröffentlichung aufheben", "Batalkan publikasi", "公開を取り消す", "Cancelar publicação", "Anular publicación", "Dépublier", "Снять с публикации"},
+	"unpublish_page":   {"Unpublish page", "取消发布页面", "Seite zurückziehen", "Batalkan publikasi halaman", "ページの公開を取り消す", "Cancelar publicação da página", "Anular publicación de la página", "Dépublier la page", "Снять страницу с публикации"},
 	"transfer":         {"Transfer ownership", "转移所有权", "Eigentum übertragen", "Pindahkan kepemilikan", "所有権を移す", "Transferir propriedade", "Transferir propiedad", "Transférer la propriété", "Передать владение"},
 	"resolve":          {"Resolve", "标记为已解决", "Erledigen", "Selesaikan", "解決する", "Resolver", "Resolver", "Résoudre", "Решить"},
 	"dismiss":          {"Dismiss", "忽略", "Verwerfen", "Abaikan", "却下する", "Dispensar", "Descartar", "Ignorer", "Отклонить"},
@@ -54,7 +55,7 @@ func actionLabel(l, action string) string {
 
 func confirmAction(action string) bool {
 	switch action {
-	case "delete", "purge", "takedown", "ban_ip", "suspend", "disable", "hide", "unpublish", "transfer", "clear_custom_css", "resolve", "confirm", "freeze", "set_expiry", "release_slug":
+	case "delete", "purge", "takedown", "ban_ip", "suspend", "disable", "hide", "unpublish", "unpublish_page", "transfer", "clear_custom_css", "resolve", "confirm", "freeze", "set_expiry", "release_slug":
 		return true
 	}
 	return false

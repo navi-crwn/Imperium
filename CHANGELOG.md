@@ -12,6 +12,8 @@ All notable changes to Imperium are listed here. The format follows [Keep a Chan
 - **Mark done, Reopen and Delete.** Owners, admins and moderators can mark a report done or open it again; owners and admins can also delete it, after confirming and giving a reason. Support can only look. An admin of one app sees only that app's reports. Done, reopen and delete are written to the audit trail with who did it and which report, never with the report text or the sender's address.
 - **The sender's IP address is for owners and admins only.** Nobody else gets it in the page. After 30 days HOP ID removes it and the page says so.
 - Nine languages for all of it. The notes for people who run HOP ID are in the protocol document, section 11.
+- "Unpublish page" button for a visitor's report of a bio page (BioHop, Reports tab). Without this change the button would have shown the app's raw action name, "unpublish page", in every language. It now has a proper name in all nine languages. Pressing it asks for a reason, and from the bulk bar it also needs the confirmation tick, like the other buttons that hide content. BioHop then puts the page back to a draft and closes the report. Moderators, admins and owners (and the admin of that app) can press it; support only reads. Investigate and Close are unchanged.
+- In the Reports list, a report of a bio page now shows which page it is about: its name (slug) and web address, or "page deleted" (in all nine languages) when the page is already gone. Before it read "bio_page 42", so a moderator could not tell which page "Unpublish page" would hide. Other reports read as before.
 
 ## [1.2.0] - 2026-11-12
 
