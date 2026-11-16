@@ -28,6 +28,7 @@ var (
 	fbApps     = []string{"hub", "linkhop", "biohop", "pixelhop", "notehop", "filehop", "payhop"}
 	fbAppName  = map[string]string{"hub": "HOP ID", "linkhop": "LinkHop", "biohop": "BioHop", "pixelhop": "PixelHop", "notehop": "NoteHop", "filehop": "FileHop", "payhop": "PayHop"}
 	fbCursorRE = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+	fbIDRE     = fbCursorRE // ids and cursors share one shape (the hub contract)
 )
 
 const (
@@ -135,6 +136,37 @@ func (a *App) fbClear() {
 	a.fb.mu.Lock()
 	a.fb.m = nil
 	a.fb.mu.Unlock()
+}
+
+// fbStale marks every count old, so the next page of anybody shows the old number at once and renews it in the
+// background (nobody waits for the hub). The session that just acted gets its own count renewed here, so it sees
+// what its action did.
+func (a *App) fbStale(ctx context.Context, s *db.Session) {
+	a.fb.mu.Lock()
+	for _, e := range a.fb.m {
+		if !e.busy {
+			e.at = time.Time{}
+		}
+	}
+	a.fb.mu.Unlock()
+	cctx, cancel := context.WithTimeout(ctx, fbBadgeWait)
+	defer cancel()
+	n, err := a.fbCount(cctx, s)
+	if err != nil {
+		return
+	}
+	key := fbScopeKey(s)
+	a.fb.mu.Lock()
+	defer a.fb.mu.Unlock()
+	if a.fb.m == nil {
+		a.fb.m = map[string]*fbBadge{}
+	}
+	e := a.fb.m[key]
+	if e == nil {
+		e = &fbBadge{}
+		a.fb.m[key] = e
+	}
+	e.n, e.at = n, time.Now()
 }
 
 // fbCount asks HOP ID for the number of new reports of the apps the session sees.
@@ -368,6 +400,9 @@ func (a *App) fbList(w http.ResponseWriter, r *http.Request) {
 	p.Cols = []uiCol{{Label: tl(l, "fb.col.kind")}, {Label: tl(l, "ann.col.app")}, {Label: tl(l, "fb.col.message")}, {Label: tl(l, "fb.col.from")}, {Label: tl(l, "fb.col.received")}, {Label: tl(l, "fb.col.status")}}
 	keep := f.Encode()
 	for _, n := range rows {
+		if !fbSees(s, n.App) { // the hub filters too; this is the second lock
+			continue
+		}
 		msg := `<span class="fb-excerpt">` + string(hLink(fbDetailURL(n.ID, keep), n.Excerpt))
 		if n.HasScreenshot {
 			msg += ` <span class="small muted nw">· ` + esc(tl(l, "fb.has_image")) + `</span>`
@@ -393,6 +428,10 @@ func (a *App) fbShow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	l, id, f := a.langOf(r), r.PathValue("id"), fbF(r)
+	if !fbIDRE.MatchString(id) {
+		a.fbNotFound(w, r)
+		return
+	}
 	rep, err := a.fbGet(r.Context(), s, id)
 	if err != nil {
 		a.fbFail(w, r, err)
@@ -404,9 +443,9 @@ func (a *App) fbShow(w http.ResponseWriter, r *http.Request) {
 	}
 	if rep.Status == "new" && fbCanAct(s, rep.App) { // opening it is reading it; support only looks
 		var fresh fbReport
-		if _, err := a.callHop(r.Context(), s, "POST", "/feedback/"+url.PathEscape(id)+"/actions", map[string]any{"action": "read"}, &fresh); err == nil && fresh.ID != "" {
+		if _, err := a.callHop(r.Context(), s, "POST", "/feedback/"+url.PathEscape(id)+"/actions", map[string]any{"action": "read"}, &fresh); err == nil && fresh.ID == id && fresh.App == rep.App {
 			rep = &fresh
-			a.fbClear()
+			a.fbStale(r.Context(), s)
 		} else if err != nil {
 			log.Printf("feedback: mark read: %v", err)
 		}
@@ -418,10 +457,10 @@ func (a *App) fbShow(w http.ResponseWriter, r *http.Request) {
 		if rep.Status == "done" {
 			act = "reopen"
 		}
-		d.Posts = []uiPost{{Label: tl(l, "fb.act."+act), URL: "/feedback/" + url.PathEscape(rep.ID) + "/actions", Fields: [][2]string{{"action", act}, {"f", f}}}}
+		d.Posts = []uiPost{{Label: tl(l, "fb.act."+act), URL: "/feedback/" + url.PathEscape(id) + "/actions", Fields: [][2]string{{"action", act}, {"f", f}}}}
 	}
 	if fbCanDelete(s) {
-		d.Actions = []uiAction{{Label: actionLabel(l, "delete"), Action: "delete", URL: "/feedback/" + url.PathEscape(rep.ID) + "/actions", ID: dlgID(0, "fb", rep.ID, "delete"),
+		d.Actions = []uiAction{{Label: actionLabel(l, "delete"), Action: "delete", URL: "/feedback/" + url.PathEscape(id) + "/actions", ID: dlgID(0, "fb", id, "delete"),
 			Target: tl(l, "fb.kind."+rep.Kind) + " · " + fbAppLabel(rep.App), Danger: true, Fields: [][2]string{{"f", f}}}}
 	}
 	from := template.HTML(`<span class="muted">` + esc(tl(l, "fb.guest")) + `</span>`)
@@ -453,9 +492,9 @@ func (a *App) fbShow(w http.ResponseWriter, r *http.Request) {
 	case !rep.HasScreenshot:
 		shot.Empty = tl(l, "fb.d.no_image")
 	case r.URL.Query().Get("image") == "1":
-		shot.HTML = template.HTML(`<p><img class="fb-shot" src="/feedback/` + esc(url.PathEscape(rep.ID)) + `/screenshot" alt="` + esc(tl(l, "fb.d.image_alt")) + `"></p>`)
+		shot.HTML = template.HTML(`<p><img class="fb-shot" src="/feedback/` + esc(url.PathEscape(id)) + `/screenshot" alt="` + esc(tl(l, "fb.d.image_alt")) + `"></p>`)
 	default:
-		shot.HTML = template.HTML(`<p><a class="btn" href="` + esc(fbDetailURL(rep.ID, f, "image", "1")) + `">` + esc(tl(l, "fb.d.show_image")) + `</a></p>`)
+		shot.HTML = template.HTML(`<p><a class="btn" href="` + esc(fbDetailURL(id, f, "image", "1")) + `">` + esc(tl(l, "fb.d.show_image")) + `</a></p>`)
 	}
 	d.Sections = []uiSection{{KV: kv}, {Title: tl(l, "fb.col.message"), HTML: template.HTML(`<p class="pre-wrap">` + esc(rep.Message) + `</p>`)}, shot}
 	a.render(w, r, "detail.html", d.Title, map[string]any{"P": d})
@@ -485,6 +524,10 @@ func (a *App) fbShot(w http.ResponseWriter, r *http.Request) {
 	s, id := current(r), r.PathValue("id")
 	if !fbAllowed(s) {
 		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+	if !fbIDRE.MatchString(id) {
+		http.Error(w, "not found", http.StatusNotFound)
 		return
 	}
 	rep, err := a.fbGet(r.Context(), s, id)
@@ -541,18 +584,24 @@ func (a *App) fbAction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unknown action", http.StatusBadRequest)
 		return
 	}
-	if !fbAllowed(s) || !fbMayAct(s) || (action == "delete" && !fbCanDelete(s)) {
+	if !fbAllowed(s) || (globalRole(s) && (!fbMayAct(s) || (action == "delete" && !fbCanDelete(s)))) {
 		a.forbidden(w, r)
+		return
+	}
+	if !fbIDRE.MatchString(id) {
+		a.fbNotFound(w, r)
 		return
 	}
 	back := fbDetailURL(id, f)
 	rep, err := a.fbGet(r.Context(), s, id)
 	if err != nil {
+		var ae *hopproto.APIError
+		if errors.As(err, &ae) && ae.Status == http.StatusNotFound && ae.Code == "not_found" { // gone and another app's look the same
+			a.fbNotFound(w, r)
+			return
+		}
 		_, msg := fbErrText(a.langOf(r), err)
 		a.flashError(w, msg)
-		if st, _ := hubStatus(err); st == http.StatusNotFound {
-			back = fbListURL(f)
-		}
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
@@ -560,7 +609,7 @@ func (a *App) fbAction(w http.ResponseWriter, r *http.Request) {
 		a.fbNotFound(w, r)
 		return
 	}
-	if !fbCanAct(s, rep.App) {
+	if !fbCanAct(s, rep.App) || (action == "delete" && !fbCanDelete(s)) {
 		a.forbidden(w, r)
 		return
 	}
@@ -593,7 +642,7 @@ func (a *App) fbAction(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, back, http.StatusFound)
 		return
 	}
-	a.fbClear()
+	a.fbStale(r.Context(), s)
 	a.flash(w, a.Tr(r, "action.done"))
 	if action == "delete" {
 		back = fbListURL(f)

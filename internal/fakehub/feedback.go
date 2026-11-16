@@ -46,6 +46,11 @@ type Feedback struct {
 	fail  *ErrSpec
 	// Missing makes every call answer 404 with no JSON, like a hub that predates the routes.
 	Missing bool
+	// IgnoreApp makes the list ignore the app filter, like a careless hub (Imperium filters again itself).
+	IgnoreApp bool
+	// RawBody, when set, is what every call answers with (status RawStatus): a broken or foreign answer.
+	RawStatus int
+	RawBody   string
 	// Delay makes every call wait that long (or until the caller gives up) before it answers.
 	Delay time.Duration
 }
@@ -164,6 +169,7 @@ func (f *Feedback) Register(m *http.ServeMux, prefix string, wrap Wrap) {
 			f.mu.Lock()
 			f.calls = append(f.calls, Call{Method: r.Method, Path: r.URL.RequestURI(), Body: parsed, Actor: r.Header.Get("X-HOP-Actor")})
 			e, missing, delay := f.fail, f.Missing, f.Delay
+			rawStatus, rawBody := f.RawStatus, f.RawBody
 			f.mu.Unlock()
 			if delay > 0 {
 				select {
@@ -171,6 +177,11 @@ func (f *Feedback) Register(m *http.ServeMux, prefix string, wrap Wrap) {
 				case <-r.Context().Done():
 					return
 				}
+			}
+			if rawBody != "" {
+				w.WriteHeader(rawStatus)
+				_, _ = w.Write([]byte(rawBody))
+				return
 			}
 			if missing {
 				http.NotFound(w, r)
@@ -187,6 +198,19 @@ func (f *Feedback) Register(m *http.ServeMux, prefix string, wrap Wrap) {
 	m.HandleFunc("GET "+prefix+"/feedback/{id}", h(f.show))
 	m.HandleFunc("GET "+prefix+"/feedback/{id}/screenshot", h(f.shot))
 	m.HandleFunc("POST "+prefix+"/feedback/{id}/actions", h(f.act))
+}
+
+// validID is the shape the contract fixes for ids and cursors.
+func validID(v string) bool {
+	if v == "" || len(v) > 64 {
+		return false
+	}
+	for _, c := range v {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '_' || c == '-') {
+			return false
+		}
+	}
+	return true
 }
 
 func has(list []string, v string) bool {
@@ -232,12 +256,16 @@ func (f *Feedback) list(w http.ResponseWriter, r *http.Request, _ []byte) {
 		}
 		limit = min(100, n)
 	}
+	if v := q.Get("cursor"); v != "" && !validID(v) {
+		fail(w, 422, "bad_params", "cursor is not valid")
+		return
+	}
 	cursor, _ := strconv.Atoi(q.Get("cursor"))
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	var match []*Report
 	for _, row := range f.rows {
-		if v := q.Get("app"); v != "" && row.App != v {
+		if v := q.Get("app"); v != "" && row.App != v && !f.IgnoreApp {
 			continue
 		}
 		if v := q.Get("kind"); v != "" && row.Kind != v {
@@ -257,10 +285,8 @@ func (f *Feedback) list(w http.ResponseWriter, r *http.Request, _ []byte) {
 		}
 	}
 	var next any
-	if len(rows) > limit {
+	if len(rows) > limit { // only when something follows: the last page never points at an empty one
 		rows = rows[:limit]
-	}
-	if len(rows) == limit {
 		next = strconv.Itoa(rows[len(rows)-1].ID)
 	}
 	data := make([]map[string]any, 0, len(rows))
@@ -334,6 +360,20 @@ func (f *Feedback) act(w http.ResponseWriter, r *http.Request, body []byte) {
 		return
 	}
 	out(w, 200, map[string]any{"ok": true, "data": f.detail(row)})
+}
+
+// SetRaw makes every call answer with this status and body; an empty body turns it off.
+func (f *Feedback) SetRaw(status int, body string) {
+	f.mu.Lock()
+	f.RawStatus, f.RawBody = status, body
+	f.mu.Unlock()
+}
+
+// SetIgnoreApp turns the careless app filter on or off.
+func (f *Feedback) SetIgnoreApp(v bool) {
+	f.mu.Lock()
+	f.IgnoreApp = v
+	f.mu.Unlock()
 }
 
 // SetDelay makes every call wait d before it answers; 0 turns it off.

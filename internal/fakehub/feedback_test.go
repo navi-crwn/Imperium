@@ -97,3 +97,27 @@ func TestFeedbackActions(t *testing.T) {
 		t.Errorf("a hub without the routes: %d %s", code, out)
 	}
 }
+
+// Round 1: a bad cursor is a 422, the last page (even a full one) has no next, and the optional columns are null.
+func TestFeedbackCursorAndLastPage(t *testing.T) {
+	f, srv := serveFeedback(t)
+	f.Seed(Report{App: "hub", Message: "one"})
+	f.Seed(Report{App: "hub", Message: "two"})
+	if code, _ := call(t, srv, "GET", "/api/hop/feedback?cursor=..%2Fx", ""); code != 422 {
+		t.Errorf("a bad cursor answered %d", code)
+	}
+	_, out := call(t, srv, "GET", "/api/hop/feedback?limit=2", "")
+	if !strings.Contains(out, `"next":null`) {
+		t.Errorf("a full last page points on: %s", out)
+	}
+	_, out = call(t, srv, "GET", "/api/hop/feedback?limit=1", "")
+	if !strings.Contains(out, `"next":"2"`) {
+		t.Errorf("a page with more behind it has no next: %s", out)
+	}
+	_, out = call(t, srv, "GET", "/api/hop/feedback/1", "")
+	for _, k := range []string{`"page":null`, `"app_version":null`, `"user_agent":null`, `"viewport":null`, `"locale":null`, `"user":null`, `"ip":null`, `"read_at":null`, `"done_at":null`} {
+		if !strings.Contains(out, k) {
+			t.Errorf("an empty column is not null (%s): %s", k, out)
+		}
+	}
+}

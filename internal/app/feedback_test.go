@@ -23,7 +23,7 @@ const (
 	jpegBytes = "\xff\xd8\xff\xe0\x00\x10JFIF-test-image"
 )
 
-type fbIDs struct{ px, lh, hub int }
+type fbIDs struct{ px, lh, hub, lhNew int }
 
 func (e *annEnv) seedFeedback() fbIDs {
 	f := e.hop.fb
@@ -31,6 +31,7 @@ func (e *annEnv) seedFeedback() fbIDs {
 	ids.hub = f.Seed(fakehub.Report{Kind: "other", Status: "done", App: "hub", Message: "日本語のテキスト Привет", Page: "home", Lang: "ja", CreatedAt: time.Now().Add(-48 * time.Hour)})
 	ids.lh = f.Seed(fakehub.Report{Kind: "idea", Status: "read", App: "linkhop", Message: "Please add folders for links.", Page: "dashboard.links", AppVersion: "2.4.1", IP: ipLink, UserAgent: "Firefox 130", Viewport: "390x844", Lang: "en", CreatedAt: time.Now().Add(-24 * time.Hour)})
 	ids.px = f.Seed(fakehub.Report{Kind: "problem", Status: "new", App: "pixelhop", Message: xssText, Page: "/i/{id}", AppVersion: "3.7.0", UserID: 7, Username: "helena", IP: ipPixel, UserAgent: "Edge 130 <b>x</b>", Viewport: "1440x900", Lang: "id", Screenshot: []byte(jpegBytes), CreatedAt: time.Now().Add(-2 * time.Hour)})
+	ids.lhNew = f.Seed(fakehub.Report{Kind: "problem", Status: "new", App: "linkhop", Message: "Link of another app, with a picture.", IP: "198.51.100.44", Screenshot: []byte(jpegBytes)})
 	e.a.fbClear() // the sign-in already counted an empty inbox
 	return ids
 }
@@ -315,11 +316,11 @@ func TestFeedbackDeleteAndStaleTab(t *testing.T) {
 	if code, loc := e.fbPost(t, path, url.Values{"action": {"delete"}, "ack": {"yes"}, "reason": {"spam"}, "f": {"status=new"}}); code != 302 || loc != "/feedback?status=new" {
 		t.Fatalf("delete: %d %s", code, loc)
 	}
-	if e.hop.fb.Len() != 2 {
+	if e.hop.fb.Len() != 3 {
 		t.Error("the report is still at the hub")
 	}
 	// the other tab: delete again and open
-	if code, loc := e.fbPost(t, path, url.Values{"action": {"delete"}, "ack": {"yes"}, "reason": {"again"}}); code != 302 || loc != "/feedback" {
+	if code, loc := e.fbPost(t, path, url.Values{"action": {"delete"}, "ack": {"yes"}, "reason": {"again"}}); code != 404 {
 		t.Errorf("second delete: %d %s", code, loc)
 	}
 	code, page := e.get(t, fmt.Sprintf("/feedback/%d", ids.px))

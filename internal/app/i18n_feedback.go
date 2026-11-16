@@ -35,7 +35,6 @@ var feedbackText = map[string][9]string{
 	"fb.act.reopen":   {"Reopen", "重新打开", "Wieder öffnen", "Buka lagi", "再開する", "Reabrir", "Reabrir", "Rouvrir", "Открыть снова"},
 	"fb.err.old_hub":  {"This HOP ID does not have the feedback inbox yet. Update it first.", "此 HOP ID 尚无反馈收件箱,请先更新。", "Diese HOP-ID-Version hat noch keinen Feedback-Eingang. Bitte zuerst aktualisieren.", "HOP ID ini belum punya kotak masukan. Perbarui dulu.", "この HOP ID にはまだフィードバック受信箱がありません。先に更新してください。", "Este HOP ID ainda não tem a caixa de feedback. Atualize primeiro.", "Este HOP ID aún no tiene la bandeja de comentarios. Actualízalo primero.", "Ce HOP ID n'a pas encore la boîte de retours. Mettez-le d'abord à jour.", "В этом HOP ID ещё нет ящика отзывов. Сначала обновите его."},
 	"fb.err.gone":     {"This report no longer exists. It may have been deleted.", "该报告已不存在,可能已被删除。", "Dieser Bericht existiert nicht mehr. Er wurde vielleicht gelöscht.", "Laporan ini sudah tidak ada. Mungkin sudah dihapus.", "この報告はもう存在しません。削除された可能性があります。", "Este relato não existe mais. Pode ter sido excluído.", "Este informe ya no existe. Puede que se haya eliminado.", "Ce signalement n'existe plus. Il a peut-être été supprimé.", "Этого сообщения больше нет. Возможно, оно удалено."},
-	"fb.err.image":    {"The image could not be loaded.", "无法加载图片。", "Das Bild konnte nicht geladen werden.", "Gambar tidak dapat dimuat.", "画像を読み込めませんでした。", "Não foi possível carregar a imagem.", "No se pudo cargar la imagen.", "L'image n'a pas pu être chargée.", "Не удалось загрузить изображение."},
 }
 
 func init() {

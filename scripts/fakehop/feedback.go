@@ -61,5 +61,7 @@ func feedback() *fakehub.Feedback {
 	f.Seed(fakehub.Report{Kind: "idea", Status: "new", App: "linkhop", Message: "Folders for links, please.", Page: "dashboard.links", AppVersion: "2.4.1", UserID: 7, Username: "helena", IP: "203.0.113.45", UserAgent: "Firefox 130", Viewport: "1366x768", Lang: "de", CreatedAt: ago(90 * time.Minute)})
 	f.Seed(fakehub.Report{Kind: "problem", Status: "read", App: "filehop", Message: "Download link says the file expired after one day, but I set seven days.", Page: "dl", AppVersion: "1.1.0", UserAgent: "Chrome 130", Viewport: "1536x864", Lang: "ru", CreatedAt: ago(45 * 24 * h)})
 	f.Seed(fakehub.Report{Kind: "other", Status: "new", App: "biohop", Message: "Привет! Страница профиля открывается медленно по вечерам.", Page: "bio.show", AppVersion: "2.0.3", IP: "203.0.113.8", UserAgent: "Opera 114", Viewport: "1280x720", Lang: "ru", CreatedAt: ago(40 * time.Minute)})
+	f.Seed(fakehub.Report{Kind: "problem", Status: "new", App: "pixelhop", Message: "The page goes blank after I rotate my phone.", Page: "dashboard.images", AppVersion: "3.7.0", UserID: 9, Username: "rama", IP: "203.0.113.90", Viewport: "844x390", Lang: "id", CreatedAt: ago(20 * time.Minute),
+		UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0 OPR/115.0.0.0 Vivaldi/7.0.3495.18 ExtraLongToken_abcdefghijklmnopqrstuvwxyz0123456789_abcdefghijklmnopqrstuvwxyz0123456789"})
 	return f
 }
