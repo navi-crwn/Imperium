@@ -48,6 +48,19 @@ func (u *bulkUpstream) seen() []map[string]any {
 // actions, plus the reports queue the handler reads.
 func newBulkSetup(t *testing.T) (*fakeHop, *bulkUpstream, *App, *httptest.Server) {
 	t.Helper()
+	return newBulkSetupWith(t, bulkManifest, bulkReports)
+}
+
+const bulkManifest = `{"ok":true,"data":{"app":"linkhop","name":"LinkHop","capabilities":["admin_api","reports"],"content_types":[],"actions":{"report":["dismiss","resolve"]}}}`
+
+const bulkReports = `{"ok":true,"data":[
+			{"kind":"flag","id":"a1","summary":"phishing words","status":"open","created_at":"2026-11-01T00:00:00Z"},
+			{"kind":"flag","id":"a2","summary":"telegram kit","status":"open","created_at":"2026-11-02T00:00:00Z"},
+			{"kind":"report","id":"b1","summary":"visitor report","status":"open","created_at":"2026-11-03T00:00:00Z"}]}`
+
+// newBulkSetupWith is newBulkSetup with the app's manifest and report queue given as JSON answers.
+func newBulkSetupWith(t *testing.T, manifest, reports string) (*fakeHop, *bulkUpstream, *App, *httptest.Server) {
+	t.Helper()
 	hop := newFakeHop(t)
 	up := &bulkUpstream{fail: map[string]bool{}}
 	api := func(h func(w http.ResponseWriter, r *http.Request, body []byte)) http.HandlerFunc {
@@ -63,16 +76,14 @@ func newBulkSetup(t *testing.T) (*fakeHop, *bulkUpstream, *App, *httptest.Server
 	}
 	mux := hop.srv.Config.Handler.(*http.ServeMux)
 	mux.HandleFunc("GET /api/hop/manifest", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
-		_, _ = w.Write([]byte(`{"ok":true,"data":{"app":"linkhop","name":"LinkHop","capabilities":["admin_api","reports"],"content_types":[],"actions":{"report":["dismiss","resolve"]}}}`))
+		_, _ = w.Write([]byte(manifest))
 	}))
 	mux.HandleFunc("GET /api/hop/reports", api(func(w http.ResponseWriter, r *http.Request, _ []byte) {
-		_, _ = w.Write([]byte(`{"ok":true,"data":[
-			{"kind":"flag","id":"a1","summary":"phishing words","status":"open","created_at":"2026-11-01T00:00:00Z"},
-			{"kind":"flag","id":"a2","summary":"telegram kit","status":"open","created_at":"2026-11-02T00:00:00Z"},
-			{"kind":"report","id":"b1","summary":"visitor report","status":"open","created_at":"2026-11-03T00:00:00Z"}]}`))
+		_, _ = w.Write([]byte(reports))
 	}))
 	mux.HandleFunc("POST /api/hop/reports/flag/{id}/actions", api(up.handle))
 	mux.HandleFunc("POST /api/hop/reports/report/{id}/actions", api(up.handle))
+	mux.HandleFunc("POST /api/hop/reports/{id}/actions", api(up.handle))
 
 	a, srv := newApp(t, hop)
 	t.Cleanup(srv.Close)

@@ -6,7 +6,7 @@ import (
 )
 
 func TestDestructiveProtocolActionsRequireConfirmation(t *testing.T) {
-	for _, action := range []string{"delete", "purge", "takedown", "ban_ip", "suspend", "disable", "hide", "unpublish", "transfer", "clear_custom_css", "freeze", "set_expiry", "release_slug"} {
+	for _, action := range []string{"delete", "purge", "takedown", "ban_ip", "suspend", "disable", "hide", "unpublish", "unpublish_page", "transfer", "clear_custom_css", "freeze", "set_expiry", "release_slug"} {
 		if !confirmAction(action) {
 			t.Errorf("%s must require confirmation", action)
 		}
