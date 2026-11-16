@@ -107,6 +107,7 @@ type detailPage struct {
 	Dialogs                []uiAction
 	Edit                   string // a secondary link next to the Actions menu
 	EditLabel              string
+	Posts                  []uiPost // plain buttons that post a form (no dialog), shown before the Actions menu
 }
 
 // destructiveAction is an action that cannot be taken back; it lives at the bottom of a menu and is
@@ -291,4 +292,10 @@ func (a *App) extDialogs(l, slug, ext string) []uiAction {
 		}
 	}
 	return out
+}
+
+// uiPost is a button that posts its hidden fields to URL at once, for an action that needs no reason.
+type uiPost struct {
+	Label, URL string
+	Fields     [][2]string
 }

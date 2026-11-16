@@ -4,6 +4,15 @@ All notable changes to Imperium are listed here. The format follows [Keep a Chan
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-16
+
+### Added
+- **Feedback, in the menu.** A new page lists what people send from the feedback form on hel.ink, from every app, newest first. You can filter by app, type (problem, idea or other) and status (new, read, done). The menu shows how many reports are new. The list says clearly when HOP ID is unreachable or too old to have the inbox, and the other pages keep working.
+- **One report, in full.** Each report shows the text exactly as written (no links are made from it), the screen and app version it came from, who sent it (or Guest), the browser and window size, and when it was read or finished. Opening a report marks it read. A screenshot is only fetched when you press "Show image".
+- **Mark done, Reopen and Delete.** Owners, admins and moderators can mark a report done or open it again; owners and admins can also delete it, after confirming and giving a reason. Support can only look. An admin of one app sees only that app's reports. Done, reopen and delete are written to the audit trail with who did it and which report, never with the report text or the sender's address.
+- **The sender's IP address is for owners and admins only.** Nobody else gets it in the page. After 30 days HOP ID removes it and the page says so.
+- Nine languages for all of it. The notes for people who run HOP ID are in the protocol document, section 11.
+
 ## [1.2.0] - 2026-11-12
 
 ### Added

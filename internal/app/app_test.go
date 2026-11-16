@@ -49,6 +49,7 @@ type fakeHop struct {
 	statsCalls     int                            // how often HOP ID's /stats was asked
 	failAction     string                         // an action name HOP ID refuses with a 500 (empty: none)
 	ann            *fakehub.Store                 // HOP ID's announcements (the contract in docs/announcements-contract.md)
+	fb             *fakehub.Feedback              // HOP ID's feedback inbox (the routes of /api/hop/feedback)
 
 	// mu guards the fields below. The handlers run on the fake servers'
 	// goroutines (including the sign-in's background registry sync) while the
@@ -172,6 +173,8 @@ func newFakeHop(t *testing.T) *fakeHop {
 	}))
 	f.ann = fakehub.New("linkhop", "pixelhop")
 	f.ann.Register(mux, "/api/hop", func(h fakehub.Handler) http.HandlerFunc { return api(h) })
+	f.fb = fakehub.NewFeedback()
+	f.fb.Register(mux, "/api/hop", func(h fakehub.Handler) http.HandlerFunc { return api(h) })
 	f.srv = httptest.NewServer(mux)
 	// PixelHop's admin API (prefix /hop), signed with its own secret, on its own server.
 	pxmux := http.NewServeMux()

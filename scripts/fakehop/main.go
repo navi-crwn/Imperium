@@ -35,6 +35,7 @@ var (
 	fhSecret = flag.String("fh-secret", "filehop-dev-secret-that-is-long-enough-123", "FileHop's secret")
 	phSecret = flag.String("ph-secret", "payhop-dev-secret-that-is-long-enough-1234", "PayHop's secret")
 	nonces   hopproto.Nonces
+	impURL   = flag.String("imp", "http://127.0.0.1:8100", "Imperium's address, where /as/<person> sends the browser to sign in")
 )
 
 func flagBool(n string, d bool, u string) *bool { return flag.Bool(n, d, u) }
@@ -91,9 +92,21 @@ func main() {
 
 func laravelApp(hub bool) http.Handler {
 	m := http.NewServeMux()
+	// One click to sign in as one of the demo people: sets the choice, then goes to Imperium's own sign-in.
+	m.HandleFunc("GET /as/{who}", func(w http.ResponseWriter, r *http.Request) {
+		for sub, p := range demoPeople {
+			if p.key == r.PathValue("who") {
+				http.SetCookie(w, &http.Cookie{Name: "fakehop_as", Value: sub, Path: "/"})
+				http.Redirect(w, r, *impURL+"/auth/sso", http.StatusFound)
+				return
+			}
+		}
+		http.NotFound(w, r)
+	})
 	m.HandleFunc("GET /sso/{app}", func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now().Unix()
-		p := map[string]any{"sub": "1", "username": "superadmin", "name": "Superadmin", "email": "owner@example.test", "roles": []string{"owner"}, "mfa": true, "status": "active",
+		who := demoPeople[demoSub(r)]
+		p := map[string]any{"sub": demoSub(r), "username": who.username, "name": who.name, "email": who.username + "@example.test", "roles": who.roles, "mfa": true, "status": "active",
 			"state": r.URL.Query().Get("state"), "iat": now, "exp": now + 120, "jti": fmt.Sprint(now, time.Now().Nanosecond()), "aud": r.PathValue("app"), "v": 2}
 		js, _ := json.Marshal(p)
 		body := hopproto.B64(js)
@@ -153,8 +166,8 @@ func laravelApp(hub bool) http.Handler {
 	})
 	s("GET /api/hop/users/{id}", func(w http.ResponseWriter, r *http.Request) {
 		roles := []string{}
-		if r.PathValue("id") == "1" {
-			roles = []string{"owner"} // the demo sign-in below; Imperium asks the hub about it every few minutes
+		if p, ok := demoPeople[r.PathValue("id")]; ok {
+			roles = p.roles // the demo sign-in below; Imperium asks the hub about it every few minutes
 		}
 		ok(w, map[string]any{"profile": map[string]any{"sub": r.PathValue("id"), "username": "rani", "name": "Rani Dewi", "email": "rani@example.test", "status": "active", "verified": true},
 			"counts": map[string]any{"links": 38, "bio_pages": 1, "clicks_30d": 912}, "sessions": map[string]any{"count": 2}, "logins": []map[string]any{{"at": day(0) + "T08:01:00Z", "ip": "203.0.113.7", "country": "ID", "city": "Jakarta", "device": "Desktop", "browser": "Firefox", "provider": "password"}, {"at": day(2) + "T19:30:00Z", "ip": "198.51.100.20", "country": "ID", "city": "Bandung", "device": "Phone", "browser": "Chrome", "provider": "google"}},
@@ -222,6 +235,13 @@ func laravelApp(hub bool) http.Handler {
 	if hub {
 		// The announcements admin API: not in HOP ID yet, so fakehop answers by the contract (docs/announcements-contract.md).
 		announcements().Register(m, "/api/hop", func(h fakehub.Handler) http.HandlerFunc {
+			return signed(*secret, func(w http.ResponseWriter, r *http.Request) {
+				b, _ := io.ReadAll(r.Body)
+				h(w, r, b)
+			})
+		})
+		// The feedback inbox: the routes the hub has to offer for HOP ID's feedback form (internal/fakehub/feedback.go).
+		feedback().Register(m, "/api/hop", func(h fakehub.Handler) http.HandlerFunc {
 			return signed(*secret, func(w http.ResponseWriter, r *http.Request) {
 				b, _ := io.ReadAll(r.Body)
 				h(w, r, b)
@@ -378,4 +398,24 @@ func payhop() http.Handler {
 	})
 	m.HandleFunc("POST /hop/", signed(*phSecret, func(w http.ResponseWriter, r *http.Request) { ok(w, map[string]any{}) }))
 	return m
+}
+
+// demoPeople are the accounts the hub signs in: /as/<key> picks one (the owner when nothing was picked).
+var demoPeople = map[string]struct {
+	key, username, name string
+	roles               []string
+}{
+	"1": {"owner", "helena", "Helena", []string{"owner"}},
+	"2": {"moderator", "dewi", "Dewi", []string{"moderator"}},
+	"3": {"support", "sari", "Sari", []string{"support"}},
+	"4": {"pixelhop-admin", "rama", "Rama", []string{"admin:pixelhop"}},
+}
+
+func demoSub(r *http.Request) string {
+	if c, err := r.Cookie("fakehop_as"); err == nil {
+		if _, ok := demoPeople[c.Value]; ok {
+			return c.Value
+		}
+	}
+	return "1"
 }

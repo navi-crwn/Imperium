@@ -203,3 +203,25 @@ Pengelompokan: sidik jari = `sha256(app | env | type | tanggal)` dengan tanggal 
 - Retensi: kejadian dihapus setelah 30 hari; kelompok dihapus bila `last_seen` lebih dari 90 hari (kelompok `resolved`: 30 hari). Dijalankan tiap 5 menit di `Sweep`. Batas ukuran: 5.000 kelompok, 1.000 per aplikasi; bila penuh, kelompok non-`new` paling lama dibuang, jika tidak ada maka `429 inbox_full`.
 - Telegram (bila dikonfigurasi): satu pesan per kelompok per cooldown (`IMPERIUM_NOTIFY_COOLDOWN_MINUTES`, bawaan 60) untuk kelompok baru, regresi, atau hitungan melewati 10/100/1000. Isinya hanya aplikasi, kelas, template route dan hitungan.
 - Semua aksi di halaman (ack, resolve, mute dengan alasan, reopen) ditulis ke audit lokal dalam transaksi yang sama dengan perubahan status.
+
+## 11. Imperium → HOP ID: `/api/hop/feedback`
+
+Kotak masukan pengguna. Laporan dikirim lewat formulir di HOP ID (`/feedback`) dan **disimpan di HOP ID**; Imperium tidak menyimpan apa pun dari laporan, hanya membaca dan mengubahnya lewat rute ini. Sama seperti `/api/hop/announcements`: bertanda tangan (bagian 2, rahasia Imperium sendiri), hanya untuk app berkemampuan `admin_client`, amplop bagian 3 (`{ok, data, page:{next,total}}`; galat `{ok:false, error, message}`).
+
+| Rute | Jawaban |
+|---|---|
+| `GET /api/hop/feedback?app=&kind=&status=&cursor=&limit=` | Terbaru dulu. `limit` bawaan 25, paling besar 100. Tiap baris: `id` (string), `kind` (`problem`/`idea`/`other`), `status` (`new`/`read`/`done`), `app` (`hub`, `linkhop`, `biohop`, `pixelhop`, `notehop`, `filehop`, `payhop`), `page`, `excerpt` (≤ 160 huruf, satu baris), `has_screenshot`, `username` (atau `null` untuk tamu), `created_at`. `page.next` = kursor halaman berikutnya, `page.total` = jumlah yang cocok. Nilai saring yang tidak sah dijawab `422`, bukan daftar kosong. |
+| `GET /api/hop/feedback/{id}` | `id, kind, status, app, page, app_version, message, user` (`{id, username}` atau `null`), `ip` (atau `null` bila sudah dihapus otomatis sesudah 30 hari), `user_agent, viewport, locale, has_screenshot, created_at, read_at, done_at`. Id yang tidak ada: `404 not_found`. |
+| `GET /api/hop/feedback/{id}/screenshot` | `200 image/jpeg` dengan `Cache-Control: private, no-store` dan `X-Content-Type-Options: nosniff`; laporan tanpa gambar: `404`. Bukan JSON. |
+| `POST /api/hop/feedback/{id}/actions` | Badan `{"action": "read"\|"done"\|"reopen"\|"delete"}`. `read` hanya mengubah `new` menjadi `read`; `done` menandai selesai; `reopen` mengembalikan ke `read`; `delete` menghapus baris dan berkas gambarnya (jawaban `{ok:true}`). Aksi lain `400 bad_action`; id tidak ada `404 not_found`. Jawaban lain = rincian terbaru. |
+
+Angka "baru" untuk lencana menu = `page.total` dari `GET /api/hop/feedback?status=new&limit=1` (untuk `admin:<app>`: ditambah `&app=<app>`).
+
+Sisi Imperium:
+
+- Menu global **Feedback** dengan lencana jumlah `new` (disimpan 60 detik; hub mati atau lambat = tanpa lencana, halaman lain tidak menunggu).
+- Hak: owner dan admin melihat semua, termasuk `ip`, dan boleh Delete; moderator melihat, Mark done, Reopen, **tanpa** `ip`; support hanya melihat, tanpa `ip`, dan membuka rincian tidak mengubah status; `admin:<app>` hanya laporan app itu (app lain `404`), Mark done/Reopen, tanpa `ip`. "Tanpa `ip`" = tidak ada di HTML.
+- Isi laporan tampil sebagai teks ter-escape; alamat web di dalamnya tidak menjadi tautan.
+- Gambar lewat rute Imperium `GET /feedback/{id}/screenshot` (wajib sesi, peran yang sama), diteruskan dari hub dengan `Content-Type: image/jpeg` tetap, paling besar 10 MB, dan baru diminta sesudah admin menekan "Show image".
+- Mark done, Reopen dan Delete masuk audit Imperium (siapa, aksi, id laporan, app), tanpa isi laporan dan tanpa alamat IP pelapor; membuka laporan (aksi `read`) tidak dicatat.
+- `scripts/fakehop` dan `internal/fakehub` menjawab rute ini persis seperti tabel di atas, supaya Imperium bisa dibangun dan diuji tanpa hub yang asli.

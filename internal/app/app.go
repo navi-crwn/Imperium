@@ -37,6 +37,7 @@ type App struct {
 
 	manifests manifestCache
 	inbox     *notifyInbox
+	fb        fbBadges
 
 	checkMu sync.Mutex
 	checked map[string]time.Time // session token hash -> when HOP ID is asked about it next
@@ -161,6 +162,10 @@ func (a *App) Handler() http.Handler {
 	m.HandleFunc("GET /announcements/{id}/edit", a.member(a.annEdit))
 	m.HandleFunc("POST /announcements/{id}", a.member(a.annSave))
 	m.HandleFunc("POST /announcements/{id}/actions", a.member(a.annAction))
+	m.HandleFunc("GET /feedback", a.member(a.fbList))
+	m.HandleFunc("GET /feedback/{id}", a.member(a.fbShow))
+	m.HandleFunc("GET /feedback/{id}/screenshot", a.member(a.fbShot))
+	m.HandleFunc("POST /feedback/{id}/actions", a.member(a.fbAction))
 	m.HandleFunc("GET /apps", a.member(a.apps))
 	m.HandleFunc("POST /apps/sync", a.member(a.appsSync))
 	m.HandleFunc("GET /apps/{app}", a.member(a.dashboard))
